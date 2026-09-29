@@ -126,6 +126,8 @@ class MainActivity : AppCompatActivity() {
     // 建音色（声音复刻）
     private val REQ_PICK_AUDIO = 1001
     private val MAX_SAMPLE_BYTES = 15L * 1024 * 1024
+    /** 本地记录首屏最多渲染多少条（其余点「显示全部」再看）——直接决定冷启动要建多少 View */
+    private val HISTORY_PREVIEW = 25
     private var createDlg: AlertDialog? = null
     private var createFileTv: TextView? = null
     private var createStatus: TextView? = null
@@ -142,6 +144,9 @@ class MainActivity : AppCompatActivity() {
 
     /** 本地记录的音色筛选（null = 全部）；仅本次运行有效 */
     private var filterVoiceId: String? = null
+
+    /** 本地记录是否已展开全部（默认只渲染最近 HISTORY_PREVIEW 条） */
+    private var historyExpanded = false
 
     /** 当前音色（自绘选择器）：voiceIsCustom = 选了「自定义音色 ID…」 */
     private var currentVoiceId: String = ""
@@ -862,8 +867,26 @@ class MainActivity : AppCompatActivity() {
             llHistory.addView(tv)
             return
         }
-        for (t in list) {
+        // 首屏只建最近 25 条：冷启动不必为几十上百条记录创建上千个 View
+        val shown = if (historyExpanded) list else list.take(HISTORY_PREVIEW)
+        for (t in shown) {
             llHistory.addView(buildRow(t))
+        }
+        if (list.size > HISTORY_PREVIEW) {
+            val more = TextView(this)
+            more.text = if (historyExpanded) "收起（只显示最近 $HISTORY_PREVIEW 条）"
+            else "显示全部（共 ${list.size} 条）"
+            more.setTextColor(cDim)
+            more.textSize = 13f
+            more.gravity = Gravity.CENTER
+            more.setPadding(0, dp(10), 0, dp(2))
+            more.isClickable = true
+            more.isFocusable = true
+            more.setOnClickListener {
+                historyExpanded = !historyExpanded
+                renderHistory()
+            }
+            llHistory.addView(more)
         }
         Skin.apply(llHistory, Skin.colors(this))
     }
@@ -984,6 +1007,7 @@ class MainActivity : AppCompatActivity() {
                 takes.forEach { store.deleteFile(it) }
                 takes.clear()
                 filterVoiceId = null
+                historyExpanded = false
                 store.saveTakes(takes)
                 currentTake = null
                 cardResult.visibility = View.GONE
@@ -1171,6 +1195,7 @@ class MainActivity : AppCompatActivity() {
             tv.isFocusable = true
             tv.setOnClickListener {
                 filterVoiceId = id
+                historyExpanded = false
                 renderHistory()
                 pop?.dismiss()
             }
