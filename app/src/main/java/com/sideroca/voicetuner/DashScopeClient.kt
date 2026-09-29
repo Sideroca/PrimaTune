@@ -97,12 +97,16 @@ class DashScopeClient {
     fun synthesize(req: SynthRequest, callback: SynthCallback): Cancellable {
         done = false
         resetBuffer()
+        // workspace 是拼 URL 的，非法值会让 Request.Builder().url() 同步抛异常（旧版会闪退）
+        if (req.workspace.isBlank() || !Regex("^[a-z0-9-]+$").matches(req.workspace)) {
+            done = true
+            callback.onError("workspace 不合法（应为小写字母/数字/连字符）：\"" + req.workspace + "\"")
+            return object : Cancellable {
+                override fun cancel() {
+                }
+            }
+        }
         val taskId = UUID.randomUUID().toString().replace("-", "")
-        val url = "wss://" + req.workspace + ".cn-beijing.maas.aliyuncs.com/api-ws/v1/inference"
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer " + req.apiKey)
-            .build()
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -161,8 +165,7 @@ class DashScopeClient {
             }
         }
 
-        ws = wsClient.newWebSocket(request, listener)
-        return object : Cancellable {
+        val cancellable = object : Cancellable {
             override fun cancel() {
                 done = true
                 try {
@@ -172,6 +175,18 @@ class DashScopeClient {
                 }
             }
         }
+        try {
+            val url = "wss://" + req.workspace + ".cn-beijing.maas.aliyuncs.com/api-ws/v1/inference"
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + req.apiKey)
+                .build()
+            ws = wsClient.newWebSocket(request, listener)
+        } catch (e: Exception) {
+            done = true
+            callback.onError("无法建立连接：" + (e.message ?: "地址不合法"))
+        }
+        return cancellable
     }
 
     /** 取消当前合成 */

@@ -75,10 +75,35 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <Spinner
-                    android:id="@+id/spVoice"
+                <LinearLayout
+                    android:id="@+id/llVoice"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="2dp"
+                    android:paddingVertical="6dp">
+
+                    <TextView
+                        android:id="@+id/tvVoice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/txt"
+                        android:textSize="17sp" />
+
+                    <ImageView
+                        android:id="@+id/ivVoiceArrow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/filter_by_voice"
+                        android:src="@drawable/ic_arrow_down_dim" />
+                </LinearLayout>
 
                 <Space
                     android:layout_width="0dp"
@@ -112,14 +137,36 @@
 
             <TextView style="@style/VtLabel" android:text="文本" />
 
-            <EditText
-                android:id="@+id/etText"
-                style="@style/VtInput"
-                android:gravity="top|start"
-                android:hint="要合成的文本…"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine"
-                android:minLines="3" />
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp">
+
+                <EditText
+                    android:id="@+id/etText"
+                    style="@style/VtInput"
+                    android:layout_marginTop="0dp"
+                    android:paddingEnd="38dp"
+                    android:gravity="top|start"
+                    android:hint="要合成的文本…"
+                    android:importantForAutofill="no"
+                    android:inputType="textMultiLine"
+                    android:minLines="3" />
+
+                <!-- 清空叉号：字形 = ＋号同尺寸(13sp)；判定方块 26dp，贴文本框上边+右边内沿 -->
+                <TextView
+                    android:id="@+id/btnClearText"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="top|end"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="@string/clear_text"
+                    android:text="✕"
+                    android:textColor="@color/clear_x"
+                    android:textSize="13sp" />
+            </FrameLayout>
 
             <TextView style="@style/VtLabel" android:text="情绪 / 风格指令（≤128 字）" />
 
@@ -423,12 +470,31 @@
                 android:orientation="horizontal">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="本地记录"
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
+
+                <!-- 音色筛选：小三角 + 周边更大判定区（点击弹下拉，按音色 ID 过滤记录） -->
+                <ImageView
+                    android:id="@+id/btnVoiceFilter"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/filter_by_voice"
+                    android:focusable="true"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="10dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_arrow_down" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/btnClearHistory"
@@ -457,7 +523,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.4.5 · 直连阿里云百炼 CosyVoice v3.5-plus"
+            android:text="v0.4.5 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

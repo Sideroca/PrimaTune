@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.net.Uri
@@ -21,6 +22,7 @@ import android.text.InputFilter
 import android.text.InputType
 import android.text.TextWatcher
 import android.util.Base64
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
@@ -30,6 +32,7 @@ import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -108,6 +111,8 @@ class MainActivity : AppCompatActivity() {
 
     private val cTxt = Color.parseColor("#E8EEF8")
     private val cDim = Color.parseColor("#8D99AD")
+    /** 破坏性动作（删除）用红色文字 */
+    private val DELETE_RED = Color.parseColor("#C44E4E")
 
     // ---------------------------------------------------------------- 状态
     private lateinit var store: Store
@@ -135,16 +140,26 @@ class MainActivity : AppCompatActivity() {
     private var currentTake: Take? = null
     private var busy = false
 
+    /** 本地记录的音色筛选（null = 全部）；仅本次运行有效 */
+    private var filterVoiceId: String? = null
+
+    /** 当前音色（自绘选择器）：voiceIsCustom = 选了「自定义音色 ID…」 */
+    private var currentVoiceId: String = ""
+    private var voiceIsCustom = false
+
     // ---------------------------------------------------------------- 视图
     private lateinit var wpImg: ImageView
     private lateinit var wpScrim: View
     private lateinit var svRoot: ScrollView
     private lateinit var btnSettings: TextView
-    private lateinit var spVoice: Spinner
+    private lateinit var llVoice: LinearLayout
+    private lateinit var tvVoice: TextView
+    private lateinit var ivVoiceArrow: ImageView
     private lateinit var etCustomVoice: EditText
     private lateinit var tvVoiceNote: TextView
     private lateinit var btnCreateVoice: TextView
     private lateinit var etText: EditText
+    private lateinit var btnClearText: TextView
     private lateinit var etInstr: EditText
     private lateinit var llChips: LinearLayout
     private lateinit var etSeed: EditText
@@ -172,6 +187,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnShare: TextView
     private lateinit var btnExport: TextView
     private lateinit var btnClearHistory: TextView
+    private lateinit var btnVoiceFilter: ImageView
     private lateinit var llHistory: LinearLayout
 
     // ---------------------------------------------------------------- 生命周期
@@ -181,13 +197,13 @@ class MainActivity : AppCompatActivity() {
         store = Store(this)
         customVoices.addAll(store.loadCustomVoices())
         bindViews()
-        setupSpinners()
+        setupVoicePicker()
         setupSliders()
         setupActions()
 
         takes.addAll(store.loadTakes())
-        migrateDurations()
         renderHistory()
+        migrateDurationsAsync()
 
         if (store.apiKey.isBlank()) {
             tvStatus.text = "首次使用：请点右上角「设置」填入 API Key（可从剪贴板粘贴）"
@@ -208,10 +224,8 @@ class MainActivity : AppCompatActivity() {
         Skin.applyWindow(this, c)
         Skin.apply(window.decorView, c)
         Wp.applySlot(this, wpImg, wpScrim, store.wpMain, store.scrimMain, c.bg)
-        // 下拉浮层：底色 / 描边 / 宽度 跟随主题
+        // 下拉浮层：底色 / 描边 / 宽度 跟随主题（音色选择器已改为自绘，见 showVoicePickerPopup）
         val ddw = resources.displayMetrics.widthPixels - dp(28)
-        spVoice.setPopupBackgroundDrawable(Skin.shapeDp(this, c.bg, c.line, 12f))
-        spVoice.setDropDownWidth(ddw)
         spFormat.setPopupBackgroundDrawable(Skin.shapeDp(this, c.bg, c.line, 12f))
         spFormat.setDropDownWidth(ddw)
     }
@@ -221,11 +235,19 @@ class MainActivity : AppCompatActivity() {
         wpImg = findViewById(R.id.wpImg)
         wpScrim = findViewById(R.id.wpScrim)
         btnSettings = findViewById(R.id.btnSettings)
-        spVoice = findViewById(R.id.spVoice)
+        llVoice = findViewById(R.id.llVoice)
+        tvVoice = findViewById(R.id.tvVoice)
+        ivVoiceArrow = findViewById(R.id.ivVoiceArrow)
         etCustomVoice = findViewById(R.id.etCustomVoice)
         tvVoiceNote = findViewById(R.id.tvVoiceNote)
         btnCreateVoice = findViewById(R.id.btnCreateVoice)
         etText = findViewById(R.id.etText)
+        btnClearText = findViewById(R.id.btnClearText)
+        // 清空叉号：仅清空文本，不改变其它参数
+        btnClearText.setOnClickListener {
+            etText.setText("")
+            etText.requestFocus()
+        }
         etInstr = findViewById(R.id.etInstr)
         llChips = findViewById(R.id.llChips)
         etSeed = findViewById(R.id.etSeed)
@@ -254,6 +276,7 @@ class MainActivity : AppCompatActivity() {
         btnExport = findViewById(R.id.btnExport)
         btnClearHistory = findViewById(R.id.btnClearHistory)
         llHistory = findViewById(R.id.llHistory)
+        btnVoiceFilter = findViewById(R.id.btnVoiceFilter)
     }
 
     /** 下拉浮层适配器：浮层条目文字颜色跟随主题（其余沿用系统样式） */
@@ -276,35 +299,44 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSpinners() {
-        rebuildVoiceSpinner(null)
-        spVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                syncVoiceUi()
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+    private fun setupVoicePicker() {
+        llVoice.setOnClickListener { showVoicePickerPopup() }
+        if (currentVoiceId.isEmpty()) currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+        fitVoiceWidth()
+        syncVoiceUi()
 
         spFormat.adapter = ThemedSpinnerAdapter(this, formats.map { it.label })
-
         etModel.setText(store.lastModel)
-        syncVoiceUi()
+    }
+
+    /** 展开态宽度对齐原 Spinner：取最长条目宽度 → 名字靠左、三角靠右 */
+    private fun fitVoiceWidth() {
+        val longest = (allVoices().map { it.name } + customLabel).maxByOrNull { it.length } ?: ""
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.typeface = tvVoice.typeface
+        p.textSize = tvVoice.textSize
+        val w = p.measureText(longest) + dp(10 + 10 + 8)
+        val lp = llVoice.layoutParams
+        lp.width = w.toInt()
+        llVoice.layoutParams = lp
     }
 
     /** 全部音色 = 内置 + 自建 */
     private fun allVoices(): List<Voice> =
         voices + customVoices.map { Voice(it.name, it.id, "自建音色（前缀 " + it.prefix + "）") }
 
-    /** 重建音色下拉；selectId 不为空时选中它 */
-    private fun rebuildVoiceSpinner(selectId: String?) {
+    /** 设为某个音色（voiceId 为空/已失效时回落到第一个） */
+    private fun setVoice(voiceId: String?) {
         val all = allVoices()
-        val names = all.map { it.name } + customLabel
-        spVoice.adapter = ThemedSpinnerAdapter(this, names)
-        if (selectId != null) {
-            val idx = all.indexOfFirst { it.id == selectId }
-            if (idx >= 0) spVoice.setSelection(idx)
+        if (voiceId != null && all.any { it.id == voiceId }) {
+            currentVoiceId = voiceId
+            voiceIsCustom = false
+        } else if (all.none { it.id == currentVoiceId }) {
+            currentVoiceId = all.firstOrNull()?.id ?: ""
+            voiceIsCustom = false
         }
+        fitVoiceWidth()
+        syncVoiceUi()
     }
 
     private fun setupSliders() {
@@ -350,37 +382,32 @@ class MainActivity : AppCompatActivity() {
         btnShare.setOnClickListener { currentTake?.let { shareTake(it) } }
         btnExport.setOnClickListener { currentTake?.let { exportTake(it) } }
         btnClearHistory.setOnClickListener { confirmClearHistory() }
+        btnVoiceFilter.setOnClickListener { showVoiceFilterPopup() }
         etLangHints.setOnClickListener { openLangPicker() }
     }
 
     private fun syncVoiceUi() {
-        val idx = spVoice.selectedItemPosition
         val all = allVoices()
-        if (idx == all.size) {
+        val cur = all.firstOrNull { it.id == currentVoiceId }
+        tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
+        if (voiceIsCustom) {
             etCustomVoice.visibility = View.VISIBLE
             tvVoiceNote.text = "粘贴完整音色 ID（cosyvoice-v3.5-plus-…）"
         } else {
             etCustomVoice.visibility = View.GONE
-            tvVoiceNote.text = all.getOrNull(idx)?.note ?: ""
+            tvVoiceNote.text = cur?.note ?: ""
         }
         renderChips()
     }
 
-    private fun selectedVoiceId(): String {
-        val idx = spVoice.selectedItemPosition
-        val all = allVoices()
-        return if (idx == all.size) {
-            etCustomVoice.text.toString().trim()
-        } else {
-            all.getOrNull(idx)?.id ?: ""
-        }
-    }
+    private fun selectedVoiceId(): String =
+        if (voiceIsCustom) etCustomVoice.text.toString().trim() else currentVoiceId
 
     private fun voiceNameOf(id: String): String = allVoices().firstOrNull { it.id == id }?.name ?: "自定义音色"
 
     private fun renderChips() {
         llChips.removeAllViews()
-        val vName = allVoices().getOrNull(spVoice.selectedItemPosition)?.name ?: ""
+        val vName = if (voiceIsCustom) "" else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
         val list = instrChips.filter { it.forVoice == null || vName.contains(it.forVoice) }
         for (chip in list) {
             val tv = TextView(this)
@@ -523,6 +550,12 @@ class MainActivity : AppCompatActivity() {
         if (text.isEmpty()) {
             toast("请先输入文本")
             return
+        }
+        if (text.length > 5000) {
+            toast("文本过长（" + text.length + " 字），请分段合成")
+            return
+        } else if (text.length > 2000) {
+            toast("文本较长（" + text.length + " 字），若失败请分段合成")
         }
         val voiceId = selectedVoiceId()
         if (voiceId.isEmpty()) {
@@ -819,16 +852,17 @@ class MainActivity : AppCompatActivity() {
     private fun renderHistory() {
         llHistory.removeAllViews()
         rowRefs.clear()
-        if (takes.isEmpty()) {
+        val list = filterVoiceId?.let { id -> takes.filter { it.voiceId == id } } ?: takes
+        if (list.isEmpty()) {
             val tv = TextView(this)
-            tv.text = "暂无记录"
+            tv.text = if (filterVoiceId == null) "暂无记录" else "该音色暂无记录（点 ▼ 可换/取消筛选）"
             tv.setTextColor(cDim)
             tv.textSize = 13f
             tv.setPadding(0, dp(8), 0, 0)
             llHistory.addView(tv)
             return
         }
-        for (t in takes) {
+        for (t in list) {
             llHistory.addView(buildRow(t))
         }
         Skin.apply(llHistory, Skin.colors(this))
@@ -897,14 +931,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun fillFrom(take: Take) {
         val all = allVoices()
-        val idx = all.indexOfFirst { it.id == take.voiceId }
-        if (idx >= 0) {
-            spVoice.setSelection(idx)
+        if (all.any { it.id == take.voiceId }) {
+            setVoice(take.voiceId)
         } else {
-            spVoice.setSelection(all.size)
+            voiceIsCustom = true
             etCustomVoice.setText(take.voiceId)
+            syncVoiceUi()
         }
-        syncVoiceUi()
         etText.setText(take.text)
         etInstr.setText(take.instruction)
         etSeed.setText(take.seed.toString())
@@ -950,6 +983,7 @@ class MainActivity : AppCompatActivity() {
                 stopPlayback()
                 takes.forEach { store.deleteFile(it) }
                 takes.clear()
+                filterVoiceId = null
                 store.saveTakes(takes)
                 currentTake = null
                 cardResult.visibility = View.GONE
@@ -961,6 +995,208 @@ class MainActivity : AppCompatActivity() {
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
+    }
+
+    // ---------------------------------------------------------------- 音色选择器（自绘下拉）
+    /** 音色下拉：内置 + 自建；当前音色行右端有心电指示符；底部有「管理音色…」 */
+    private fun showVoicePickerPopup() {
+        val c = Skin.colors(this)
+        val all = allVoices()
+        var pop: PopupWindow? = null
+        val inds = HashMap<String, VoiceIndicatorView>()
+
+        val listBox = LinearLayout(this)
+        listBox.orientation = LinearLayout.VERTICAL
+
+        fun addRow(label: String, id: String?, tint: Int, onClick: () -> Unit) {
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.setPadding(dp(16), dp(11), dp(16), dp(11))
+            val tv = TextView(this)
+            tv.text = label
+            tv.setTextColor(tint)
+            tv.textSize = 15f
+            row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            if (id != null) {
+                val ind = VoiceIndicatorView(this)
+                row.addView(ind, LinearLayout.LayoutParams(dp(22), dp(22)))
+                inds[id] = ind
+                if (!voiceIsCustom && id == currentVoiceId) ind.showStatic() else ind.visibility = View.INVISIBLE
+            }
+            row.isClickable = true
+            row.isFocusable = true
+            row.setOnClickListener { onClick() }
+            listBox.addView(row)
+        }
+
+        fun switchTo(id: String) {
+            val old = if (voiceIsCustom) null else inds[currentVoiceId]
+            voiceIsCustom = false
+            currentVoiceId = id
+            fitVoiceWidth()
+            syncVoiceUi()
+            old?.let { o -> o.playOut { o.visibility = View.INVISIBLE } }
+            inds[id]?.playIn()
+            // 等这套「烧尽 → 复活」播完再收起
+            listBox.postDelayed({ pop?.dismiss() }, 790)
+        }
+
+        for (v in all) addRow(v.name, v.id, c.txt) { switchTo(v.id) }
+        addRow(customLabel, null, c.dim) {
+            voiceIsCustom = true
+            syncVoiceUi()
+            pop?.dismiss()
+        }
+        addRow("管理音色…", null, c.acc) {
+            pop?.dismiss()
+            manageVoices()
+        }
+
+        val sc = ScrollView(this)
+        sc.isVerticalScrollBarEnabled = false
+        sc.addView(listBox)
+        val panel = LinearLayout(this)
+        panel.orientation = LinearLayout.VERTICAL
+        panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
+        panel.setPadding(dp(6), dp(6), dp(6), dp(6))
+        panel.addView(sc)
+
+        val h = minOf(dp(430), dp(12) + dp(48) * (all.size + 2))
+        val w = minOf(dp(310), resources.displayMetrics.widthPixels - dp(32))
+        pop = PopupWindow(panel, w, h, true)
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        pop.elevation = dp(8).toFloat()
+        pop.showAsDropDown(llVoice, 0, dp(2))
+    }
+
+    // ---------------------------------------------------------------- 管理音色（自建音色的删除）
+    private fun manageVoices() {
+        if (customVoices.isEmpty()) {
+            toast("还没有自建音色")
+            return
+        }
+        val c = Skin.colors(this)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(20), dp(4), dp(20), dp(4))
+        var dlg: AlertDialog? = null
+        for (v in customVoices.toList()) {
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.setPadding(0, dp(10), 0, dp(10))
+            val tv = TextView(this)
+            tv.text = v.name
+            tv.setTextColor(c.txt)
+            tv.textSize = 15f
+            row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            val del = TextView(this)
+            del.text = "删除"
+            del.setTextColor(DELETE_RED)
+            del.textSize = 14f
+            del.setPadding(dp(14), dp(8), dp(4), dp(8))
+            del.isClickable = true
+            del.isFocusable = true
+            del.setOnClickListener {
+                dlg?.dismiss()
+                confirmDeleteVoice(v)
+            }
+            row.addView(del)
+            box.addView(row)
+        }
+        val sc = ScrollView(this)
+        sc.addView(box)
+        val d = AlertDialog.Builder(this)
+            .setTitle("管理音色（自建）")
+            .setView(sc)
+            .setPositiveButton("完成", null)
+            .create()
+        dlg = d
+        d.setOnShowListener { skinDialog(d) }
+        d.show()
+    }
+
+    private fun confirmDeleteVoice(v: CustomVoice) {
+        val d = AlertDialog.Builder(this)
+            .setTitle("删除音色")
+            .setMessage("「" + v.name + "」将从本机音色列表中移除。\n云端已复刻的音色不受影响，之后可重新添加。")
+            .setPositiveButton("删除") { _, _ ->
+                customVoices.removeAll { it.id == v.id }
+                store.saveCustomVoices(customVoices)
+                if (!voiceIsCustom && currentVoiceId == v.id) {
+                    currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+                }
+                fitVoiceWidth()
+                syncVoiceUi()
+                toast("已删除：" + v.name)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        d.setOnShowListener {
+            skinDialog(d)
+            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(DELETE_RED)
+        }
+        d.show()
+    }
+
+    // ---------------------------------------------------------------- 音色筛选（本地记录）
+    /** 点 ▼ 弹下拉：列出记录里出现过的音色 ID，选一个 → 只显示该 ID 的记录 */
+    private fun showVoiceFilterPopup() {
+        val c = Skin.colors(this)
+        val ids = LinkedHashSet<String>()
+        for (t in takes) if (t.voiceId.isNotBlank()) ids.add(t.voiceId)
+
+        var pop: PopupWindow? = null
+        val listBox = LinearLayout(this)
+        listBox.orientation = LinearLayout.VERTICAL
+
+        fun addRow(label: String, tail: String, id: String?) {
+            val tv = TextView(this)
+            val prefix = if (id == filterVoiceId) "✓ " else "　 "
+            val text = prefix + label + if (tail.isEmpty()) "" else "  ·  " + tail
+            val ss = android.text.SpannableString(text)
+            if (tail.isNotEmpty()) {
+                ss.setSpan(
+                    android.text.style.ForegroundColorSpan(c.dim),
+                    text.length - tail.length, text.length, 0
+                )
+            }
+            tv.text = ss
+            tv.setTextColor(c.txt)
+            tv.textSize = 13f
+            tv.setPadding(dp(14), dp(12), dp(14), dp(12))
+            tv.isClickable = true
+            tv.isFocusable = true
+            tv.setOnClickListener {
+                filterVoiceId = id
+                renderHistory()
+                pop?.dismiss()
+            }
+            listBox.addView(tv)
+        }
+
+        addRow("全部音色（显示所有记录）", "", null)
+        for (id in ids) addRow(voiceNameOf(id), "…" + id.takeLast(10), id)
+
+        val sc = ScrollView(this)
+        sc.isVerticalScrollBarEnabled = false
+        sc.addView(listBox)
+        val panel = LinearLayout(this)
+        panel.orientation = LinearLayout.VERTICAL
+        panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
+        panel.setPadding(dp(6), dp(6), dp(6), dp(6))
+        panel.addView(sc)
+
+        val rowCount = ids.size + 1
+        val h = minOf(dp(320), dp(12) + dp(45) * rowCount)
+        val w = minOf(dp(290), resources.displayMetrics.widthPixels - dp(32))
+        pop = PopupWindow(panel, w, h, true)
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        pop.elevation = dp(8).toFloat()
+        pop.showAsDropDown(btnVoiceFilter, 0, dp(2))
     }
 
     // ---------------------------------------------------------------- 设置（v0.3：独立设置页）
@@ -1256,9 +1492,9 @@ class MainActivity : AppCompatActivity() {
                     ui {
                         customVoices.add(CustomVoice(vid, name, prefix, System.currentTimeMillis()))
                         store.saveCustomVoices(customVoices)
-                        rebuildVoiceSpinner(vid)
+                        setVoice(vid)
                         syncVoiceUi()
-                        createDlg?.dismiss()
+                        if (createDlg?.isShowing == true) createDlg?.dismiss()
                         toast("✅ 音色已创建：" + name)
                         tvStatus.text = "✅ 音色已创建并选中：" + name
                     }
@@ -1305,7 +1541,10 @@ class MainActivity : AppCompatActivity() {
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     private fun ui(block: () -> Unit) {
-        mainHandler.post(block)
+        if (isFinishing || isDestroyed) return
+        mainHandler.post {
+            if (!isFinishing && !isDestroyed) block()
+        }
     }
 
     private fun toast(msg: String) {
@@ -1396,22 +1635,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 修正旧记录里离谱的时长：重算 + 修头（一次性，之后无需重复） */
-    private fun migrateDurations() {
-        var fixed = false
-        for (i in takes.indices) {
-            val t = takes[i]
-            if (!t.format.startsWith("wav")) continue
-            val f = store.fileOf(t)
-            if (!f.exists()) continue
-            fixWavHeader(f)
-            val d = probeDurationMs(f)
-            if (d > 0 && d != t.durationMs) {
-                takes[i] = t.copy(durationMs = d)
-                fixed = true
+    /** 修正旧记录里离谱的时长：重算 + 修头（一次性）。后台线程跑，避免启动时主线程做大量 I/O */
+    private fun migrateDurationsAsync() {
+        Thread {
+            val work = takes.toMutableList()
+            var fixed = false
+            for (i in work.indices) {
+                val t = work[i]
+                if (!t.format.startsWith("wav")) continue
+                val f = store.fileOf(t)
+                if (!f.exists()) continue
+                fixWavHeader(f)
+                val d = probeDurationMs(f)
+                if (d > 0 && d != t.durationMs) {
+                    work[i] = t.copy(durationMs = d)
+                    fixed = true
+                }
             }
-        }
-        if (fixed) store.saveTakes(takes)
+            if (fixed) {
+                store.saveTakes(work)
+                ui {
+                    takes.clear()
+                    takes.addAll(work)
+                    renderHistory()
+                }
+            }
+        }.start()
     }
 
     private fun u32(b: ByteArray, off: Int): Long =

@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">语音调控台</string>
     <string name="app_name_launcher">玲珑调音</string>
+    <string name="clear_text">清空文本</string>
+    <string name="filter_by_voice">按音色筛选记录</string>
 </resources>

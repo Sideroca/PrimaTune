@@ -103,7 +103,8 @@ class Store(context: Context) {
 
     // ---- v0.3：主题 / 壁纸 ----
     var themeId: String
-        get() = prefs.getString("themeId", "") ?: ""
+        // 默认主题 = 茶文化 · 竹青（tea）；用户选过则以其为准
+        get() = prefs.getString("themeId", "tea") ?: "tea"
         set(v) { prefs.edit().putString("themeId", v).apply() }
 
     var wpMain: String
@@ -139,17 +140,57 @@ class Store(context: Context) {
         }
     }
 
-    fun loadTakes(): MutableList<Take> {
-        val list = mutableListOf<Take>()
+    /** 原子写：先写 .tmp → 旧文件备份为 .bak → 再替换；避免写一半被杀导致文件截断 */
+    private fun writeAtomic(file: File, text: String) {
         try {
-            if (indexFile.exists()) {
-                val arr = JSONArray(indexFile.readText())
-                for (i in 0 until arr.length()) {
-                    list.add(Take.fromJson(arr.getJSONObject(i)))
+            val tmp = File(file.parentFile, file.name + ".tmp")
+            tmp.writeText(text)
+            if (file.exists()) {
+                try {
+                    file.copyTo(File(file.parentFile, file.name + ".bak"), overwrite = true)
+                } catch (e: Exception) {
+                    // 备份失败不影响主流程
                 }
+            }
+            if (!tmp.renameTo(file)) {
+                file.writeText(text)
+                tmp.delete()
             }
         } catch (e: Exception) {
             // ignore
+        }
+    }
+
+    /** 读文件；主文件读不出来时回退 .bak（都不可用返回 null） */
+    private fun readTextResilient(file: File): String? {
+        if (file.exists()) {
+            try {
+                return file.readText()
+            } catch (e: Exception) {
+                // 落到 .bak
+            }
+        }
+        val bak = File(file.parentFile, file.name + ".bak")
+        if (bak.exists()) {
+            try {
+                return bak.readText()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+        return null
+    }
+
+    fun loadTakes(): MutableList<Take> {
+        val list = mutableListOf<Take>()
+        val raw = readTextResilient(indexFile) ?: return list
+        try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                list.add(Take.fromJson(arr.getJSONObject(i)))
+            }
+        } catch (e: Exception) {
+            // 解析失败：保留现场（.tmp/.bak 可人工恢复），不在此覆盖
         }
         return list
     }
@@ -158,7 +199,7 @@ class Store(context: Context) {
         try {
             val arr = JSONArray()
             takes.forEach { arr.put(it.toJson()) }
-            indexFile.writeText(arr.toString())
+            writeAtomic(indexFile, arr.toString())
         } catch (e: Exception) {
             // ignore
         }
@@ -166,12 +207,11 @@ class Store(context: Context) {
 
     fun loadCustomVoices(): MutableList<CustomVoice> {
         val list = mutableListOf<CustomVoice>()
+        val raw = readTextResilient(voicesFile) ?: return list
         try {
-            if (voicesFile.exists()) {
-                val arr = JSONArray(voicesFile.readText())
-                for (i in 0 until arr.length()) {
-                    list.add(CustomVoice.fromJson(arr.getJSONObject(i)))
-                }
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                list.add(CustomVoice.fromJson(arr.getJSONObject(i)))
             }
         } catch (e: Exception) {
             // ignore
@@ -183,7 +223,7 @@ class Store(context: Context) {
         try {
             val arr = JSONArray()
             list.forEach { arr.put(it.toJson()) }
-            voicesFile.writeText(arr.toString())
+            writeAtomic(voicesFile, arr.toString())
         } catch (e: Exception) {
             // ignore
         }

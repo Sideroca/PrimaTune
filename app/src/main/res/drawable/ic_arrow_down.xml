@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 下拉三角（银白灰 #D3DAE3）：形状取自真机截图 38×19px 向下等腰三角，矢量绘制（任意分辨率锐利） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="10dp"
+    android:height="5dp"
+    android:viewportWidth="38"
+    android:viewportHeight="19">
+    <path
+        android:fillColor="#D3DAE3"
+        android:pathData="M0,0 L38,0 L19,19 Z" />
+</vector>

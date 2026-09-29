@@ -1,0 +1,143 @@
+package com.sideroca.voicetuner
+
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.util.AttributeSet
+import android.view.View
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
+
+/**
+ * 「当前音色」指示符：一条心电线条。
+ *  - amp   幅度：0 = 平线，1 = 满幅波形
+ *  - inset 两端烧掉的比例：0 = 全长，0.5 = 烧到中心
+ *
+ * 退场（playOut）：amp 1→0（平掉）→ inset 0→0.5（两端像绳子被点燃，向中间烧）→ 余烬熄灭
+ * 入场（playIn） ：inset 0.5→0（从中心长出直线）→ amp 0→1（活起来）
+ *
+ * 颜色固定为亮蓝（浅/深主题下都稳），不参与换肤。
+ */
+class VoiceIndicatorView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null
+) : View(context, attrs) {
+
+    var amp = 1f
+        set(v) { field = v; invalidate() }
+
+    var inset = 0f
+        set(v) { field = v; invalidate() }
+
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = 0xFF66CCFF.toInt()
+    }
+    private val ember = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    /** 归一化的心电形状：x ∈ [-1,1] 为半宽比例，y 为半高比例 */
+    private val xs = floatArrayOf(-1f, -0.37f, -0.14f, 0.14f, 0.37f, 1f)
+    private val ys = floatArrayOf(0f, 0f, -0.72f, 0.72f, 0f, 0f)
+
+    private val path = Path()
+
+    private fun stop() {
+        anim?.cancel()
+        anim = null
+    }
+
+    private var anim: AnimatorSet? = null
+
+    override fun onDraw(canvas: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return
+        line.strokeWidth = 2f * resources.displayMetrics.density
+        val cx = w / 2f
+        val cy = h / 2f
+        val halfW = w / 2f * 0.94f * (1f - 2f * inset)
+        val halfH = h / 2f * 0.40f * amp
+        path.reset()
+        for (i in xs.indices) {
+            val px = cx + xs[i] * halfW
+            val py = cy + ys[i] * halfH
+            if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        }
+        canvas.drawPath(path, line)
+        // 正在燃烧的两端：一点余烬
+        if (inset > 0.01f && inset < 0.49f) {
+            for (s in intArrayOf(-1, 1)) {
+                val x = cx + s * halfW
+                ember.color = 0xFFBFE8FF.toInt(); ember.alpha = 70
+                canvas.drawCircle(x, cy, line.strokeWidth * 1.8f, ember)
+                ember.color = 0xFFFFFFFF.toInt(); ember.alpha = 150
+                canvas.drawCircle(x, cy, line.strokeWidth * 0.7f, ember)
+            }
+        }
+    }
+
+    /** 静态显示（不播动画） */
+    fun showStatic() {
+        stop()
+        visibility = VISIBLE
+        alpha = 1f
+        inset = 0f
+        amp = 1f
+    }
+
+    /** 退场：平掉 → 两端烧向中心 → 熄灭 */
+    fun playOut(onEnd: (() -> Unit)? = null) {
+        stop()
+        visibility = VISIBLE
+        alpha = 1f
+        amp = 1f
+        inset = 0f
+        val flatten = ValueAnimator.ofFloat(1f, 0f).setDuration(140)
+        flatten.interpolator = DecelerateInterpolator()
+        flatten.addUpdateListener { amp = it.animatedValue as Float }
+        val burn = ValueAnimator.ofFloat(0f, 0.5f).setDuration(210)
+        burn.interpolator = LinearInterpolator()
+        burn.addUpdateListener { inset = it.animatedValue as Float }
+        val out = ValueAnimator.ofFloat(1f, 0f).setDuration(90)
+        out.addUpdateListener { alpha = it.animatedValue as Float }
+        val set = AnimatorSet()
+        set.playSequentially(flatten, burn, out)
+        set.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                visibility = INVISIBLE
+                onEnd?.invoke()
+            }
+        })
+        anim = set
+        set.start()
+    }
+
+    /** 入场：从中心长出 → 活起来 */
+    fun playIn() {
+        stop()
+        visibility = VISIBLE
+        alpha = 0f
+        inset = 0.5f
+        amp = 0f
+        val fade = ValueAnimator.ofFloat(0f, 1f).setDuration(120)
+        fade.addUpdateListener { alpha = it.animatedValue as Float }
+        val grow = ValueAnimator.ofFloat(0.5f, 0f).setDuration(190)
+        grow.interpolator = DecelerateInterpolator()
+        grow.addUpdateListener { inset = it.animatedValue as Float }
+        val wake = ValueAnimator.ofFloat(0f, 1f).setDuration(260)
+        wake.interpolator = DecelerateInterpolator()
+        wake.addUpdateListener { amp = it.animatedValue as Float }
+        val head = AnimatorSet()
+        head.playTogether(fade, grow)
+        val all = AnimatorSet()
+        all.playSequentially(head, wake)
+        anim = all
+        all.start()
+    }
+}

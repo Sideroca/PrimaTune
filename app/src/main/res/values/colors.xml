@@ -11,4 +11,6 @@
     <color name="acc">#4F8CFF</color>
     <color name="acc2">#7A5CFF</color>
     <color name="icon_bg">#151A22</color>
+    <!-- 文本清空叉号（中性灰，不参与换肤重绘） -->
+    <color name="clear_x">#9AA0A6</color>
 </resources>
