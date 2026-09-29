@@ -36,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etKey: EditText
     private lateinit var etWs: EditText
     private lateinit var etModel: EditText
+    private lateinit var llIndicator: LinearLayout
 
     private var cat = "orig"
 
@@ -57,10 +58,12 @@ class SettingsActivity : AppCompatActivity() {
         etKey = findViewById(R.id.etKey)
         etWs = findViewById(R.id.etWs)
         etModel = findViewById(R.id.etModel)
+        llIndicator = findViewById(R.id.llIndicator)
 
         findViewById<TextView>(R.id.btnBack).setOnClickListener { finish() }
         buildCatChips()
         renderPalettes()
+        renderIndicatorColors()
         bindInterface()
         bindWallpaper()
     }
@@ -75,6 +78,67 @@ class SettingsActivity : AppCompatActivity() {
         Skin.applyWindow(this, c)
         Skin.apply(window.decorView, c)
         Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, c.bg)
+    }
+
+    // ---------------------------------------------------------------- 当前音色指示符颜色
+    private val indicatorOptions = listOf(
+        "亮蓝" to "#2E8FFF",
+        "樱花粉" to "#FFAFC5",
+        "极光绿" to "#2FE39B",
+        "极光紫" to "#A56BFF",
+        "雾蓝灰" to "#8AA0B6",
+        "橙光橙" to "#FF8A3D",
+        "银白灰" to "#D3DAE3"
+    )
+
+    private fun renderIndicatorColors() {
+        llIndicator.removeAllViews()
+        val c = Skin.colors(this)
+        for ((name, hex) in indicatorOptions) {
+            val col = try {
+                android.graphics.Color.parseColor(hex)
+            } catch (e: Exception) {
+                0xFF2FE39B.toInt()
+            }
+            val selected = store.indicatorColor.equals(hex, ignoreCase = true)
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.setPadding(dp(12), dp(10), dp(12), dp(10))
+            row.background = Skin.shapeDp(
+                this, c.card2, if (selected) c.acc else c.line, 10f, 100, if (selected) 2f else 1f
+            )
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.topMargin = dp(8)
+            row.layoutParams = lp
+
+            val sw = View(this)
+            sw.background = Skin.shapeDp(this, col, null, 6f)
+            row.addView(sw, LinearLayout.LayoutParams(dp(22), dp(22)))
+
+            val tv = TextView(this)
+            tv.text = name + "   " + hex
+            tv.setTextColor(c.txt)
+            tv.textSize = 14f
+            tv.setPadding(dp(12), 0, 0, 0)
+            row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            // 实时预览：就是下拉页里那个小波形，按这个颜色画
+            val ind = VoiceIndicatorView(this)
+            ind.indicatorColor = col
+            ind.showStatic()
+            row.addView(ind, LinearLayout.LayoutParams(dp(22), dp(22)))
+
+            row.isClickable = true
+            row.isFocusable = true
+            row.setOnClickListener {
+                store.indicatorColor = hex
+                renderIndicatorColors()
+            }
+            llIndicator.addView(row)
+        }
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()

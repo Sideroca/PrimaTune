@@ -33,17 +33,25 @@ class VoiceIndicatorView @JvmOverloads constructor(
     var inset = 0f
         set(v) { field = v; invalidate() }
 
+    /** 指示符颜色（外观可选项，默认极光绿） */
+    var indicatorColor = 0xFF2FE39B.toInt()
+        set(v) {
+            field = v
+            if (visibility != INVISIBLE) line.color = v
+            invalidate()
+        }
+
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        color = 0xFF66CCFF.toInt()
+        color = 0xFF2FE39B.toInt()
     }
     private val ember = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
-    /** 归一化的心电形状：x ∈ [-1,1] 为半宽比例，y 为半高比例 */
-    private val xs = floatArrayOf(-1f, -0.37f, -0.14f, 0.14f, 0.37f, 1f)
-    private val ys = floatArrayOf(0f, 0f, -0.72f, 0.72f, 0f, 0f)
+    /** 归一化的心电形状（样式 A「深心电」）：x ∈ [-1,1] 为半宽比例，y 为半高比例 */
+    private val xs = floatArrayOf(-1f, -0.42f, -0.24f, -0.06f, 0.10f, 0.28f, 0.48f, 1f)
+    private val ys = floatArrayOf(0f, 0f, -0.36f, -1f, 1f, -0.26f, 0f, 0f)
 
     private val path = Path()
 
@@ -58,11 +66,11 @@ class VoiceIndicatorView @JvmOverloads constructor(
         val w = width.toFloat()
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
-        line.strokeWidth = 2f * resources.displayMetrics.density
+        line.strokeWidth = 1.3f * resources.displayMetrics.density
         val cx = w / 2f
         val cy = h / 2f
         val halfW = w / 2f * 0.94f * (1f - 2f * inset)
-        val halfH = h / 2f * 0.40f * amp
+        val halfH = h / 2f * 0.62f * amp
         path.reset()
         for (i in xs.indices) {
             val px = cx + xs[i] * halfW
@@ -89,15 +97,18 @@ class VoiceIndicatorView @JvmOverloads constructor(
         alpha = 1f
         inset = 0f
         amp = 1f
+        line.color = indicatorColor
     }
 
-    /** 退场：平掉 → 两端烧向中心 → 熄灭 */
+    /** 退场：平掉 → 两端烧向中心 → 熄灭。
+     *  注意：退场**直接用雾蓝灰**（不做「本色 → 灰」的颜色过渡）。 */
     fun playOut(onEnd: (() -> Unit)? = null) {
         stop()
         visibility = VISIBLE
         alpha = 1f
         amp = 1f
         inset = 0f
+        line.color = OUT_COLOR
         val flatten = ValueAnimator.ofFloat(1f, 0f).setDuration(140)
         flatten.interpolator = DecelerateInterpolator()
         flatten.addUpdateListener { amp = it.animatedValue as Float }
@@ -125,6 +136,7 @@ class VoiceIndicatorView @JvmOverloads constructor(
         alpha = 0f
         inset = 0.5f
         amp = 0f
+        line.color = indicatorColor
         val fade = ValueAnimator.ofFloat(0f, 1f).setDuration(120)
         fade.addUpdateListener { alpha = it.animatedValue as Float }
         val grow = ValueAnimator.ofFloat(0.5f, 0f).setDuration(190)
@@ -139,5 +151,10 @@ class VoiceIndicatorView @JvmOverloads constructor(
         all.playSequentially(head, wake)
         anim = all
         all.start()
+    }
+
+    companion object {
+        /** 退场（"即将消失"）统一用它：雾蓝灰 —— 直接就是它，不做"本色 → 灰"的过渡 */
+        private val OUT_COLOR = 0xFF8AA0B6.toInt()
     }
 }

@@ -165,7 +165,7 @@
                     android:contentDescription="@string/clear_text"
                     android:text="✕"
                     android:textColor="@color/clear_x"
-                    android:textSize="13sp" />
+                    android:textSize="11.5sp" />
             </FrameLayout>
 
             <TextView style="@style/VtLabel" android:text="情绪 / 风格指令（≤128 字）" />
@@ -469,27 +469,35 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
+                <!-- 「本地记录 ▼」整体可点：判定范围从"本"字开始，笼罩四个字 + 三角（高度不变，不撑高行） -->
+                <LinearLayout
+                    android:id="@+id/llHistoryTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="本地记录"
-                    android:textColor="@color/dim"
-                    android:textSize="13sp" />
-
-                <!-- 音色筛选：小三角 + 周边更大判定区（点击弹下拉，按音色 ID 过滤记录） -->
-                <ImageView
-                    android:id="@+id/btnVoiceFilter"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:layout_marginStart="6dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:background="?attr/selectableItemBackground"
                     android:clickable="true"
-                    android:contentDescription="@string/filter_by_voice"
                     android:focusable="true"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="10dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_arrow_down" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="本地记录"
+                        android:textColor="@color/dim"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:id="@+id/btnVoiceFilter"
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_marginStart="6dp"
+                        android:contentDescription="@string/filter_by_voice"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_arrow_down" />
+                </LinearLayout>
 
                 <Space
                     android:layout_width="0dp"

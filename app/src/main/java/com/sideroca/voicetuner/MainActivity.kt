@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnShare: TextView
     private lateinit var btnExport: TextView
     private lateinit var btnClearHistory: TextView
-    private lateinit var btnVoiceFilter: ImageView
+    private lateinit var llHistoryTitle: LinearLayout
     private lateinit var llHistory: LinearLayout
 
     // ---------------------------------------------------------------- 生命周期
@@ -281,7 +281,7 @@ class MainActivity : AppCompatActivity() {
         btnExport = findViewById(R.id.btnExport)
         btnClearHistory = findViewById(R.id.btnClearHistory)
         llHistory = findViewById(R.id.llHistory)
-        btnVoiceFilter = findViewById(R.id.btnVoiceFilter)
+        llHistoryTitle = findViewById(R.id.llHistoryTitle)
     }
 
     /** 下拉浮层适配器：浮层条目文字颜色跟随主题（其余沿用系统样式） */
@@ -387,7 +387,7 @@ class MainActivity : AppCompatActivity() {
         btnShare.setOnClickListener { currentTake?.let { shareTake(it) } }
         btnExport.setOnClickListener { currentTake?.let { exportTake(it) } }
         btnClearHistory.setOnClickListener { confirmClearHistory() }
-        btnVoiceFilter.setOnClickListener { showVoiceFilterPopup() }
+        llHistoryTitle.setOnClickListener { showVoiceFilterPopup() }
         etLangHints.setOnClickListener { openLangPicker() }
     }
 
@@ -879,8 +879,9 @@ class MainActivity : AppCompatActivity() {
             more.setTextColor(cDim)
             more.textSize = 13f
             more.gravity = Gravity.CENTER
-            // 判定范围 = 一整条长条（卡片整宽 × 约 48dp 高）：字小、靶大，且与相邻行/按钮不重叠
-            more.setPadding(dp(12), dp(15), dp(12), dp(15))
+            // 判定范围 = 一整条长条（卡片整宽 × 约 42dp 高）：字小、靶大，且与相邻行/按钮不重叠
+            // 底部留白比顶部小 40%：卡片底边到文字的距离比原来近 20%
+            more.setPadding(dp(12), dp(15), dp(12), dp(9))
             val tvAttr = android.util.TypedValue()
             if (theme.resolveAttribute(android.R.attr.selectableItemBackground, tvAttr, true)) {
                 more.setBackgroundResource(tvAttr.resourceId)
@@ -1052,6 +1053,8 @@ class MainActivity : AppCompatActivity() {
             row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             if (id != null) {
                 val ind = VoiceIndicatorView(this)
+                ind.indicatorColor = runCatching { Color.parseColor(store.indicatorColor) }
+                    .getOrDefault(0xFF2FE39B.toInt())
                 row.addView(ind, LinearLayout.LayoutParams(dp(22), dp(22)))
                 inds[id] = ind
                 if (!voiceIsCustom && id == currentVoiceId) ind.showStatic() else ind.visibility = View.INVISIBLE
@@ -1229,7 +1232,7 @@ class MainActivity : AppCompatActivity() {
         pop.isOutsideTouchable = true
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
-        pop.showAsDropDown(btnVoiceFilter, 0, dp(2))
+        pop.showAsDropDown(llHistoryTitle, 0, dp(2))
     }
 
     // ---------------------------------------------------------------- 设置（v0.3：独立设置页）

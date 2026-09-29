@@ -145,6 +145,26 @@
                     android:orientation="vertical" />
             </LinearLayout>
 
+            <!-- 当前音色指示符颜色 -->
+            <LinearLayout style="@style/VtCard">
+
+                <TextView style="@style/VtLabel" android:text="当前音色指示符颜色" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="音色下拉页里、当前音色右边那个小波形。（它退场时会直接变成雾蓝灰）"
+                    android:textColor="@color/hint"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/llIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
             <!-- 壁纸 -->
             <LinearLayout style="@style/VtCard">
 

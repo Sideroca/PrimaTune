@@ -107,6 +107,11 @@ class Store(context: Context) {
         get() = prefs.getString("themeId", "tea") ?: "tea"
         set(v) { prefs.edit().putString("themeId", v).apply() }
 
+    /** 当前音色指示符颜色（外观可选项；默认极光绿 #2FE39B） */
+    var indicatorColor: String
+        get() = prefs.getString("indicatorColor", "#2FE39B") ?: "#2FE39B"
+        set(v) { prefs.edit().putString("indicatorColor", v).apply() }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }
