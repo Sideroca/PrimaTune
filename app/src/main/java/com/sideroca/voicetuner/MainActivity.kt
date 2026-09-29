@@ -879,9 +879,17 @@ class MainActivity : AppCompatActivity() {
             more.setTextColor(cDim)
             more.textSize = 13f
             more.gravity = Gravity.CENTER
-            more.setPadding(0, dp(10), 0, dp(2))
+            // 判定范围 = 一整条长条（卡片整宽 × 约 48dp 高）：字小、靶大，且与相邻行/按钮不重叠
+            more.setPadding(dp(12), dp(15), dp(12), dp(15))
+            val tvAttr = android.util.TypedValue()
+            if (theme.resolveAttribute(android.R.attr.selectableItemBackground, tvAttr, true)) {
+                more.setBackgroundResource(tvAttr.resourceId)
+            }
             more.isClickable = true
             more.isFocusable = true
+            more.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
             more.setOnClickListener {
                 historyExpanded = !historyExpanded
                 renderHistory()
