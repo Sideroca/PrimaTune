@@ -404,16 +404,18 @@ class SettingsActivity : AppCompatActivity() {
             box.orientation = LinearLayout.VERTICAL
             box.setPadding(0, dp(10f), 0, dp(10f))
 
-            // 头部：文本（默认 2 行，点它就地展开） ＋ 右上角删除 ✕（字形极小、判定 34dp）
-            val head = LinearLayout(this)
-            head.orientation = LinearLayout.HORIZONTAL
+            // 头部：文本 ＋ 右上角删除 ✕（字形 9.5sp；判定 42dp，贴卡片右上内沿）
+            val head = android.widget.FrameLayout(this)
             val a = TextView(this)
             a.text = t.text
             a.setTextColor(c.txt)
             a.textSize = 14f
             a.maxLines = 2
             a.ellipsize = android.text.TextUtils.TruncateAt.END
-            head.addView(a, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            a.setPadding(0, 0, dp(20f), 0)
+            head.addView(a, android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
             a.setOnClickListener {
                 val ex = a.maxLines != Int.MAX_VALUE
                 a.maxLines = if (ex) Int.MAX_VALUE else 2
@@ -421,10 +423,13 @@ class SettingsActivity : AppCompatActivity() {
             }
             val x = TextView(this)
             x.text = "✕"
-            x.textSize = 11f
+            x.textSize = 9.5f
             x.setTextColor(c.dim)
-            x.gravity = Gravity.CENTER
-            x.layoutParams = LinearLayout.LayoutParams(dp(34f), dp(34f))
+            x.gravity = Gravity.TOP or Gravity.END
+            x.setPadding(0, dp(4f), dp(4f), 0)
+            x.layoutParams = android.widget.FrameLayout.LayoutParams(
+                dp(42f), dp(42f), Gravity.TOP or Gravity.END
+            )
             x.isClickable = true
             x.isFocusable = true
             x.setOnClickListener {

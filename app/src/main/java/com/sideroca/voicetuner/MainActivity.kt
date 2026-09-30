@@ -924,9 +924,9 @@ class MainActivity : AppCompatActivity() {
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
 
-        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 右上角删除 ✕（字形极小、判定 34dp）
-        val head = LinearLayout(this)
-        head.orientation = LinearLayout.HORIZONTAL
+        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 右上角删除 ✕
+        // ✕：字形 9.5sp（≈2.6dp）；判定 42dp 正方形，上/右两边贴卡片内沿
+        val head = android.widget.FrameLayout(this)
 
         val title = TextView(this)
         title.text = take.text
@@ -934,7 +934,10 @@ class MainActivity : AppCompatActivity() {
         title.textSize = 14f
         title.maxLines = 2
         title.ellipsize = android.text.TextUtils.TruncateAt.END
-        head.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        title.setPadding(0, 0, dp(20), 0)          // 只让出 20dp → 正文更贴近卡片右边
+        head.addView(title, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
         title.setOnClickListener {
             val ex = title.maxLines != Int.MAX_VALUE
             title.maxLines = if (ex) Int.MAX_VALUE else 2
@@ -943,10 +946,13 @@ class MainActivity : AppCompatActivity() {
 
         val x = TextView(this)
         x.text = "✕"
-        x.textSize = 11f
+        x.textSize = 9.5f
         x.setTextColor(cDim)
-        x.gravity = android.view.Gravity.CENTER
-        x.layoutParams = LinearLayout.LayoutParams(dp(34), dp(34))
+        x.gravity = android.view.Gravity.TOP or android.view.Gravity.END
+        x.setPadding(0, dp(4), dp(4), 0)           // 字形贴向右上角
+        x.layoutParams = android.widget.FrameLayout.LayoutParams(
+            dp(42), dp(42), android.view.Gravity.TOP or android.view.Gravity.END
+        )
         x.isClickable = true
         x.isFocusable = true
         x.setOnClickListener { confirmDelete(take) }
