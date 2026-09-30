@@ -117,12 +117,15 @@ class SettingsActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 分页 + 坞
 
     private val pageTitles = listOf("模型", "音色", "主题", "记录", "关于")
-    private val dockDefs = listOf(
-        "🔌" to "模型", "🎙️" to "音色", "🎨" to "主题", "🕘" to "记录", "ℹ️" to "关于"
+    private val dockDefs = listOf("模型", "音色", "主题", "记录", "关于")
+    /** 坞图标：手绘矢量（统一 24dp 画布/线宽），跨机型一致、跟主题变色 */
+    private val dockIconRes = intArrayOf(
+        R.drawable.ic_tab_model, R.drawable.ic_tab_voice, R.drawable.ic_tab_theme,
+        R.drawable.ic_tab_record, R.drawable.ic_tab_about
     )
-    private val dockSink = intArrayOf(13, 5, 0, 5, 13)      // 两端低、中间高（实测值）
     private val dockItems = mutableListOf<LinearLayout>()
     private val dockPads = mutableListOf<android.widget.FrameLayout>()
+    private val dockIcons = mutableListOf<ImageView>()
     private val dockLabels = mutableListOf<TextView>()
     private var selectedPage = 0
 
@@ -130,7 +133,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun buildDock() {
         llDock.removeAllViews()
-        dockItems.clear(); dockPads.clear(); dockLabels.clear()
+        dockItems.clear(); dockPads.clear(); dockIcons.clear(); dockLabels.clear()
         for (i in dockDefs.indices) {
             if (i > 0) {
                 val dv = View(this)
@@ -145,34 +148,30 @@ class SettingsActivity : AppCompatActivity() {
             item.gravity = Gravity.CENTER_HORIZONTAL
             item.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
 
+            // 图标垫片：选中时才出现（56×30dp），图标统一 20dp 居中 → 5 项永远同高同宽
             val pad = android.widget.FrameLayout(this)
-            pad.layoutParams = LinearLayout.LayoutParams(dp(56f), dp(32f))
+            pad.layoutParams = LinearLayout.LayoutParams(dp(56f), dp(30f))
             pad.elevation = 3f * resources.displayMetrics.density
-            val ic = TextView(this)
-            ic.text = dockDefs[i].first
-            ic.textSize = 13f
-            ic.gravity = Gravity.CENTER
-            ic.layoutParams = android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            pad.addView(ic)
+            val iv = ImageView(this)
+            iv.layoutParams = android.widget.FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
+            iv.setImageResource(dockIconRes[i])
+            pad.addView(iv)
 
             val lb = TextView(this)
-            lb.text = dockDefs[i].second
+            lb.text = dockDefs[i]
             lb.textSize = 11f
             lb.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(5f) }
+            ).apply { topMargin = dp(4f) }
 
             item.addView(pad)
             item.addView(lb)
-            item.translationY = dockSink[i] * resources.displayMetrics.density
             val idx = i
             item.isClickable = true
             item.isFocusable = true
             item.setOnClickListener { selectPage(idx) }
             llDock.addView(item)
-            dockItems.add(item); dockPads.add(pad); dockLabels.add(lb)
+            dockItems.add(item); dockPads.add(pad); dockIcons.add(iv); dockLabels.add(lb)
         }
     }
 
@@ -200,11 +199,13 @@ class SettingsActivity : AppCompatActivity() {
         val onFill = (c.acc and 0x00FFFFFF) or (0x2B shl 24)      // 主色 17% 透明
         dockPads.forEachIndexed { i, pad ->
             pad.background = if (i == selectedPage) {
-                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), 10f, 100, 1.5f)
+                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), 11f, 100, 1.5f)
             } else {
-                Skin.shapeDp(this, 0x00000000, null, 10f)
+                Skin.shapeDp(this, 0x00000000, null, 11f)
             }
             dockLabels[i].setTextColor(if (i == selectedPage) c.acc else c.dim)
+            dockIcons[i].imageTintList =
+                android.content.res.ColorStateList.valueOf(if (i == selectedPage) c.acc else c.dim)
         }
         // 保存键：半透明键面 + 白描边 + 深色字（浅色主题）；深色主题自动换一套
         if (c.light) {
