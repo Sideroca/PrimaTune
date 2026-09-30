@@ -38,6 +38,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etWs: EditText
     private lateinit var etModel: EditText
     private lateinit var etProvider: android.widget.AutoCompleteTextView
+    private lateinit var etBaseUrl: EditText
     private lateinit var llIndicator: LinearLayout
     private lateinit var pageTheme: ScrollView
     private lateinit var pageModel: ScrollView
@@ -775,6 +776,7 @@ class SettingsActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 接口
     private fun bindInterface() {
         etProvider = findViewById(R.id.etProvider)
+        etBaseUrl = findViewById(R.id.etBaseUrl)
         etKey.setText(store.apiKey)
         etWs.setText(store.workspace)
         etModel.setText(store.lastModel)
@@ -833,9 +835,22 @@ class SettingsActivity : AppCompatActivity() {
             ac.threshold = 1
         }
         val saved = store.lastModel
-        etModel.setText(if (saved.isNotBlank() && saved in p.models) saved else p.models.firstOrNull().orEmpty())
+        val model = if (saved.isNotBlank() && saved in p.models) saved else p.models.firstOrNull().orEmpty()
+        // 自定义渠道没有预设模型 → 保留用户已填的，别把输入框清空
+        if (model.isNotEmpty() || p.models.isEmpty()) {
+            if (p.models.isNotEmpty() || saved.isBlank()) etModel.setText(model)
+        }
+        etModel.hint = if (p.models.isEmpty()) "填服务商文档里的模型名" else "cosyvoice-v3.5-plus"
+
         findViewById<TextView>(R.id.tvWsLabel).visibility = if (isBailian) View.VISIBLE else View.GONE
         etWs.visibility = if (isBailian) View.VISIBLE else View.GONE
+
+        // Base URL：自定义渠道（没写在目录里的）才显示
+        val customBase = p.baseUrl.isBlank()
+        findViewById<TextView>(R.id.tvBaseUrlLabel).visibility = if (customBase) View.VISIBLE else View.GONE
+        etBaseUrl.visibility = if (customBase) View.VISIBLE else View.GONE
+        if (customBase) etBaseUrl.setText(store.providerBaseUrl(p.id))
+
         findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
     }
 
@@ -846,6 +861,9 @@ class SettingsActivity : AppCompatActivity() {
         store.workspace = etWs.text.toString().trim()
         val mid = TtsProviders.modelIdOf(etModel.text.toString())
         if (mid.isNotBlank()) store.lastModel = mid
+        if (etBaseUrl.visibility == View.VISIBLE) {
+            store.setProviderBaseUrl(store.providerId, etBaseUrl.text.toString())
+        }
     }
 
     // ---------------------------------------------------------------- 壁纸

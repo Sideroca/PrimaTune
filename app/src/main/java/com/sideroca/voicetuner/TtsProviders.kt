@@ -41,8 +41,14 @@ object TtsProviders {
         P(
             "xai", "xAI", "https://api.x.ai/v1", "xai", "xai-…",
             listOf("grok-tts")                 // 无独立 TTS 模型 id，随 grok-4.20 系列走
+        ),
+
+        // 自定义渠道：Base URL 自己填，默认按 OpenAI 兼容形态（POST {base}/audio/speech）
+        // 模型名自由输入（不预设清单）—— 做 TTS 的厂商多，随时可能出新家
+        P(
+            "custom", "自定义渠道", "", "openai", "你的服务商 Key",
+            emptyList()
         )
-        // 自定义渠道（用户要求）下一步加：BaseUrl / 端点 / 请求模板 / 鉴权 / 返回形式
     )
 
     fun byId(id: String?): P? = if (id.isNullOrBlank()) null else all.firstOrNull { it.id == id }

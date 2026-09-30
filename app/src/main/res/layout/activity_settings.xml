@@ -77,6 +77,21 @@
                             android:singleLine="true" />
 
                         <TextView
+                            android:id="@+id/tvBaseUrlLabel"
+                            style="@style/VtLabel"
+                            android:text="Base URL（自定义渠道填这里）"
+                            android:visibility="gone" />
+
+                        <EditText
+                            android:id="@+id/etBaseUrl"
+                            style="@style/VtInput"
+                            android:hint="https://你的域名/v1"
+                            android:importantForAutofill="no"
+                            android:inputType="textUri"
+                            android:singleLine="true"
+                            android:visibility="gone" />
+
+                        <TextView
                             android:id="@+id/tvKeyLabel"
                             style="@style/VtLabel"
                             android:text="API Key（当前厂商；仅保存在本机）" />

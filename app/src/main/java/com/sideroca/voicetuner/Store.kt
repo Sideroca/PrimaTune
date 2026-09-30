@@ -140,6 +140,17 @@ class Store(context: Context) {
         prefs.edit().putString("key_" + id, value).apply()
     }
 
+    /** 某厂商的 Base URL（默认用目录里的；「自定义渠道」由用户填） */
+    fun providerBaseUrl(id: String): String {
+        val custom = prefs.getString("base_" + id, "").orEmpty()
+        if (custom.isNotBlank()) return custom
+        return TtsProviders.byId(id)?.baseUrl.orEmpty()
+    }
+
+    fun setProviderBaseUrl(id: String, value: String) {
+        prefs.edit().putString("base_" + id, value.trim()).apply()
+    }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }

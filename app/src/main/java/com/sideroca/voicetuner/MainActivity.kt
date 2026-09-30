@@ -651,8 +651,11 @@ class MainActivity : AppCompatActivity() {
         val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
         val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
         val synthCall = { cb: SynthCallback ->
-            if (prov.shape == "openai" || prov.shape == "xai")
-                OpenAiCompatTts.synthesize(prov, provKey, req.model, req.voice, req.text, req.instruction, cb)
+            if (prov.shape == "openai" || prov.shape == "xai") {
+                // 自定义渠道：用用户填的 Base URL
+                val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
+                OpenAiCompatTts.synthesize(eff, provKey, req.model, req.voice, req.text, req.instruction, cb)
+            }
             else
                 client.synthesize(req.copy(apiKey = provKey), cb)
         }
