@@ -647,7 +647,16 @@ class MainActivity : AppCompatActivity() {
         tvStatus.text = "连接中…"
 
         var lastTick = 0L
-        client.synthesize(req, object : SynthCallback {
+        // P1：按厂商形态分派 —— 百炼内部再按模型分 ws/http；OpenAI 系走 OpenAI 兼容客户端
+        val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
+        val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
+        val synthCall = { cb: SynthCallback ->
+            if (prov.shape == "openai" || prov.shape == "xai")
+                OpenAiCompatTts.synthesize(prov, provKey, req.model, req.voice, req.text, req.instruction, cb)
+            else
+                client.synthesize(req.copy(apiKey = provKey), cb)
+        }
+        synthCall(object : SynthCallback {
             override fun onConnected() {
                 ui { tvStatus.text = "已连接…" }
             }

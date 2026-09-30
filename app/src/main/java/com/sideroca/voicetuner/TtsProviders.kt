@@ -60,4 +60,16 @@ object TtsProviders {
 
     /** 该厂家的模型清单（自动补全用） */
     fun modelsOf(providerId: String?): List<String> = byId(providerId)?.models ?: emptyList()
+
+    /** 某厂商的模型下拉项文字：百炼带「系列 · 说明」，其他家只有 id */
+    fun modelDisplays(providerId: String?): List<String> {
+        val p = byId(providerId) ?: return emptyList()
+        return if (p.shape == "dashscope")
+            TtsModels.all.filter { it.id in p.models }.map { TtsModels.display(it) }
+        else p.models
+    }
+
+    /** 从下拉文字取回模型 id（两种形态通用） */
+    fun modelIdOf(text: String): String =
+        if (text.contains("    ")) text.substringBefore("    ").trim() else text.trim()
 }

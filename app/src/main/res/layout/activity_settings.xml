@@ -65,7 +65,21 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="API Key（仅保存在本机）" />
+                        <TextView style="@style/VtLabel" android:text="厂商（输入首字母即匹配）" />
+
+                        <AutoCompleteTextView
+                            android:id="@+id/etProvider"
+                            style="@style/VtInput"
+                            android:completionThreshold="1"
+                            android:hint="阿里云百炼 / OpenAI / Groq / Step / xAI"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true" />
+
+                        <TextView
+                            android:id="@+id/tvKeyLabel"
+                            style="@style/VtLabel"
+                            android:text="API Key（当前厂商；仅保存在本机）" />
                         <EditText
                             android:id="@+id/etKey"
                             style="@style/VtInput"
@@ -73,7 +87,10 @@
                             android:importantForAutofill="no"
                             android:inputType="textVisiblePassword"
                             android:singleLine="true" />
-                        <TextView style="@style/VtLabel" android:text="业务空间 ID" />
+                        <TextView
+                            android:id="@+id/tvWsLabel"
+                            style="@style/VtLabel"
+                            android:text="业务空间 ID" />
                         <EditText
                             android:id="@+id/etWs"
                             style="@style/VtInput"

@@ -37,6 +37,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etKey: EditText
     private lateinit var etWs: EditText
     private lateinit var etModel: EditText
+    private lateinit var etProvider: android.widget.AutoCompleteTextView
     private lateinit var llIndicator: LinearLayout
     private lateinit var pageTheme: ScrollView
     private lateinit var pageModel: ScrollView
@@ -587,10 +588,7 @@ class SettingsActivity : AppCompatActivity() {
 
     /** 保存键：把「模型」页的接口字段落盘 */
     private fun saveAll() {
-        store.apiKey = etKey.text.toString().trim()
-        store.workspace = etWs.text.toString().trim()
-        // 下拉项是「id   说明」，这里只取回 id
-        store.lastModel = TtsModels.idOf(etModel.text.toString())
+        saveProviderFields()
         buildProviders()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }
@@ -776,9 +774,11 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 接口
     private fun bindInterface() {
+        etProvider = findViewById(R.id.etProvider)
         etKey.setText(store.apiKey)
         etWs.setText(store.workspace)
         etModel.setText(store.lastModel)
+        setupProviderPicker()
 
         findViewById<TextView>(R.id.btnPaste).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -791,11 +791,61 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         findViewById<TextView>(R.id.btnSaveKey).setOnClickListener {
-            store.apiKey = etKey.text.toString().trim()
-            store.workspace = etWs.text.toString().trim()
-            store.lastModel = etModel.text.toString().trim()
+            saveProviderFields()
             toast("已保存")
         }
+    }
+
+    /** P1：厂商选择（输入首字母即匹配）→ 切换该厂商的 Key 与模型清单 */
+    private fun setupProviderPicker() {
+        etProvider.setAdapter(
+            android.widget.ArrayAdapter(
+                this, android.R.layout.simple_dropdown_item_1line,
+                TtsProviders.all.map { TtsProviders.display(it) }
+            )
+        )
+        etProvider.threshold = 1
+        val cur = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
+        etProvider.setText(TtsProviders.display(cur), false)
+        applyProvider(cur.id)
+        etProvider.setOnItemClickListener { _, _, _, _ ->
+            val id = TtsProviders.idOf(etProvider.text.toString())
+            if (TtsProviders.byId(id) != null) {
+                store.providerId = id
+                applyProvider(id)
+            }
+        }
+    }
+
+    /** 按厂商刷新：Key / 模型清单 / 业务空间显隐 / Key 标签 */
+    private fun applyProvider(providerId: String) {
+        val p = TtsProviders.byId(providerId) ?: return
+        val isBailian = p.shape == "dashscope"
+        etKey.setText(store.providerKey(providerId))
+        etKey.hint = p.keyHint
+        (etModel as? android.widget.AutoCompleteTextView)?.let { ac ->
+            ac.setAdapter(
+                android.widget.ArrayAdapter(
+                    this, android.R.layout.simple_dropdown_item_1line,
+                    TtsProviders.modelDisplays(providerId)
+                )
+            )
+            ac.threshold = 1
+        }
+        val saved = store.lastModel
+        etModel.setText(if (saved.isNotBlank() && saved in p.models) saved else p.models.firstOrNull().orEmpty())
+        findViewById<TextView>(R.id.tvWsLabel).visibility = if (isBailian) View.VISIBLE else View.GONE
+        etWs.visibility = if (isBailian) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
+    }
+
+    /** 保存当前厂商的这三项（Key 按厂商分开存；百炼额外把 Key 同步给老字段） */
+    private fun saveProviderFields() {
+        store.setProviderKey(store.providerId, etKey.text.toString().trim())
+        if (store.providerId == "aliyun-bailian") store.apiKey = etKey.text.toString().trim()
+        store.workspace = etWs.text.toString().trim()
+        val mid = TtsProviders.modelIdOf(etModel.text.toString())
+        if (mid.isNotBlank()) store.lastModel = mid
     }
 
     // ---------------------------------------------------------------- 壁纸
