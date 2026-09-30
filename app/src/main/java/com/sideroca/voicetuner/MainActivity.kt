@@ -657,7 +657,13 @@ class MainActivity : AppCompatActivity() {
         val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
         val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
         val synthCall = { cb: SynthCallback ->
-            if (prov.shape == "elevenlabs") {
+            if (prov.shape == "system") {
+                ExtraTts2.system(this@MainActivity, req.text, req.rate, req.pitch, cb)
+            } else if (prov.shape == "gemini") {
+                ExtraTts2.gemini(provKey, req.model, req.voice, req.text, cb)
+            } else if (prov.shape == "mimo") {
+                ExtraTts2.mimo(store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb)
+            } else if (prov.shape == "elevenlabs") {
                 ExtraTts.eleven(store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb)
             } else if (prov.shape == "minimax") {
                 ExtraTts.minimax(

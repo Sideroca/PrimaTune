@@ -56,6 +56,19 @@ object TtsProviders {
             listOf("s1")
         ),
 
+        P(
+            "gemini", "Gemini", "https://generativelanguage.googleapis.com", "gemini", "AIza…",
+            listOf("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts")
+        ),
+        P(
+            "mimo", "MiMo 小米", "https://api.mimo.mi.com/v1", "mimo", "MIMO_API_KEY",
+            listOf("MiMo-V2.5-TTS")          // 文档已核实模型名；端点与返回格式待真机验证
+        ),
+        P(
+            "system", "系统 TTS（本地）", "", "system", "（无需 Key）",
+            listOf("系统引擎")
+        ),
+
         // 自定义渠道：Base URL 自己填，默认按 OpenAI 兼容形态（POST {base}/audio/speech）
         // 模型名自由输入（不预设清单）—— 做 TTS 的厂商多，随时可能出新家
         P(

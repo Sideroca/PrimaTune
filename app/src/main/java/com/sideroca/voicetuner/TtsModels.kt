@@ -59,10 +59,10 @@ object TtsModels {
         val prov = TtsProviders.byId(providerId)
         val viaBailian = prov == null || prov.shape == "dashscope"
         if (!viaBailian) {
-            val mini = prov?.shape == "minimax"
-            return when (param) {
-                "rate", "pitch", "volume" -> mini                       // 只有 MiniMax 有 voice_setting
-                "instruction" -> prov?.shape == "openai" || prov?.shape == "xai"
+            return when (prov?.shape) {
+                "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
+                "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
+                "openai", "xai" -> param == "instruction"                                // 仅 OpenAI 系有 instructions
                 else -> false
             }
         }
