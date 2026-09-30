@@ -302,7 +302,7 @@ class SettingsActivity : AppCompatActivity() {
             head.orientation = LinearLayout.HORIZONTAL
             head.gravity = Gravity.CENTER_VERTICAL
             val nm = TextView(this)
-            nm.text = name + if (builtIn) "    内置" else "    自建"
+            nm.text = name
             nm.setTextColor(c.txt)
             nm.textSize = 15f
             head.addView(nm, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -345,7 +345,7 @@ class SettingsActivity : AppCompatActivity() {
         val hiddenOnes = VoiceCatalog.builtIn.filter { it.second in hidden }
         if (hiddenOnes.isNotEmpty()) {
             val sec = TextView(this)
-            sec.text = "已隐藏的内置音色（可恢复）"
+            sec.text = "已隐藏"
             sec.setTextColor(c.dim)
             sec.textSize = 12f
             sec.setPadding(0, dp(14f), 0, dp(1f))

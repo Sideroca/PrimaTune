@@ -165,13 +165,6 @@
 
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="音色管理" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="自建音色可真正删除；内置音色写死在代码里，只能隐藏（可随时恢复）。"
-                            android:textColor="@color/hint"
-                            android:textSize="12sp" />
                         <LinearLayout
                             android:id="@+id/llVoices"
                             android:layout_width="match_parent"

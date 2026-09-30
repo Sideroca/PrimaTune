@@ -1251,18 +1251,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (all.isNotEmpty()) {
-            section("可用音色（删除：自建为真删，内置为隐藏）")
+            section("可用音色")
             for (v in all) {
                 val custom = customVoices.firstOrNull { it.id == v.id }
-                row(v.name, if (custom != null) "自建" else "内置", "删除", DELETE_RED) {
+                row(v.name, "", "删除", DELETE_RED) {
                     if (custom != null) confirmDeleteVoice(custom) else hideVoice(v)
                 }
             }
         }
         val hidden = voices.filter { it.id in hiddenVoices }
         if (hidden.isNotEmpty()) {
-            section("已隐藏的内置音色（可恢复）")
-            for (v in hidden) row(v.name, "内置", "恢复", c.acc) { unhideVoice(v) }
+            section("已隐藏")
+            for (v in hidden) row(v.name, "", "恢复", c.acc) { unhideVoice(v) }
         }
 
         val sc = ScrollView(this)
@@ -1281,10 +1281,7 @@ class MainActivity : AppCompatActivity() {
     private fun hideVoice(v: Voice) {
         val d = AlertDialog.Builder(this)
             .setTitle("隐藏音色")
-            .setMessage(
-                "「" + v.name + "」是内置音色（写死在代码里，无法真正删除）。\n" +
-                    "把它从音色列表中隐藏？随时可在「管理音色」里恢复。"
-            )
+            .setMessage("把「" + v.name + "」从音色列表里隐藏？之后可以在「已隐藏」里恢复。")
             .setPositiveButton("隐藏") { _, _ ->
                 hiddenVoices.add(v.id)
                 store.hiddenVoices = hiddenVoices
