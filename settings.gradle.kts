@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "VoiceTuner"
+rootProject.name = "PrimaTune"
 include(":app")

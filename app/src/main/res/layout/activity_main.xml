@@ -146,7 +146,7 @@
                     android:id="@+id/etText"
                     style="@style/VtInput"
                     android:layout_marginTop="0dp"
-                    android:paddingEnd="38dp"
+                    android:paddingEnd="24dp"
                     android:gravity="top|start"
                     android:hint="要合成的文本…"
                     android:importantForAutofill="no"
@@ -156,16 +156,18 @@
                 <!-- 清空叉号：字形 = ＋号同尺寸(13sp)；判定方块 26dp，贴文本框上边+右边内沿 -->
                 <TextView
                     android:id="@+id/btnClearText"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:layout_gravity="top|end"
                     android:gravity="center"
+                    android:paddingStart="3dp"
+                    android:paddingBottom="3dp"
                     android:clickable="true"
-                    android:focusable="true"
                     android:contentDescription="@string/clear_text"
+                    android:focusable="true"
                     android:text="✕"
                     android:textColor="@color/clear_x"
-                    android:textSize="11.5sp" />
+                    android:textSize="11sp" />
             </FrameLayout>
 
             <TextView style="@style/VtLabel" android:text="情绪 / 风格指令（≤128 字）" />
@@ -320,6 +322,16 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
+
+                <TextView style="@style/VtLabel" android:text="API 密钥（sk-ws-…；仅存本机，改完即生效）" />
+
+                <EditText
+                    android:id="@+id/etApiKey"
+                    style="@style/VtInput"
+                    android:hint="sk-ws-…"
+                    android:importantForAutofill="no"
+                    android:inputType="textVisiblePassword"
+                    android:singleLine="true" />
 
                 <TextView style="@style/VtLabel" android:text="model" />
 

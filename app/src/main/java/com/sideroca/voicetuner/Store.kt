@@ -19,6 +19,8 @@ data class Take(
     val volume: Int,
     val seed: Int,
     val format: String,
+    /** 这条记录用的模型（旧数据没有 → 空串） */
+    val model: String,
     val durationMs: Long,
     val createdAt: Long
 ) {
@@ -34,6 +36,7 @@ data class Take(
         put("volume", volume)
         put("seed", seed)
         put("format", format)
+        put("model", model)
         put("durationMs", durationMs)
         put("createdAt", createdAt)
     }
@@ -51,6 +54,7 @@ data class Take(
             volume = o.optInt("volume", 50),
             seed = o.optInt("seed", 0),
             format = o.optString("format", "wav24"),
+            model = o.optString("model", ""),
             durationMs = o.optLong("durationMs", 0),
             createdAt = o.optLong("createdAt", 0)
         )

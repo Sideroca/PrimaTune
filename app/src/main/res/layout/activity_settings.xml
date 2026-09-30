@@ -33,23 +33,9 @@
             android:paddingBottom="6dp">
 
             <TextView
-                android:id="@+id/btnBack"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_btn"
-                android:clickable="true"
-                android:focusable="true"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="8dp"
-                android:text="←"
-                android:textColor="@color/dim"
-                android:textSize="13sp" />
-
-            <TextView
                 android:id="@+id/tvPageTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:text="模型"
                 android:textColor="@color/txt"

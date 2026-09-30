@@ -23,6 +23,12 @@ class PressButton @JvmOverloads constructor(
 
     var label: String = "保存全部设置"
 
+    /** 形状/质感：随配色成套（《夕汀前端规范》①-1.1 + 〇-8） */
+    private var radiusDp = 11f
+    private var elevDp = 0f
+    var solidMode = false
+        private set
+
     private val density = resources.displayMetrics.density
     private val sinkPx = 5f * density
 
@@ -47,21 +53,37 @@ class PressButton @JvmOverloads constructor(
         edge.strokeWidth = 1.5f * density
     }
 
-    /** 由页面显式上色（浅/深主题各一套） */
-    fun setColors(faceColor: Int, strokeColor: Int, inkColor: Int) {
+    /** 由页面显式上色 + 上形状（颜色一律走主题槽位，见《夕汀前端规范》〇-6） */
+    fun applyTheme(
+        faceColor: Int, strokeColor: Int, inkColor: Int,
+        radiusDp: Float, elevDp: Float, solid: Boolean
+    ) {
         this.faceColor = faceColor
         this.strokeColor = strokeColor
         this.inkColor = inkColor
+        this.radiusDp = radiusDp
+        this.elevDp = elevDp
+        this.solidMode = solid
         invalidate()
     }
+
+    fun setColors(faceColor: Int, strokeColor: Int, inkColor: Int) =
+        applyTheme(faceColor, strokeColor, inkColor, radiusDp, elevDp, solidMode)
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
         val off = press * sinkPx
-        val r = 11f * density
+        val r = radiusDp * density
         rect.set(0f, off, w, h + off)
+
+        // 投影（elev > 0 才画；纯描边质感 = 0）
+        if (elevDp > 0f) {
+            inner.color = 0x14000000
+            val so = (0.6f * elevDp + 1f) * density
+            canvas.drawRoundRect(rect.left, rect.top + so, rect.right, rect.bottom + so, r, r, inner)
+        }
 
         face.color = faceColor
         canvas.drawRoundRect(rect, r, r, face)

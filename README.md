@@ -1,4 +1,4 @@
-# 语音调控台 · VoiceTuner
+# 玲珑调音 · Prima Tune
 
 安卓端语音合成调参台（自用）：把「调参 → 请求 → 试听」收进一个 App。
 直连阿里云百炼 CosyVoice v3.5-plus 复刻音色，无任何中转服务器。
@@ -24,7 +24,7 @@
 ## 安装（latest 直链，永远最新）
 手机浏览器打开或书签收藏：
 
-https://github.com/Sideroca/VoiceTuner/releases/latest/download/VoiceTuner.apk
+https://github.com/Sideroca/PrimaTune/releases/latest/download/PrimaTune.apk
 
 点开即下最新版，覆盖安装即可（签名固定）。
 

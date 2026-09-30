@@ -174,6 +174,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAdvanced: TextView
     private lateinit var llAdvanced: LinearLayout
     private lateinit var etModel: EditText
+    private lateinit var etApiKey: EditText
     private lateinit var etLangHints: TextView
     private lateinit var etHotfix: EditText
     private lateinit var etExtra: EditText
@@ -217,6 +218,7 @@ class MainActivity : AppCompatActivity() {
         applyLook()
         // 设置页改过「默认 model」时同步到高级参数
         if (etModel.text.toString() != store.lastModel) etModel.setText(store.lastModel)
+        if (etApiKey.text.toString() != store.apiKey) etApiKey.setText(store.apiKey)
     }
 
     /** v0.3：主题 + 壁纸统一入口（设置页改完回来即生效） */
@@ -263,6 +265,17 @@ class MainActivity : AppCompatActivity() {
         tvAdvanced = findViewById(R.id.tvAdvanced)
         llAdvanced = findViewById(R.id.llAdvanced)
         etModel = findViewById(R.id.etModel)
+        etApiKey = findViewById(R.id.etApiKey)
+        // 高级参数里的 API 密钥：改完即生效（与设置页共用同一个本机存档）
+        etApiKey.setText(store.apiKey)
+        etApiKey.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                store.apiKey = s?.toString()?.trim() ?: ""
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
         etLangHints = findViewById(R.id.etLangHints)
         etHotfix = findViewById(R.id.etHotfix)
         etExtra = findViewById(R.id.etExtra)
@@ -690,6 +703,7 @@ class MainActivity : AppCompatActivity() {
             volume = req.volume,
             seed = req.seed,
             format = fmt.key,
+            model = req.model,
             durationMs = probeDurationMs(file),
             createdAt = System.currentTimeMillis()
         )
@@ -910,21 +924,40 @@ class MainActivity : AppCompatActivity() {
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
 
+        // 文本：默认 2 行（≈1.8 行可见），点它就地展开 / 收起
         val title = TextView(this)
-        title.text = if (take.text.length > 40) take.text.take(40) + "…" else take.text
+        title.text = take.text
         title.setTextColor(cTxt)
         title.textSize = 14f
+        title.maxLines = 2
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
         row.addView(title)
+        title.setOnClickListener {
+            val ex = title.maxLines != Int.MAX_VALUE
+            title.maxLines = if (ex) Int.MAX_VALUE else 2
+            title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
+        }
 
+        // 常驻信息：时间 · 音色 · 格式 · 字数 · 种子 · 时长（语速/音调/音量收进「属性」）
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
         meta.text = time + " · " + take.voiceName + " · " + take.format +
-                " · 语速" + fmtNum(take.rate) + " 音调" + fmtNum(take.pitch) + " 音量" + take.volume +
+                " · " + take.text.length + " 字" +
                 " · 🎲" + take.seed + " · 时长 " + fmtDur(take.durationMs)
         meta.setTextColor(cDim)
         meta.textSize = 12f
         meta.setPadding(0, dp(3), 0, dp(6))
         row.addView(meta)
+
+        // 「属性」收起时隐藏：语速 / 音调 / 音量 / 模型
+        val detail = TextView(this)
+        detail.text = "语速 " + fmtNum(take.rate) + " · 音调 " + fmtNum(take.pitch) +
+                " · 音量 " + take.volume + " · 模型 " + (if (take.model.isBlank()) "—" else take.model)
+        detail.setTextColor(cDim)
+        detail.textSize = 12f
+        detail.setPadding(0, 0, 0, dp(2))
+        detail.visibility = View.GONE
+        row.addView(detail)
 
         val hs = HorizontalScrollView(this)
         hs.isHorizontalScrollBarEnabled = false
@@ -935,7 +968,7 @@ class MainActivity : AppCompatActivity() {
 
         val bPlay = smallBtn("▶ 播放")
         val bFill = smallBtn("回填")
-        val bReroll = smallBtn("🎲 重抽")
+        val bAttr = smallBtn("属性")
         val bShare = smallBtn("分享")
         val bDel = smallBtn("删除")
 
@@ -944,16 +977,17 @@ class MainActivity : AppCompatActivity() {
             fillFrom(take)
             toast("已回填参数")
         }
-        bReroll.setOnClickListener {
-            fillFrom(take)
-            generate((0..65535).random())
+        bAttr.setOnClickListener {
+            val show = detail.visibility != View.VISIBLE
+            detail.visibility = if (show) View.VISIBLE else View.GONE
+            bAttr.text = if (show) "属性 ▾" else "属性"
         }
         bShare.setOnClickListener { shareTake(take) }
         bDel.setOnClickListener { confirmDelete(take) }
 
         btnRow.addView(bPlay)
         btnRow.addView(bFill)
-        btnRow.addView(bReroll)
+        btnRow.addView(bAttr)
         btnRow.addView(bShare)
         btnRow.addView(bDel)
 

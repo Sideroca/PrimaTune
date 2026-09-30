@@ -85,7 +85,6 @@ class SettingsActivity : AppCompatActivity() {
         llRecords = findViewById(R.id.llRecords)
         btnSaveAll = findViewById(R.id.btnSaveAll)
 
-        findViewById<TextView>(R.id.btnBack).setOnClickListener { finish() }
         buildCatChips()
         renderPalettes()
         renderIndicatorColors()
@@ -194,26 +193,38 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /** 坞 + 保存键的显式上色（浅/深主题各一套） */
+    /** 坞 + 保存键的显式上色（颜色走 11 槽；形状/质感走 4 参数 —— 对齐《夕汀前端规范》） */
     private fun styleDock(c: Skin.Colors) {
-        llDock.background = Skin.shapeDp(this, c.card, c.line, 16f, 92, 1f)
+        val pal = Palettes.byId(store.themeId)
+        val cardR = (pal?.cardRadius ?: 14).toFloat()
+        val btnR = (pal?.btnRadius ?: 11).toFloat()
+        val elev = (pal?.elev ?: 0).toFloat()
+        val solid = pal?.solidBtn ?: false
+
+        llDock.background = Skin.shapeDp(this, c.card, c.line, cardR, 92, 1f)
+        llDock.elevation = elev * 0.6f * resources.displayMetrics.density
+
         val onFill = (c.acc and 0x00FFFFFF) or (0x2B shl 24)      // 主色 17% 透明
         dockPads.forEachIndexed { i, pad ->
             pad.background = if (i == selectedPage) {
-                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), 11f, 100, 1.5f)
+                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), btnR, 100, 1.5f)
             } else {
-                Skin.shapeDp(this, 0x00000000, null, 11f)
+                Skin.shapeDp(this, 0x00000000, null, btnR)
             }
             dockLabels[i].setTextColor(if (i == selectedPage) c.acc else c.dim)
             dockIcons[i].imageTintList =
                 android.content.res.ColorStateList.valueOf(if (i == selectedPage) c.acc else c.dim)
         }
-        // 保存键：严格走主题语义槽位（《夕汀前端规范》〇-6 组件内不写死颜色；〇-11 自动明度适配）
-        // 交互色(accent) 作底/描边，明度低时自动把字提亮 → 换主题即换色
-        val acc = c.acc
-        val faceTint = (acc and 0x00FFFFFF) or (0x33 shl 24)      // accent 20% —— 玻璃感
-        val strokeTint = (acc and 0x00FFFFFF) or (0x66 shl 24)    // accent 40% —— 描边
-        val ink = if (c.light) acc else Skin.Colors.mix(acc, 0xFFFFFFFF.toInt(), 0.45f)
-        btnSaveAll.setColors(faceTint, strokeTint, ink)
+
+        // 保存键：保持"透明玻璃"（玲珑调音的取向，非硬性规则）——solidBtn 只决定玻璃浓度与描边强度
+        //   实心档主题 → 面 accent@22% / 描边 accent@40%
+        //   描边档主题 → 面 accent@10% / 描边 accent@60%
+        // 字色一律 accent；颜色全走语义槽位（《夕汀前端规范》〇-6），换主题即换色
+        val faceAlpha = if (solid) 0x38 else 0x1A          // 22% / 10%
+        val strokeAlpha = if (solid) 0x66 else 0x99        // 40% / 60%
+        val glassFace = (c.acc and 0x00FFFFFF) or (faceAlpha shl 24)
+        val glassStroke = (c.acc and 0x00FFFFFF) or (strokeAlpha shl 24)
+        btnSaveAll.applyTheme(glassFace, glassStroke, c.acc, btnR, elev, false)
     }
 
     // ---------------------------------------------------------------- 模型页
@@ -326,19 +337,58 @@ class SettingsActivity : AppCompatActivity() {
             val box = LinearLayout(this)
             box.orientation = LinearLayout.VERTICAL
             box.setPadding(0, dp(9f), 0, dp(9f))
+
+            // 文本：默认 2 行，点它就地展开 / 收起
             val a = TextView(this)
-            a.text = if (t.text.length > 34) t.text.take(34) + "…" else t.text
+            a.text = t.text
             a.setTextColor(c.txt)
             a.textSize = 14f
+            a.maxLines = 2
+            a.ellipsize = android.text.TextUtils.TruncateAt.END
+            a.setOnClickListener {
+                val ex = a.maxLines != Int.MAX_VALUE
+                a.maxLines = if (ex) Int.MAX_VALUE else 2
+                a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
+            }
             box.addView(a)
+
+            // 常驻信息：时间 · 音色 · 格式 · 字数
             val b = TextView(this)
-            b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " + t.format
+            b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " +
+                    t.format + " · " + t.text.length + " 字"
             b.setTextColor(c.dim)
             b.textSize = 11.5f
             b.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(3f) }
             box.addView(b)
+
+            // 收起时隐藏的「属性」：语速 / 音调 / 音量 / 模型
+            val d2 = TextView(this)
+            d2.text = "语速 " + t.rate + " · 音调 " + t.pitch + " · 音量 " + t.volume +
+                    " · 模型 " + (if (t.model.isBlank()) "—" else t.model)
+            d2.setTextColor(c.hint)
+            d2.textSize = 11f
+            d2.visibility = View.GONE
+            d2.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(2f) }
+            box.addView(d2)
+
+            val attr = TextView(this)
+            attr.text = "属性"
+            attr.setTextColor(c.dim)
+            attr.textSize = 11.5f
+            attr.setPadding(0, dp(4f), 0, 0)
+            attr.isClickable = true
+            attr.isFocusable = true
+            attr.setOnClickListener {
+                val show = d2.visibility != View.VISIBLE
+                d2.visibility = if (show) View.VISIBLE else View.GONE
+                attr.text = if (show) "属性 ▾" else "属性"
+            }
+            box.addView(attr)
+
             llRecords.addView(box)
         }
     }
