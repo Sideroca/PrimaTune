@@ -654,7 +654,7 @@ class SettingsActivity : AppCompatActivity() {
         val defs = listOf(
             "modern" to "现代经典 18",
             "chinese" to "🏮 中国传统色 46",
-            "attrs" to "属性设置"
+            "attrs" to "壁纸属性"
         )
         for ((id, label) in defs) {
             val tv = TextView(this)

@@ -262,16 +262,6 @@
                             android:orientation="vertical" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:id="@+id/cardIndicator"
-                        style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="当前音色指示符颜色" />
-                        <LinearLayout
-                            android:id="@+id/llIndicator"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
-                    </LinearLayout>
 
                     <!-- 壁纸与浓度（属于「主题」页） -->
                     <LinearLayout
@@ -417,6 +407,18 @@
                             android:text="恢复默认（壁纸与浓度）"
                             android:textColor="@color/dim"
                             android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- 指示符颜色（与壁纸模块对调后放到后面） -->
+                    <LinearLayout
+                        android:id="@+id/cardIndicator"
+                        style="@style/VtCard">
+                        <TextView style="@style/VtLabel" android:text="当前音色指示符颜色" />
+                        <LinearLayout
+                            android:id="@+id/llIndicator"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
                     </LinearLayout>
                 </LinearLayout>
             </ScrollView>
