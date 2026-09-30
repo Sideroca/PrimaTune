@@ -68,7 +68,9 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         store = Store(this)
-        cat = if (store.themeId.isEmpty()) "modern" else (Palettes.byId(store.themeId)?.group ?: "modern")
+        // 「本机原色」已下线：老设备若存的是空主题，兜底迁移到默认竹青
+        if (store.themeId.isEmpty()) store.themeId = "tea"
+        cat = Palettes.byId(store.themeId)?.group ?: "modern"
 
         wpImg = findViewById(R.id.wpImg)
         wpScrim = findViewById(R.id.wpScrim)
