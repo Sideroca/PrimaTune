@@ -165,6 +165,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun dp(px: Float): Int = (px * resources.displayMetrics.density).toInt()
 
     private fun buildDock() {
+        // 坞整体留白：图标不再贴着卡片上沿，避免拥挤
+        llDock.setPadding(0, dp(9f), 0, dp(6f))
         llDock.removeAllViews()
         dockItems.clear(); dockPads.clear(); dockIcons.clear(); dockLabels.clear()
         for (i in dockDefs.indices) {
@@ -354,6 +356,28 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 记录页
 
+    /** 记录页：试听（用系统 MediaPlayer 直接播本地文件） */
+    private var recPlayer: android.media.MediaPlayer? = null
+
+    private fun playHistory(t: Take) {
+        try {
+            recPlayer?.release()
+            val f = java.io.File(java.io.File(filesDir, "history"), t.fileName)
+            if (!f.exists()) {
+                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
+                return
+            }
+            recPlayer = android.media.MediaPlayer().apply {
+                setDataSource(f.absolutePath)
+                prepare()
+                start()
+                setOnCompletionListener { it.release() }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "播放失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     /** 记录页：是否只看收藏 */
     private var recOnlyFav = false
 
@@ -469,8 +493,8 @@ class SettingsActivity : AppCompatActivity() {
             val modelShown = if (t.model.isBlank()) store.lastModel else t.model
             d2.text = "语速 " + t.rate + " · 音调 " + t.pitch + " · 音量 " + t.volume +
                     " · 模型 " + modelShown + " · 🎲 " + t.seed
-            d2.setTextColor(c.hint)
-            d2.textSize = 11f
+            d2.setTextColor(c.txt)                 // 与正文一致（不再发灰"隐形"）
+            d2.textSize = 13f
             d2.visibility = View.GONE
             d2.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -479,6 +503,17 @@ class SettingsActivity : AppCompatActivity() {
 
             val bar2 = LinearLayout(this)
             bar2.orientation = LinearLayout.HORIZONTAL
+
+            // 试听（记录页也要有）
+            val play = TextView(this)
+            play.text = "▶ 播放"
+            play.setTextColor(c.dim)
+            play.textSize = 11.5f
+            play.setPadding(0, dp(6f), dp(16f), dp(2f))
+            play.isClickable = true
+            play.isFocusable = true
+            play.setOnClickListener { playHistory(t) }
+            bar2.addView(play)
 
             val star = LinearLayout(this)
             star.orientation = LinearLayout.HORIZONTAL

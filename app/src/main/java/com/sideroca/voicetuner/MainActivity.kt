@@ -977,8 +977,8 @@ class MainActivity : AppCompatActivity() {
         val modelShown = if (take.model.isBlank()) store.lastModel else take.model
         detail.text = "语速 " + fmtNum(take.rate) + " · 音调 " + fmtNum(take.pitch) +
                 " · 音量 " + take.volume + " · 模型 " + modelShown + " · 🎲 " + take.seed
-        detail.setTextColor(cDim)
-        detail.textSize = 12f
+        detail.setTextColor(cTxt)                  // 与正文一致（不再发灰"隐形"）
+        detail.textSize = 13f
         detail.setPadding(0, 0, dp(12), dp(2))
         detail.visibility = View.GONE
         row.addView(detail)
