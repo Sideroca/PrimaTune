@@ -404,7 +404,7 @@ class SettingsActivity : AppCompatActivity() {
             box.orientation = LinearLayout.VERTICAL
             box.setPadding(0, dp(10f), 0, dp(10f))
 
-            // 头部：文本（默认 2 行，点它就地展开） ＋ 收藏星
+            // 头部：文本（默认 2 行，点它就地展开） ＋ 右上角删除 ✕（字形极小、判定 34dp）
             val head = LinearLayout(this)
             head.orientation = LinearLayout.HORIZONTAL
             val a = TextView(this)
@@ -419,24 +419,33 @@ class SettingsActivity : AppCompatActivity() {
                 a.maxLines = if (ex) Int.MAX_VALUE else 2
                 a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
             }
-            val star = ImageView(this)
-            star.layoutParams = LinearLayout.LayoutParams(dp(22f), dp(22f)).apply { marginStart = dp(8f) }
-            val refreshStar = {
-                val fav = t.id in store.favTakes
-                star.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
-                star.imageTintList =
-                    if (fav) null else android.content.res.ColorStateList.valueOf(c.dim)
+            val x = TextView(this)
+            x.text = "✕"
+            x.textSize = 11f
+            x.setTextColor(c.dim)
+            x.gravity = Gravity.CENTER
+            x.layoutParams = LinearLayout.LayoutParams(dp(34f), dp(34f))
+            x.isClickable = true
+            x.isFocusable = true
+            x.setOnClickListener {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("删除这条记录？")
+                    .setMessage(t.text.take(60))
+                    .setPositiveButton("删除") { _, _ ->
+                        val list = store.loadTakes()
+                        list.removeAll { it.id == t.id }
+                        store.saveTakes(list)
+                        try {
+                            java.io.File(java.io.File(filesDir, "history"), t.fileName).delete()
+                        } catch (e: Exception) {
+                            // ignore
+                        }
+                        buildRecords()
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
             }
-            refreshStar()
-            star.isClickable = true
-            star.isFocusable = true
-            star.setOnClickListener {
-                val set = store.favTakes
-                if (set.contains(t.id)) set.remove(t.id) else set.add(t.id)
-                store.favTakes = set
-                refreshStar()
-            }
-            head.addView(star)
+            head.addView(x)
             box.addView(head)
 
             // 常驻信息：时间 · 音色 · 格式 · 字数
@@ -450,10 +459,11 @@ class SettingsActivity : AppCompatActivity() {
             ).apply { topMargin = dp(3f) }
             box.addView(b)
 
-            // 收起时隐藏的「属性」：语速 / 音调 / 音量 / 模型
+            // 收起时隐藏的「属性」：语速 / 音调 / 音量 / 模型 / 种子
             val d2 = TextView(this)
+            val modelShown = if (t.model.isBlank()) store.lastModel else t.model
             d2.text = "语速 " + t.rate + " · 音调 " + t.pitch + " · 音量 " + t.volume +
-                    " · 模型 " + (if (t.model.isBlank()) "—" else t.model)
+                    " · 模型 " + modelShown + " · 🎲 " + t.seed
             d2.setTextColor(c.hint)
             d2.textSize = 11f
             d2.visibility = View.GONE
@@ -462,19 +472,43 @@ class SettingsActivity : AppCompatActivity() {
             ).apply { topMargin = dp(2f) }
             box.addView(d2)
 
+            val bar2 = LinearLayout(this)
+            bar2.orientation = LinearLayout.HORIZONTAL
+
+            val star = TextView(this)
+            star.textSize = 11.5f
+            star.setPadding(0, dp(6f), dp(14f), dp(2f))
+            star.isClickable = true
+            star.isFocusable = true
+            val refreshStar = {
+                val fav = t.id in store.favTakes
+                star.text = if (fav) "★ 已收藏" else "☆ 收藏"
+                star.setTextColor(if (fav) c.txt else c.dim)
+            }
+            refreshStar()
+            star.setOnClickListener {
+                val set = store.favTakes
+                if (set.contains(t.id)) set.remove(t.id) else set.add(t.id)
+                store.favTakes = set
+                refreshStar()
+            }
+            bar2.addView(star)
+
             val attr = TextView(this)
             attr.text = "属性"
             attr.setTextColor(c.dim)
             attr.textSize = 11.5f
-            attr.setPadding(0, dp(4f), 0, 0)
+            attr.setPadding(0, dp(6f), 0, dp(2f))
             attr.isClickable = true
             attr.isFocusable = true
             attr.setOnClickListener {
                 val show = d2.visibility != View.VISIBLE
                 d2.visibility = if (show) View.VISIBLE else View.GONE
-                attr.text = if (show) "属性 ▾" else "属性"
+                attr.text = if (show) "收起" else "属性"
             }
-            box.addView(attr)
+            bar2.addView(attr)
+
+            box.addView(bar2)
 
             llRecords.addView(box)
         }

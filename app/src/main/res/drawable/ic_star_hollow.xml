@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 收藏星 · 未收藏态：空心（内部透明，由描边色 tint 决定颜色）——A 档形状（内径比 0.46） -->
+<!-- 收藏星 · 未收藏：空心（内部透明）、miter 尖角（小尺寸下不糊）——A 档形状（内径比 0.46） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M12,2.4 L14.60,8.43 L21.13,14.97 L14.60,15.57 L12,21.6 L9.40,15.57 L2.87,14.97 L7.80,10.64 L6.36,4.23 L12,7.58 Z"
+        android:pathData="M12.00,2.40 L14.60,8.43 L21.13,14.97 L14.60,15.57 L12.00,21.60 L9.40,15.57 L2.87,14.97 L7.80,10.64 L6.36,4.23 L12.00,7.58 Z"
         android:strokeColor="#8A8A8A"
-        android:strokeWidth="1.5"
-        android:strokeLineJoin="round" />
+        android:strokeWidth="1.25"
+        android:strokeLineJoin="miter" />
 </vector>

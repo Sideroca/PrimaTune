@@ -924,7 +924,7 @@ class MainActivity : AppCompatActivity() {
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
 
-        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 收藏星
+        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 右上角删除 ✕（字形极小、判定 34dp）
         val head = LinearLayout(this)
         head.orientation = LinearLayout.HORIZONTAL
 
@@ -941,46 +941,34 @@ class MainActivity : AppCompatActivity() {
             title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
         }
 
-        val star = ImageView(this)
-        star.layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(8) }
-        val refreshStar = {
-            val fav = take.id in store.favTakes
-            star.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
-            star.imageTintList =
-                if (fav) null else android.content.res.ColorStateList.valueOf(cDim)
-        }
-        refreshStar()
-        star.isClickable = true
-        star.isFocusable = true
-        star.setOnClickListener {
-            val set = store.favTakes
-            val nowFav = if (set.contains(take.id)) {
-                set.remove(take.id); false
-            } else {
-                set.add(take.id); true
-            }
-            store.favTakes = set
-            refreshStar()
-            toast(if (nowFav) "已收藏" else "已取消收藏")
-        }
-        head.addView(star)
+        val x = TextView(this)
+        x.text = "✕"
+        x.textSize = 11f
+        x.setTextColor(cDim)
+        x.gravity = android.view.Gravity.CENTER
+        x.layoutParams = LinearLayout.LayoutParams(dp(34), dp(34))
+        x.isClickable = true
+        x.isFocusable = true
+        x.setOnClickListener { confirmDelete(take) }
+        head.addView(x)
         row.addView(head)
 
-        // 常驻信息：时间 · 音色 · 格式 · 字数 · 种子 · 时长（语速/音调/音量收进「属性」）
+        // 常驻信息：时间 · 音色 · 格式 · 字数 · 时长（🎲 与语速/音调/音量/模型都收进「属性」）
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
         meta.text = time + " · " + take.voiceName + " · " + take.format +
                 " · " + take.text.length + " 字" +
-                " · 🎲" + take.seed + " · 时长 " + fmtDur(take.durationMs)
+                " · 时长 " + fmtDur(take.durationMs)
         meta.setTextColor(cDim)
         meta.textSize = 12f
         meta.setPadding(0, dp(3), 0, dp(6))
         row.addView(meta)
 
-        // 「属性」收起时隐藏：语速 / 音调 / 音量 / 模型
+        // 「属性」收起时隐藏：语速 / 音调 / 音量 / 模型 / 种子
         val detail = TextView(this)
+        val modelShown = if (take.model.isBlank()) store.lastModel else take.model
         detail.text = "语速 " + fmtNum(take.rate) + " · 音调 " + fmtNum(take.pitch) +
-                " · 音量 " + take.volume + " · 模型 " + (if (take.model.isBlank()) "—" else take.model)
+                " · 音量 " + take.volume + " · 模型 " + modelShown + " · 🎲 " + take.seed
         detail.setTextColor(cDim)
         detail.textSize = 12f
         detail.setPadding(0, 0, 0, dp(2))
@@ -997,8 +985,8 @@ class MainActivity : AppCompatActivity() {
         val bPlay = smallBtn("▶ 播放")
         val bFill = smallBtn("回填")
         val bAttr = smallBtn("属性")
+        val bStar = smallBtn("★")
         val bShare = smallBtn("分享")
-        val bDel = smallBtn("删除")
 
         bPlay.setOnClickListener { toggleTake(take) }
         bFill.setOnClickListener {
@@ -1008,16 +996,32 @@ class MainActivity : AppCompatActivity() {
         bAttr.setOnClickListener {
             val show = detail.visibility != View.VISIBLE
             detail.visibility = if (show) View.VISIBLE else View.GONE
-            bAttr.text = if (show) "属性 ▾" else "属性"
+            bAttr.text = if (show) "收起" else "属性"
+        }
+        val refreshStar = {
+            val fav = take.id in store.favTakes
+            bStar.text = if (fav) "★ 已收藏" else "☆ 收藏"
+            bStar.setTextColor(if (fav) cTxt else cDim)
+        }
+        refreshStar()
+        bStar.setOnClickListener {
+            val set = store.favTakes
+            val nowFav = if (set.contains(take.id)) {
+                set.remove(take.id); false
+            } else {
+                set.add(take.id); true
+            }
+            store.favTakes = set
+            refreshStar()
+            toast(if (nowFav) "已收藏" else "已取消收藏")
         }
         bShare.setOnClickListener { shareTake(take) }
-        bDel.setOnClickListener { confirmDelete(take) }
 
         btnRow.addView(bPlay)
         btnRow.addView(bFill)
         btnRow.addView(bAttr)
+        btnRow.addView(bStar)
         btnRow.addView(bShare)
-        btnRow.addView(bDel)
 
         rowRefs.add(RowRef(take, bPlay))
         return row
