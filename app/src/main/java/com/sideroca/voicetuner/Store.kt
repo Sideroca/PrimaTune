@@ -126,6 +126,20 @@ class Store(context: Context) {
         get() = (prefs.getStringSet("favTakes", emptySet()) ?: emptySet()).toMutableSet()
         set(v) { prefs.edit().putStringSet("favTakes", HashSet(v)).apply() }
 
+    // ---- P1：多厂商 ----
+
+    /** 当前选中的厂商 id（默认阿里云百炼） */
+    var providerId: String
+        get() = prefs.getString("providerId", "aliyun-bailian") ?: "aliyun-bailian"
+        set(v) { prefs.edit().putString("providerId", v).apply() }
+
+    /** 每个厂商各自的 API Key（按 id 分开存，互不覆盖） */
+    fun providerKey(id: String): String = prefs.getString("key_" + id, "") ?: ""
+
+    fun setProviderKey(id: String, value: String) {
+        prefs.edit().putString("key_" + id, value).apply()
+    }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }
