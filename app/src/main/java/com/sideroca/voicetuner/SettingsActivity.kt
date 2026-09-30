@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -37,6 +38,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etWs: EditText
     private lateinit var etModel: EditText
     private lateinit var llIndicator: LinearLayout
+    private lateinit var svSettings: ScrollView
 
     private var cat = "orig"
 
@@ -59,6 +61,7 @@ class SettingsActivity : AppCompatActivity() {
         etWs = findViewById(R.id.etWs)
         etModel = findViewById(R.id.etModel)
         llIndicator = findViewById(R.id.llIndicator)
+        svSettings = findViewById(R.id.svSettings)
 
         findViewById<TextView>(R.id.btnBack).setOnClickListener { finish() }
         buildCatChips()
@@ -219,8 +222,14 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         row.setOnClickListener {
+            // 原地换肤：不 recreate()，滚动位置保持不变，只有颜色变
+            val keepY = svSettings.scrollY
             store.themeId = id
-            recreate()
+            applyLook()
+            buildCatChips()
+            renderPalettes()
+            renderIndicatorColors()
+            svSettings.scrollTo(0, keepY)
         }
         return row
     }
