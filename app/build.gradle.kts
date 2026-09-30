@@ -30,7 +30,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false
+            // release 走 R8：冷启动明显快于 debug 包（debuggable=false + 压缩）。
+            // 仍用仓库里的固定 debug.keystore 签名 → 与既有安装可互相覆盖。
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("debug")
         }
     }

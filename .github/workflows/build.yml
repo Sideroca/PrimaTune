@@ -30,12 +30,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
 
       - name: Rename APK
         run: |
-          cd app/build/outputs/apk/debug
+          cd app/build/outputs/apk/release
           f=$(ls -1 *.apk 2>/dev/null | head -1)
           if [ -z "$f" ]; then echo "未找到 APK"; exit 1; fi
           mv "$f" PrimaTune.apk
@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PrimaTune-apk
-          path: app/build/outputs/apk/debug/PrimaTune.apk
+          path: app/build/outputs/apk/release/PrimaTune.apk
 
       # ===== 手机书签一个直链，永远下最新版 =====
       # https://github.com/Sideroca/PrimaTune/releases/latest/download/PrimaTune.apk
@@ -54,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          APK=app/build/outputs/apk/debug/PrimaTune.apk
+          APK=app/build/outputs/apk/release/PrimaTune.apk
           # 有旧发布就覆盖上传（避免"删了建不回来"的空窗）
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest "$APK" --clobber

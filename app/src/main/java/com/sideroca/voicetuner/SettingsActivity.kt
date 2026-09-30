@@ -58,6 +58,8 @@ class SettingsActivity : AppCompatActivity() {
     private val density = 0f   // 占位，运行时用 resources 取（保持字段顺序稳定）
 
     private var cat = "orig"
+    /** 配色列表是否展开全部（懒建：默认只建前 20 套） */
+    private var palShowAll = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -589,7 +591,25 @@ class SettingsActivity : AppCompatActivity() {
             llPalettes.addView(palRow(null, c))
             return
         }
-        for (p in Palettes.all.filter { it.group == cat }) llPalettes.addView(palRow(p, c))
+        val list = Palettes.all.filter { it.group == cat }
+        // 懒建：默认只建前 20 行，其余点「显示全部」
+        val shown = if (palShowAll) list else list.take(20)
+        for (p in shown) llPalettes.addView(palRow(p, c))
+        if (list.size > 20) {
+            val more = TextView(this)
+            more.text = if (palShowAll) "收起（只显示前 20 套）" else "显示全部（共 " + list.size + " 套）"
+            more.setTextColor(c.dim)
+            more.textSize = 13f
+            more.gravity = Gravity.CENTER
+            more.setPadding(dp(12), dp(12), dp(12), dp(12))
+            more.isClickable = true
+            more.isFocusable = true
+            more.setOnClickListener {
+                palShowAll = !palShowAll
+                renderPalettes()
+            }
+            llPalettes.addView(more)
+        }
     }
 
     private fun palRow(p: Pal?, c: Skin.Colors): View {

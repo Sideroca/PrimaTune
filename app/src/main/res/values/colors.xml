@@ -13,4 +13,6 @@
     <color name="icon_bg">#151A22</color>
     <!-- 文本清空叉号（中性灰，不参与换肤重绘） -->
     <color name="clear_x">#9AA0A6</color>
+    <!-- 启动窗口底色：避免冷启动黑屏（浅色，接近白） -->
+    <color name="launch_bg">#F7F8FA</color>
 </resources>
