@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 坞图标 · 主题：调色板（多色：木色盘 + 红蓝绿黄四个色点），仿调色板表情图标 -->
+<!-- 坞图标 · 主题：调色盘（椭圆盘 + 左下拇指孔 + 四个色点）。用 evenOdd 挖出拇指孔，避免看起来像"水果" -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#DFA05A"
-        android:pathData="M12,2.6 a9.4,9.4 0 1 0 0,18.8 a2.3,2.3 0 0 0 0,-4.6 a1.9,1.9 0 0 1 0,-3.8 h2.3 A5.2,5.2 0 0 0 19.5,7.8 A4.6,4.6 0 0 0 12,2.6 z" />
+        android:fillColor="#E8A33D"
+        android:fillType="evenOdd"
+        android:pathData="M12,2.6 C6.7,2.6 2.6,6.8 2.6,12 C2.6,17.2 6.7,21.4 12,21.4 C17.3,21.4 21.4,17.2 21.4,12 C21.4,6.8 17.3,2.6 12,2.6 Z
+                          M9.0,15.4 C10.35,15.4 11.4,16.45 11.4,17.8 C11.4,19.15 10.35,20.2 9.0,20.2 C7.65,20.2 6.6,19.15 6.6,17.8 C6.6,16.45 7.65,15.4 9.0,15.4 Z" />
     <path
         android:fillColor="#E2574C"
-        android:pathData="M7.6,10.1 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
+        android:pathData="M8.0,10.2 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
     <path
         android:fillColor="#F2C33C"
-        android:pathData="M11.4,6.3 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
+        android:pathData="M11.9,6.4 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
     <path
         android:fillColor="#4D8FE0"
-        android:pathData="M15.4,8.6 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
+        android:pathData="M15.9,8.9 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
     <path
         android:fillColor="#57B06C"
-        android:pathData="M7.2,15.2 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
+        android:pathData="M16.6,15.0 m-1.35,0 a1.35,1.35 0 1 0 2.7,0 a1.35,1.35 0 1 0 -2.7,0" />
 </vector>
