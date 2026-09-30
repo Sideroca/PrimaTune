@@ -137,7 +137,7 @@ class ThemePreviewView @JvmOverloads constructor(
             card(canvas, pad, cy, cw, 62 * d, 8 * d, c)
             val dots = intArrayOf(0, 0, 0, 0)
             for (i in 0 until 4) {
-                dots[0] = c.bg; dots[1] = c.card; dots[2] = c.acc; dots[3] = c.barBg
+                dots[0] = c.bg; dots[1] = c.card; dots[2] = c.acc; dots[3] = c.acc2
                 fill.color = c.txt
                 bar(canvas, pad + 7 * d, cy + (7 + i * 14) * d, cw * 0.45f, 5 * d)
                 for (k in 0 until 4) {

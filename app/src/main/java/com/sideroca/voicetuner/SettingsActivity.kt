@@ -192,12 +192,12 @@ class SettingsActivity : AppCompatActivity() {
             item.gravity = Gravity.CENTER_HORIZONTAL
             item.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
 
-            // 图标垫片：选中时才出现（56×30dp），图标统一 20dp 居中 → 5 项永远同高同宽
+            // 图标垫片：选中时才出现（52×40dp —— 比原来加高，不再扁平）；图标统一 22dp 居中
             val pad = android.widget.FrameLayout(this)
-            pad.layoutParams = LinearLayout.LayoutParams(dp(56f), dp(30f))
+            pad.layoutParams = LinearLayout.LayoutParams(dp(52f), dp(40f))
             pad.elevation = 3f * resources.displayMetrics.density
             val iv = ImageView(this)
-            iv.layoutParams = android.widget.FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
+            iv.layoutParams = android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
             iv.setImageResource(dockIconRes[i])
             pad.addView(iv)
 
@@ -257,8 +257,8 @@ class SettingsActivity : AppCompatActivity() {
                 Skin.shapeDp(this, 0x00000000, null, btnR)
             }
             dockLabels[i].setTextColor(if (i == selectedPage) c.acc else c.dim)
-            dockIcons[i].imageTintList =
-                android.content.res.ColorStateList.valueOf(if (i == selectedPage) c.acc else c.dim)
+            // 图标是"彩色"的（仿表情图标）→ 不再 tint，只让垫片与文字表示选中
+            dockIcons[i].imageTintList = null
         }
 
         // 保存键：保持"透明玻璃"（玲珑调音的取向，非硬性规则）——solidBtn 只决定玻璃浓度与描边强度

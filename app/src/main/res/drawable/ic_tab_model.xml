@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 坞图标 · 模型：插头（24dp 画布，线宽统一 1.6） -->
+<!-- 坞图标 · 模型：插头（多色：银色插脚 + 深灰插体 + 黑线），仿参考图的表情图标观感 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M9,2.5 L9,6.5 M15,2.5 L15,6.5 M6.5,6.5 L17.5,6.5 L17.5,10.5 A5.5,5.5 0 0 1 6.5,10.5 Z M12,16 L12,21.5"
-        android:strokeColor="#8A8A8A"
-        android:strokeWidth="1.6"
+        android:fillColor="#BFC5CC"
+        android:pathData="M8.5,2.8 h2.1 v4.2 h-2.1 z M13.4,2.8 h2.1 v4.2 h-2.1 z" />
+    <path
+        android:fillColor="#5B6169"
+        android:pathData="M6.2,6.9 h11.6 v3.1 a5.8,5.8 0 0 1 -11.6,0 z" />
+    <path
+        android:strokeColor="#2B2F34"
+        android:strokeWidth="1.7"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M12,15.7 L12,21" />
 </vector>
