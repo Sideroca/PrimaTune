@@ -38,7 +38,19 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etWs: EditText
     private lateinit var etModel: EditText
     private lateinit var llIndicator: LinearLayout
-    private lateinit var svSettings: ScrollView
+    private lateinit var pageTheme: ScrollView
+    private lateinit var pageModel: ScrollView
+    private lateinit var pageVoice: ScrollView
+    private lateinit var pageRecords: ScrollView
+    private lateinit var pageAbout: ScrollView
+    private lateinit var tvPageTitle: TextView
+    private lateinit var llDock: LinearLayout
+    private lateinit var llProviders: LinearLayout
+    private lateinit var llVoices: LinearLayout
+    private lateinit var llRecords: LinearLayout
+    private lateinit var btnSaveAll: PressButton
+
+    private val density = 0f   // 占位，运行时用 resources 取（保持字段顺序稳定）
 
     private var cat = "orig"
 
@@ -61,7 +73,17 @@ class SettingsActivity : AppCompatActivity() {
         etWs = findViewById(R.id.etWs)
         etModel = findViewById(R.id.etModel)
         llIndicator = findViewById(R.id.llIndicator)
-        svSettings = findViewById(R.id.svSettings)
+        tvPageTitle = findViewById(R.id.tvPageTitle)
+        pageModel = findViewById(R.id.pageModel)
+        pageVoice = findViewById(R.id.pageVoice)
+        pageTheme = findViewById(R.id.pageTheme)
+        pageRecords = findViewById(R.id.pageRecords)
+        pageAbout = findViewById(R.id.pageAbout)
+        llDock = findViewById(R.id.llDock)
+        llProviders = findViewById(R.id.llProviders)
+        llVoices = findViewById(R.id.llVoices)
+        llRecords = findViewById(R.id.llRecords)
+        btnSaveAll = findViewById(R.id.btnSaveAll)
 
         findViewById<TextView>(R.id.btnBack).setOnClickListener { finish() }
         buildCatChips()
@@ -69,6 +91,13 @@ class SettingsActivity : AppCompatActivity() {
         renderIndicatorColors()
         bindInterface()
         bindWallpaper()
+
+        buildDock()
+        buildProviders()
+        buildVoices()
+        buildRecords()
+        btnSaveAll.setOnClickListener { saveAll() }
+        selectPage(0)
     }
 
     override fun onResume() {
@@ -81,6 +110,244 @@ class SettingsActivity : AppCompatActivity() {
         Skin.applyWindow(this, c)
         Skin.apply(window.decorView, c)
         Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, c.bg)
+        // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
+        styleDock(c)
+    }
+
+    // ---------------------------------------------------------------- 分页 + 坞
+
+    private val pageTitles = listOf("模型", "音色", "主题", "记录", "关于")
+    private val dockDefs = listOf(
+        "🔌" to "模型", "🎙️" to "音色", "🎨" to "主题", "🕘" to "记录", "ℹ️" to "关于"
+    )
+    private val dockSink = intArrayOf(13, 5, 0, 5, 13)      // 两端低、中间高（实测值）
+    private val dockItems = mutableListOf<LinearLayout>()
+    private val dockPads = mutableListOf<android.widget.FrameLayout>()
+    private val dockLabels = mutableListOf<TextView>()
+    private var selectedPage = 0
+
+    private fun dp(px: Float): Int = (px * resources.displayMetrics.density).toInt()
+
+    private fun buildDock() {
+        llDock.removeAllViews()
+        dockItems.clear(); dockPads.clear(); dockLabels.clear()
+        for (i in dockDefs.indices) {
+            if (i > 0) {
+                val dv = View(this)
+                dv.layoutParams = LinearLayout.LayoutParams(dp(1f).coerceAtLeast(1), dp(17f)).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                dv.setBackgroundColor(0x1A786E60)
+                llDock.addView(dv)
+            }
+            val item = LinearLayout(this)
+            item.orientation = LinearLayout.VERTICAL
+            item.gravity = Gravity.CENTER_HORIZONTAL
+            item.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+
+            val pad = android.widget.FrameLayout(this)
+            pad.layoutParams = LinearLayout.LayoutParams(dp(56f), dp(32f))
+            pad.elevation = 3f * resources.displayMetrics.density
+            val ic = TextView(this)
+            ic.text = dockDefs[i].first
+            ic.textSize = 13f
+            ic.gravity = Gravity.CENTER
+            ic.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            pad.addView(ic)
+
+            val lb = TextView(this)
+            lb.text = dockDefs[i].second
+            lb.textSize = 11f
+            lb.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(5f) }
+
+            item.addView(pad)
+            item.addView(lb)
+            item.translationY = dockSink[i] * resources.displayMetrics.density
+            val idx = i
+            item.isClickable = true
+            item.isFocusable = true
+            item.setOnClickListener { selectPage(idx) }
+            llDock.addView(item)
+            dockItems.add(item); dockPads.add(pad); dockLabels.add(lb)
+        }
+    }
+
+    private fun selectPage(i: Int) {
+        selectedPage = i
+        val pages = listOf(pageModel, pageVoice, pageTheme, pageRecords, pageAbout)
+        val d = resources.displayMetrics.density
+        pages.forEachIndexed { idx, v ->
+            if (idx == i) {
+                v.visibility = View.VISIBLE
+                v.translationX = 24f * d
+                v.alpha = 0f
+                v.animate().translationX(0f).alpha(1f).setDuration(180).start()
+            } else {
+                v.visibility = View.GONE
+            }
+        }
+        tvPageTitle.text = pageTitles.getOrElse(i) { "设置" }
+        styleDock(Skin.colors(this))
+    }
+
+    /** 坞 + 保存键的显式上色（浅/深主题各一套） */
+    private fun styleDock(c: Skin.Colors) {
+        llDock.background = Skin.shapeDp(this, c.card, c.line, 16f, 92, 1f)
+        val onFill = (c.acc and 0x00FFFFFF) or (0x2B shl 24)      // 主色 17% 透明
+        dockPads.forEachIndexed { i, pad ->
+            pad.background = if (i == selectedPage) {
+                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), 10f, 100, 1.5f)
+            } else {
+                Skin.shapeDp(this, 0x00000000, null, 10f)
+            }
+            dockLabels[i].setTextColor(if (i == selectedPage) c.acc else c.dim)
+        }
+        // 保存键：半透明键面 + 白描边 + 深色字（浅色主题）；深色主题自动换一套
+        if (c.light) {
+            btnSaveAll.setColors(0xE6FFE0D2.toInt(), 0xFFFFFFFF.toInt(), 0xFF7C3A2F.toInt())
+        } else {
+            btnSaveAll.setColors(0x33FFFFFF, 0x55FFFFFF, 0xFFDDE6F2.toInt())
+        }
+    }
+
+    // ---------------------------------------------------------------- 模型页
+
+    /** Provider 列表（当前只有阿里云百炼；接第二家时把这段抽成 TtsProvider 实现即可） */
+    private fun buildProviders() {
+        llProviders.removeAllViews()
+        val c = Skin.colors(this)
+        val cur = TextView(this)
+        cur.text = "阿里云百炼 · CosyVoice"
+        cur.setTextColor(c.txt)
+        cur.textSize = 15f
+        llProviders.addView(cur)
+
+        val sum = TextView(this)
+        sum.text = "v3.5-plus · 业务空间 " + store.workspace + " · " +
+                (if (store.apiKey.isBlank()) "Key 未配置" else "Key 已配置")
+        sum.setTextColor(c.dim)
+        sum.textSize = 12f
+        sum.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(3f) }
+        llProviders.addView(sum)
+    }
+
+    // ---------------------------------------------------------------- 音色页
+
+    private fun buildVoices() {
+        llVoices.removeAllViews()
+        val c = Skin.colors(this)
+        val hidden = store.hiddenVoices
+
+        fun addRow(name: String, id: String, builtIn: Boolean, hiddenRow: Boolean = false) {
+            val box = LinearLayout(this)
+            box.orientation = LinearLayout.VERTICAL
+            box.setPadding(0, dp(9f), 0, dp(9f))
+
+            val head = LinearLayout(this)
+            head.orientation = LinearLayout.HORIZONTAL
+            head.gravity = Gravity.CENTER_VERTICAL
+            val nm = TextView(this)
+            nm.text = name + if (builtIn) "    内置" else "    自建"
+            nm.setTextColor(c.txt)
+            nm.textSize = 15f
+            head.addView(nm, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            val act = TextView(this)
+            act.text = if (hiddenRow) "恢复" else "删除"
+            act.setTextColor(if (hiddenRow) c.acc else 0xFFC44E4E.toInt())
+            act.textSize = 14f
+            act.setPadding(dp(14f), dp(6f), dp(4f), dp(6f))
+            act.isClickable = true
+            act.isFocusable = true
+            act.setOnClickListener {
+                if (hiddenRow) {
+                    val h = store.hiddenVoices; h.remove(id); store.hiddenVoices = h
+                } else if (builtIn) {
+                    val h = store.hiddenVoices; h.add(id); store.hiddenVoices = h
+                } else {
+                    val list = store.loadCustomVoices()
+                    list.removeAll { it.id == id }
+                    store.saveCustomVoices(list)
+                }
+                buildVoices(); buildProviders()
+            }
+            head.addView(act)
+            box.addView(head)
+
+            val idv = TextView(this)
+            idv.text = id
+            idv.setTextColor(c.hint)
+            idv.textSize = 11f
+            idv.setTextIsSelectable(true)
+            idv.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(3f) }
+            box.addView(idv)
+            llVoices.addView(box)
+        }
+
+        VoiceCatalog.builtIn.forEach { if (it.second !in hidden) addRow(it.first, it.second, true) }
+        store.loadCustomVoices().forEach { addRow(it.name, it.id, false) }
+        val hiddenOnes = VoiceCatalog.builtIn.filter { it.second in hidden }
+        if (hiddenOnes.isNotEmpty()) {
+            val sec = TextView(this)
+            sec.text = "已隐藏的内置音色（可恢复）"
+            sec.setTextColor(c.dim)
+            sec.textSize = 12f
+            sec.setPadding(0, dp(14f), 0, dp(1f))
+            llVoices.addView(sec)
+            hiddenOnes.forEach { addRow(it.first, it.second, true, hiddenRow = true) }
+        }
+    }
+
+    // ---------------------------------------------------------------- 记录页
+
+    private fun buildRecords() {
+        llRecords.removeAllViews()
+        val c = Skin.colors(this)
+        val takes = store.loadTakes()
+        if (takes.isEmpty()) {
+            val tv = TextView(this)
+            tv.text = "暂无记录"
+            tv.setTextColor(c.dim)
+            tv.textSize = 13f
+            llRecords.addView(tv)
+            return
+        }
+        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+        takes.forEach { t ->
+            val box = LinearLayout(this)
+            box.orientation = LinearLayout.VERTICAL
+            box.setPadding(0, dp(9f), 0, dp(9f))
+            val a = TextView(this)
+            a.text = if (t.text.length > 34) t.text.take(34) + "…" else t.text
+            a.setTextColor(c.txt)
+            a.textSize = 14f
+            box.addView(a)
+            val b = TextView(this)
+            b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " + t.format
+            b.setTextColor(c.dim)
+            b.textSize = 11.5f
+            b.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(3f) }
+            box.addView(b)
+            llRecords.addView(box)
+        }
+    }
+
+    /** 保存键：把「模型」页的接口字段落盘 */
+    private fun saveAll() {
+        store.apiKey = etKey.text.toString().trim()
+        store.workspace = etWs.text.toString().trim()
+        store.lastModel = etModel.text.toString().trim()
+        buildProviders()
+        Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }
 
     // ---------------------------------------------------------------- 当前音色指示符颜色
@@ -223,13 +490,13 @@ class SettingsActivity : AppCompatActivity() {
 
         row.setOnClickListener {
             // 原地换肤：不 recreate()，滚动位置保持不变，只有颜色变
-            val keepY = svSettings.scrollY
+            val keepY = pageTheme.scrollY
             store.themeId = id
             applyLook()
             buildCatChips()
             renderPalettes()
             renderIndicatorColors()
-            svSettings.scrollTo(0, keepY)
+            pageTheme.scrollTo(0, keepY)
         }
         return row
     }

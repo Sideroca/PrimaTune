@@ -67,12 +67,7 @@ class MainActivity : AppCompatActivity() {
 
     private data class RowRef(val take: Take, val playBtn: TextView)
 
-    private val voices = listOf(
-        Voice("苏沐橙（成年·动画）", "cosyvoice-v3.5-plus-suchenga-aa83bcc828914d1bba289b7c6a41f21b", "来源：动画版原声"),
-        Voice("苏沐橙（幼年·动画）", "cosyvoice-v3.5-plus-suchengy-a7b9c7381c8b4cce86f77a7e6c6b38c9", "来源：《巅峰荣耀》原声"),
-        Voice("艾丽妮", "cosyvoice-v3.5-plus-ailini-e577e0e261a14032866623c65e4f8e2f", "明日方舟 · 任命助理"),
-        Voice("艾雅法拉", "cosyvoice-v3.5-plus-eyjafjalla-ddd756ac929a420fbe35b31fc8120045", "明日方舟 · 报到 / 角色语音")
-    )
+    private val voices = VoiceCatalog.builtIn.map { Voice(it.first, it.second, it.third) }
     private val customLabel = "✏️ 自定义音色 ID…"
 
     private val formats = listOf(
@@ -1281,7 +1276,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         addRow("全部音色（显示所有记录）", "", null)
-        for (id in ids) addRow(voiceNameOf(id), "…" + id.takeLast(10), id)
+        // 只显示音色名（ID 尾巴去掉——要看 ID 去设置页的「音色管理」）
+        for (id in ids) addRow(voiceNameOf(id), "", id)
 
         val sc = ScrollView(this)
         sc.isVerticalScrollBarEnabled = false
