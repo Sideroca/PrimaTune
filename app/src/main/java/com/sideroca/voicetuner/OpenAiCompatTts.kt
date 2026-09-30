@@ -44,7 +44,7 @@ object OpenAiCompatTts {
                         put("model", model)
                         put("input", text)
                         put("voice", voice.ifBlank { "alloy" })
-                        put("response_format", "mp3")
+                        put("response_format", "wav")     // 优先 wav；不支持的家会报错，届时再按需改 mp3
                         if (!instruction.isNullOrBlank()) put("instructions", instruction)
                     }
                 }

@@ -50,18 +50,31 @@ object TtsModels {
 
     // ---------- P0.5：参数适用性（界面据此置灰；后续升级为 ParamSpec 全量驱动） ----------
 
-    /** 该模型是否支持某项参数。未知模型（如复刻出来的 id）一律返回 true，维持现状不误伤 */
-    fun supports(modelId: String?, param: String): Boolean {
-        val m = byId(modelId) ?: return true
+    /**
+     * 该项参数是否适用（判定依据 = 厂商 + 模型，均在数据里，不写死在界面）。
+     * - 非百炼厂商（OpenAI 系 / 自定义渠道）：只吃 文本 / 音色 / 模型（+ 可选风格指令）
+     * - 百炼：千问系走 HTTP，只有 text / voice / language_type[/instructions]；CosyVoice 与 Qwen-Audio-TTS 走 ws，参数齐全
+     */
+    fun supports(providerId: String?, modelId: String?, param: String): Boolean {
+        val prov = TtsProviders.byId(providerId)
+        val viaBailian = prov == null || prov.shape == "dashscope"
+        if (!viaBailian) return param == "instruction"
+        val m = byId(modelId) ?: return true          // 未知模型（复刻 id 等）不误伤
         return when (param) {
-            // 千问系走 HTTP，官方只接受 text / voice / language_type[/instructions]
-            "rate", "pitch", "volume", "seed", "hotfix", "extra" -> m.transport == "ws"
+            "rate", "pitch", "volume", "seed", "hotfix", "extra", "ssml", "langhints" ->
+                m.transport == "ws"
             else -> true
         }
     }
 
-    /** 不适用的说明文案（空串 = 全部适用） */
-    fun unsupportedNote(modelId: String?): String {
+    /** 不适用时的说明文案（空串 = 全部适用） */
+    fun unsupportedNote(providerId: String?, modelId: String?): String {
+        val prov = TtsProviders.byId(providerId)
+        val viaBailian = prov == null || prov.shape == "dashscope"
+        if (!viaBailian) {
+            return "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
+                "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
+        }
         val m = byId(modelId) ?: return ""
         return if (m.transport == "http")
             "当前模型（" + m.family + "）不支持 语速 / 音调 / 音量 / 种子 —— 想调风格请用「风格指令」（instructions）"

@@ -406,8 +406,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun syncVoiceUi() {
         // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
-        val ok = TtsModels.supports(store.lastModel, "rate")
-        val note = TtsModels.unsupportedNote(store.lastModel)
+        val ok = TtsModels.supports(store.providerId, store.lastModel, "rate")
+        val note = TtsModels.unsupportedNote(store.providerId, store.lastModel)
         val a = if (ok) 1f else 0.4f
         listOf(R.id.sbRate, R.id.sbPitch, R.id.sbVol).forEach { id ->
             findViewById<SeekBar>(id).apply { isEnabled = ok; alpha = a }
@@ -419,6 +419,12 @@ class MainActivity : AppCompatActivity() {
             text = note
             visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
         }
+        // 高级参数里同样按"厂商/模型"置灰：语言提示 / hotfix / 额外参数 / SSML
+        val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
+        listOf(R.id.etLangHints, R.id.etHotfix, R.id.etExtra).forEach { id ->
+            findViewById<EditText>(id).apply { isEnabled = advOk; alpha = a }
+        }
+        findViewById<android.widget.CheckBox>(R.id.cbSsml).apply { isEnabled = advOk; alpha = a }
         val all = allVoices()
         val cur = all.firstOrNull { it.id == currentVoiceId }
         tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
@@ -728,7 +734,8 @@ class MainActivity : AppCompatActivity() {
             pitch = req.pitch,
             volume = req.volume,
             seed = req.seed,
-            format = fmt.key,
+            // 按真实字节记格式：RIFF 开头=wav，否则按 mp3 记（OpenAI 系可能返回 mp3）
+            format = if (audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()) fmt.key else "mp3",
             model = req.model,
             durationMs = probeDurationMs(file),
             createdAt = System.currentTimeMillis()
