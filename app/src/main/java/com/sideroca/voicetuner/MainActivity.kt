@@ -405,6 +405,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun syncVoiceUi() {
+        // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
+        val ok = TtsModels.supports(store.lastModel, "rate")
+        val note = TtsModels.unsupportedNote(store.lastModel)
+        val a = if (ok) 1f else 0.4f
+        listOf(R.id.sbRate, R.id.sbPitch, R.id.sbVol).forEach { id ->
+            findViewById<SeekBar>(id).apply { isEnabled = ok; alpha = a }
+        }
+        listOf(R.id.tvRate, R.id.tvPitch, R.id.tvVol).forEach { id ->
+            findViewById<TextView>(id).alpha = a
+        }
+        findViewById<TextView>(R.id.tvParamNote).apply {
+            text = note
+            visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
+        }
         val all = allVoices()
         val cur = all.firstOrNull { it.id == currentVoiceId }
         tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
