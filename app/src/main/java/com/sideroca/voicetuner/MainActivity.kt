@@ -919,7 +919,8 @@ class MainActivity : AppCompatActivity() {
         row.orientation = LinearLayout.VERTICAL
         row.background = ContextCompat.getDrawable(this, R.drawable.bg_row)
         row.tag = "r:row"
-        row.setPadding(dp(12), dp(10), dp(12), dp(10))
+        // 上/右不再留内边距 → ✕ 的判定方块才能真正贴住卡片那两条边
+        row.setPadding(dp(12), 0, 0, dp(10))
         val rlp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
@@ -934,7 +935,7 @@ class MainActivity : AppCompatActivity() {
         title.textSize = 14f
         title.maxLines = 2
         title.ellipsize = android.text.TextUtils.TruncateAt.END
-        title.setPadding(0, 0, dp(20), 0)          // 只让出 20dp → 正文更贴近卡片右边
+        title.setPadding(0, dp(10), dp(20), 0)     // 顶部 10dp 移到标题上；右侧只让 20dp
         head.addView(title, android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ))
@@ -946,12 +947,13 @@ class MainActivity : AppCompatActivity() {
 
         val x = TextView(this)
         x.text = "✕"
-        x.textSize = 9.5f
+        x.textSize = 9f                             // 字形面积再 −10%
         x.setTextColor(cDim)
         x.gravity = android.view.Gravity.TOP or android.view.Gravity.END
-        x.setPadding(0, dp(4), dp(4), 0)           // 字形贴向右上角
+        val xInset = (3.5f * resources.displayMetrics.density).toInt()   // 字形内距 3.5dp
+        x.setPadding(0, xInset, xInset, 0)
         x.layoutParams = android.widget.FrameLayout.LayoutParams(
-            dp(42), dp(42), android.view.Gravity.TOP or android.view.Gravity.END
+            dp(48), dp(48), android.view.Gravity.TOP or android.view.Gravity.END   // 判定再 +15%
         )
         x.isClickable = true
         x.isFocusable = true
@@ -967,7 +969,7 @@ class MainActivity : AppCompatActivity() {
                 " · 时长 " + fmtDur(take.durationMs)
         meta.setTextColor(cDim)
         meta.textSize = 12f
-        meta.setPadding(0, dp(3), 0, dp(6))
+        meta.setPadding(0, dp(3), dp(12), dp(6))
         row.addView(meta)
 
         // 「属性」收起时隐藏：语速 / 音调 / 音量 / 模型 / 种子
@@ -977,12 +979,13 @@ class MainActivity : AppCompatActivity() {
                 " · 音量 " + take.volume + " · 模型 " + modelShown + " · 🎲 " + take.seed
         detail.setTextColor(cDim)
         detail.textSize = 12f
-        detail.setPadding(0, 0, 0, dp(2))
+        detail.setPadding(0, 0, dp(12), dp(2))
         detail.visibility = View.GONE
         row.addView(detail)
 
         val hs = HorizontalScrollView(this)
         hs.isHorizontalScrollBarEnabled = false
+        hs.setPadding(0, 0, dp(12), 0)
         val btnRow = LinearLayout(this)
         btnRow.orientation = LinearLayout.HORIZONTAL
         hs.addView(btnRow)

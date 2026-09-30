@@ -423,12 +423,12 @@ class SettingsActivity : AppCompatActivity() {
             }
             val x = TextView(this)
             x.text = "✕"
-            x.textSize = 9.5f
+            x.textSize = 9f
             x.setTextColor(c.dim)
             x.gravity = Gravity.TOP or Gravity.END
-            x.setPadding(0, dp(4f), dp(4f), 0)
+            x.setPadding(0, dp(3.5f), dp(3.5f), 0)     // 字形内距 3.5dp
             x.layoutParams = android.widget.FrameLayout.LayoutParams(
-                dp(42f), dp(42f), Gravity.TOP or Gravity.END
+                dp(48f), dp(48f), Gravity.TOP or Gravity.END   // 判定 48dp，贴上/右两边
             )
             x.isClickable = true
             x.isFocusable = true
