@@ -49,6 +49,11 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llVoices: LinearLayout
     private lateinit var llRecords: LinearLayout
     private lateinit var btnSaveAll: PressButton
+    private lateinit var preview: ThemePreviewView
+    private lateinit var btnPvMain: TextView
+    private lateinit var btnPvPage: TextView
+    private lateinit var tvPvHint: TextView
+    private var previewPage = 0
 
     private val density = 0f   // 占位，运行时用 resources 取（保持字段顺序稳定）
 
@@ -84,6 +89,12 @@ class SettingsActivity : AppCompatActivity() {
         llVoices = findViewById(R.id.llVoices)
         llRecords = findViewById(R.id.llRecords)
         btnSaveAll = findViewById(R.id.btnSaveAll)
+        preview = findViewById(R.id.preview)
+        btnPvMain = findViewById(R.id.btnPvMain)
+        btnPvPage = findViewById(R.id.btnPvPage)
+        tvPvHint = findViewById(R.id.tvPvHint)
+        btnPvMain.setOnClickListener { previewPage = 0; updatePreview() }
+        btnPvPage.setOnClickListener { previewPage = 1; updatePreview() }
 
         buildCatChips()
         renderPalettes()
@@ -111,6 +122,27 @@ class SettingsActivity : AppCompatActivity() {
         Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, c.bg)
         // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
         styleDock(c)
+        updatePreview()
+    }
+
+    /** 预览台：把当前配色 + 壁纸 + 遮罩实时画出来 */
+    private fun updatePreview() {
+        val c = Skin.colors(this)
+        val path = if (previewPage == 1) store.wpPage else store.wpMain
+        val scrim = if (previewPage == 1) store.scrimPage else store.scrimMain
+        val bmp = if (path.isNotEmpty() && File(path).exists()) Wp.decode(path, 600) else null
+        preview.pageMode = previewPage
+        preview.setData(c, bmp, scrim)
+        styleSeg(btnPvMain, previewPage == 0, c)
+        styleSeg(btnPvPage, previewPage == 1, c)
+        tvPvHint.setTextColor(c.hint)
+    }
+
+    private fun styleSeg(tv: TextView, on: Boolean, c: Skin.Colors) {
+        tv.background = Skin.shapeDp(
+            this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 100f, 100, 1f
+        )
+        tv.setTextColor(if (on) c.onAcc else c.dim)
     }
 
     // ---------------------------------------------------------------- 分页 + 坞
@@ -320,37 +352,90 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 记录页
 
+    /** 记录页：是否只看收藏 */
+    private var recOnlyFav = false
+
     private fun buildRecords() {
         llRecords.removeAllViews()
         val c = Skin.colors(this)
-        val takes = store.loadTakes()
+        val all = store.loadTakes()
+        val favs = store.favTakes
+
+        // 顶部筛选：全部 / ★ 收藏
+        val bar = LinearLayout(this)
+        bar.orientation = LinearLayout.HORIZONTAL
+        bar.setPadding(0, 0, 0, dp(2f))
+        fun chip(label: String, on: Boolean, tap: () -> Unit) {
+            val tv = TextView(this)
+            tv.text = label
+            tv.textSize = 12.5f
+            tv.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
+            tv.background = Skin.shapeDp(
+                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 100f, 100, 1f
+            )
+            tv.setTextColor(if (on) c.onAcc else c.dim)
+            tv.isClickable = true
+            tv.isFocusable = true
+            tv.setOnClickListener { tap() }
+            bar.addView(tv, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { rightMargin = dp(8f) })
+        }
+        chip("全部", !recOnlyFav) { recOnlyFav = false; buildRecords() }
+        chip("★ 收藏（" + favs.size + "）", recOnlyFav) { recOnlyFav = true; buildRecords() }
+        llRecords.addView(bar)
+
+        val takes = if (recOnlyFav) all.filter { it.id in favs } else all
         if (takes.isEmpty()) {
             val tv = TextView(this)
-            tv.text = "暂无记录"
+            tv.text = if (recOnlyFav) "还没有收藏的记录（点记录右边的星星即可收藏）" else "暂无记录"
             tv.setTextColor(c.dim)
             tv.textSize = 13f
+            tv.setPadding(0, dp(10f), 0, 0)
             llRecords.addView(tv)
             return
         }
+
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         takes.forEach { t ->
             val box = LinearLayout(this)
             box.orientation = LinearLayout.VERTICAL
-            box.setPadding(0, dp(9f), 0, dp(9f))
+            box.setPadding(0, dp(10f), 0, dp(10f))
 
-            // 文本：默认 2 行，点它就地展开 / 收起
+            // 头部：文本（默认 2 行，点它就地展开） ＋ 收藏星
+            val head = LinearLayout(this)
+            head.orientation = LinearLayout.HORIZONTAL
             val a = TextView(this)
             a.text = t.text
             a.setTextColor(c.txt)
             a.textSize = 14f
             a.maxLines = 2
             a.ellipsize = android.text.TextUtils.TruncateAt.END
+            head.addView(a, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             a.setOnClickListener {
                 val ex = a.maxLines != Int.MAX_VALUE
                 a.maxLines = if (ex) Int.MAX_VALUE else 2
                 a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
             }
-            box.addView(a)
+            val star = ImageView(this)
+            star.layoutParams = LinearLayout.LayoutParams(dp(22f), dp(22f)).apply { marginStart = dp(8f) }
+            val refreshStar = {
+                val fav = t.id in store.favTakes
+                star.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
+                star.imageTintList =
+                    if (fav) null else android.content.res.ColorStateList.valueOf(c.dim)
+            }
+            refreshStar()
+            star.isClickable = true
+            star.isFocusable = true
+            star.setOnClickListener {
+                val set = store.favTakes
+                if (set.contains(t.id)) set.remove(t.id) else set.add(t.id)
+                store.favTakes = set
+                refreshStar()
+            }
+            head.addView(star)
+            box.addView(head)
 
             // 常驻信息：时间 · 音色 · 格式 · 字数
             val b = TextView(this)
@@ -593,16 +678,19 @@ class SettingsActivity : AppCompatActivity() {
         sbScrimMain.setOnSeekBarChangeListener(seek { p ->
             store.scrimMain = p
             tvScrimMain.text = "$p%"
+            updatePreview()
         })
         sbScrimPage.setOnSeekBarChangeListener(seek { p ->
             store.scrimPage = p
             tvScrimPage.text = "$p%"
             Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, Skin.colors(this).bg)
+            updatePreview()
         })
         sbCardAlpha.setOnSeekBarChangeListener(seek { p ->
             store.cardAlphaPct = p
             tvCardAlpha.text = "$p%"
             Skin.apply(window.decorView, Skin.colors(this))
+            updatePreview()
         })
 
         findViewById<TextView>(R.id.btnWpMain).setOnClickListener { pick("main") }

@@ -924,19 +924,47 @@ class MainActivity : AppCompatActivity() {
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
 
-        // 文本：默认 2 行（≈1.8 行可见），点它就地展开 / 收起
+        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 收藏星
+        val head = LinearLayout(this)
+        head.orientation = LinearLayout.HORIZONTAL
+
         val title = TextView(this)
         title.text = take.text
         title.setTextColor(cTxt)
         title.textSize = 14f
         title.maxLines = 2
         title.ellipsize = android.text.TextUtils.TruncateAt.END
-        row.addView(title)
+        head.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         title.setOnClickListener {
             val ex = title.maxLines != Int.MAX_VALUE
             title.maxLines = if (ex) Int.MAX_VALUE else 2
             title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
         }
+
+        val star = ImageView(this)
+        star.layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(8) }
+        val refreshStar = {
+            val fav = take.id in store.favTakes
+            star.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
+            star.imageTintList =
+                if (fav) null else android.content.res.ColorStateList.valueOf(cDim)
+        }
+        refreshStar()
+        star.isClickable = true
+        star.isFocusable = true
+        star.setOnClickListener {
+            val set = store.favTakes
+            val nowFav = if (set.contains(take.id)) {
+                set.remove(take.id); false
+            } else {
+                set.add(take.id); true
+            }
+            store.favTakes = set
+            refreshStar()
+            toast(if (nowFav) "已收藏" else "已取消收藏")
+        }
+        head.addView(star)
+        row.addView(head)
 
         // 常驻信息：时间 · 音色 · 格式 · 字数 · 种子 · 时长（语速/音调/音量收进「属性」）
         val meta = TextView(this)

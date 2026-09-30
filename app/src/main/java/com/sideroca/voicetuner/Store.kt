@@ -121,6 +121,11 @@ class Store(context: Context) {
         get() = (prefs.getStringSet("hiddenVoices", emptySet()) ?: emptySet()).toMutableSet()
         set(v) { prefs.edit().putStringSet("hiddenVoices", HashSet(v)).apply() }
 
+    /** 收藏的合成记录（Take.id 集合） */
+    var favTakes: MutableSet<String>
+        get() = (prefs.getStringSet("favTakes", emptySet()) ?: emptySet()).toMutableSet()
+        set(v) { prefs.edit().putStringSet("favTakes", HashSet(v)).apply() }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }

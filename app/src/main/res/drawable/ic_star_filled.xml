@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 收藏星 · 已收藏态：④ 渐变填充（#F8E97F → #FACF26，复刻 ⭐ 的上亮下实）+ 同色系深一档描边 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M12,2.4 L14.60,8.43 L21.13,14.97 L14.60,15.57 L12,21.6 L9.40,15.57 L2.87,14.97 L7.80,10.64 L6.36,4.23 L12,7.58 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="8" android:startY="3"
+                android:endX="14" android:endY="21">
+                <item android:offset="0" android:color="#F8E97F" />
+                <item android:offset="1" android:color="#FACF26" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M12,2.4 L14.60,8.43 L21.13,14.97 L14.60,15.57 L12,21.6 L9.40,15.57 L2.87,14.97 L7.80,10.64 L6.36,4.23 L12,7.58 Z"
+        android:strokeColor="#E0BC22"
+        android:strokeWidth="1.2"
+        android:strokeLineJoin="round" />
+</vector>
