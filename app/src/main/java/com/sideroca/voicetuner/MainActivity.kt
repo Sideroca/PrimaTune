@@ -660,7 +660,14 @@ class MainActivity : AppCompatActivity() {
             if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
                 val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
-                OpenAiCompatTts.synthesize(eff, provKey, req.model, req.voice, req.text, req.instruction, cb)
+                OpenAiCompatTts.synthesize(
+                    eff, provKey, req.model, req.voice, req.text, req.instruction, cb,
+                    TtsProviders.Cfg(
+                        path = store.providerPath(prov.id),
+                        auth = store.providerAuth(prov.id),
+                        resp = store.providerResp(prov.id)
+                    )
+                )
             }
             else
                 client.synthesize(req.copy(apiKey = provKey), cb)

@@ -151,6 +151,27 @@ class Store(context: Context) {
         prefs.edit().putString("base_" + id, value.trim()).apply()
     }
 
+    /** 自定义渠道：端点路径（空 = 按形态默认），如 /audio/speech 或 /v1/tts */
+    fun providerPath(id: String): String = prefs.getString("path_" + id, "").orEmpty()
+
+    fun setProviderPath(id: String, v: String) {
+        prefs.edit().putString("path_" + id, v.trim()).apply()
+    }
+
+    /** 自定义渠道：鉴权头模板，如 "Authorization: Bearer {key}" 或 "x-api-key: {key}" */
+    fun providerAuth(id: String): String = prefs.getString("auth_" + id, "").orEmpty()
+
+    fun setProviderAuth(id: String, v: String) {
+        prefs.edit().putString("auth_" + id, v.trim()).apply()
+    }
+
+    /** 自定义渠道：音频返回形式 —— binary | base64:<json路径> | url */
+    fun providerResp(id: String): String = prefs.getString("resp_" + id, "binary") ?: "binary"
+
+    fun setProviderResp(id: String, v: String) {
+        prefs.edit().putString("resp_" + id, v).apply()
+    }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }

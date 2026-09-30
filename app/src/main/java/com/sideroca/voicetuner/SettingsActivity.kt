@@ -851,6 +851,30 @@ class SettingsActivity : AppCompatActivity() {
         etBaseUrl.visibility = if (customBase) View.VISIBLE else View.GONE
         if (customBase) etBaseUrl.setText(store.providerBaseUrl(p.id))
 
+        // 自定义渠道专属三项：端点路径 / 鉴权头 / 返回形式
+        listOf(R.id.tvPathLabel, R.id.etPath, R.id.tvAuthLabel, R.id.etAuth, R.id.tvRespLabel, R.id.tvResp)
+            .forEach { findViewById<View>(it).visibility = if (customBase) View.VISIBLE else View.GONE }
+        if (customBase) {
+            findViewById<EditText>(R.id.etPath).setText(store.providerPath(p.id))
+            findViewById<EditText>(R.id.etAuth).setText(store.providerAuth(p.id))
+            val tvResp = findViewById<TextView>(R.id.tvResp)
+            fun label(): String = when {
+                store.providerResp(p.id).startsWith("base64") -> "base64（默认取 output.audio.data）"
+                store.providerResp(p.id) == "url" -> "URL（JSON 里给音频地址）"
+                else -> "二进制（直接返回音频）"
+            }
+            tvResp.text = label()
+            tvResp.setOnClickListener {
+                val next = when {
+                    store.providerResp(p.id).startsWith("base64") -> "url"
+                    store.providerResp(p.id) == "url" -> "binary"
+                    else -> "base64:output.audio.data"
+                }
+                store.setProviderResp(p.id, next)
+                tvResp.text = label()
+            }
+        }
+
         findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
     }
 
@@ -863,6 +887,8 @@ class SettingsActivity : AppCompatActivity() {
         if (mid.isNotBlank()) store.lastModel = mid
         if (etBaseUrl.visibility == View.VISIBLE) {
             store.setProviderBaseUrl(store.providerId, etBaseUrl.text.toString())
+            store.setProviderPath(store.providerId, findViewById<EditText>(R.id.etPath).text.toString())
+            store.setProviderAuth(store.providerId, findViewById<EditText>(R.id.etAuth).text.toString())
         }
     }
 

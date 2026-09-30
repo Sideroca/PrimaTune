@@ -51,6 +51,13 @@ object TtsProviders {
         )
     )
 
+    /** 自定义渠道的请求配置（留空则按形态默认） */
+    data class Cfg(
+        val path: String = "",                 // 端点路径，空 = openai→/audio/speech，xai→/tts
+        val auth: String = "",                 // 鉴权头模板，空 = "Authorization: Bearer {key}"
+        val resp: String = "binary"            // binary | base64:<json路径> | url
+    )
+
     fun byId(id: String?): P? = if (id.isNullOrBlank()) null else all.firstOrNull { it.id == id }
 
     /** 自动补全：空串给全部；否则按 名称 / id 前缀或包含匹配 */

@@ -92,6 +92,48 @@
                             android:visibility="gone" />
 
                         <TextView
+                            android:id="@+id/tvPathLabel"
+                            style="@style/VtLabel"
+                            android:text="端点路径（留空 = 按形态默认）"
+                            android:visibility="gone" />
+
+                        <EditText
+                            android:id="@+id/etPath"
+                            style="@style/VtInput"
+                            android:hint="/audio/speech"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tvAuthLabel"
+                            style="@style/VtLabel"
+                            android:text="鉴权头（{key} 替换成你的 Key）"
+                            android:visibility="gone" />
+
+                        <EditText
+                            android:id="@+id/etAuth"
+                            style="@style/VtInput"
+                            android:hint="Authorization: Bearer {key}"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tvRespLabel"
+                            style="@style/VtLabel"
+                            android:text="音频返回形式（点一下切换）"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tvResp"
+                            style="@style/VtInput"
+                            android:text="二进制（直接返回音频）"
+                            android:visibility="gone" />
+
+                        <TextView
                             android:id="@+id/tvKeyLabel"
                             style="@style/VtLabel"
                             android:text="API Key（当前厂商；仅保存在本机）" />
