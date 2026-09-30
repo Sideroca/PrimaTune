@@ -43,6 +43,19 @@ object TtsProviders {
             listOf("grok-tts")                 // 无独立 TTS 模型 id，随 grok-4.20 系列走
         ),
 
+        P(
+            "elevenlabs", "ElevenLabs", "https://api.elevenlabs.io", "elevenlabs", "xi-…",
+            listOf("eleven_v4", "eleven_v4_turbo", "eleven_v3")      // 官方 openapi 已核实（最近两代）
+        ),
+        P(
+            "minimax", "MiniMax", "https://api.minimax.io/v1", "minimax", "eyJ…",
+            listOf("speech-2.8-hd", "speech-2.8-turbo", "speech-2.6-hd", "speech-2.6-turbo")
+        ),
+        P(
+            "fish", "Fish Audio", "https://api.fish.audio", "fish", "…",
+            listOf("s1")
+        ),
+
         // 自定义渠道：Base URL 自己填，默认按 OpenAI 兼容形态（POST {base}/audio/speech）
         // 模型名自由输入（不预设清单）—— 做 TTS 的厂商多，随时可能出新家
         P(

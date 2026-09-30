@@ -58,7 +58,14 @@ object TtsModels {
     fun supports(providerId: String?, modelId: String?, param: String): Boolean {
         val prov = TtsProviders.byId(providerId)
         val viaBailian = prov == null || prov.shape == "dashscope"
-        if (!viaBailian) return param == "instruction"
+        if (!viaBailian) {
+            val mini = prov?.shape == "minimax"
+            return when (param) {
+                "rate", "pitch", "volume" -> mini                       // 只有 MiniMax 有 voice_setting
+                "instruction" -> prov?.shape == "openai" || prov?.shape == "xai"
+                else -> false
+            }
+        }
         val m = byId(modelId) ?: return true          // 未知模型（复刻 id 等）不误伤
         return when (param) {
             "rate", "pitch", "volume", "seed", "hotfix", "extra", "ssml", "langhints" ->
@@ -72,8 +79,12 @@ object TtsModels {
         val prov = TtsProviders.byId(providerId)
         val viaBailian = prov == null || prov.shape == "dashscope"
         if (!viaBailian) {
-            return "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
-                "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
+            val mini = prov?.shape == "minimax"
+            return if (mini)
+                "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
+            else
+                "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
+                    "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
         }
         val m = byId(modelId) ?: return ""
         return if (m.transport == "http")

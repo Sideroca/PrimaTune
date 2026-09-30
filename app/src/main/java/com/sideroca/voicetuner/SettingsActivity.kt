@@ -842,8 +842,12 @@ class SettingsActivity : AppCompatActivity() {
         }
         etModel.hint = if (p.models.isEmpty()) "填服务商文档里的模型名" else "cosyvoice-v3.5-plus"
 
-        findViewById<TextView>(R.id.tvWsLabel).visibility = if (isBailian) View.VISIBLE else View.GONE
-        etWs.visibility = if (isBailian) View.VISIBLE else View.GONE
+        // 业务空间那栏：百炼 = workspace；MiniMax = GroupId（同一栏复用）
+        val needGroup = isBailian || p.shape == "minimax"
+        findViewById<TextView>(R.id.tvWsLabel).visibility = if (needGroup) View.VISIBLE else View.GONE
+        etWs.visibility = if (needGroup) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.tvWsLabel).text =
+            if (isBailian) "业务空间 ID" else "GroupId（MiniMax 需要）"
 
         // Base URL：自定义渠道（没写在目录里的）才显示
         val customBase = p.baseUrl.isBlank()

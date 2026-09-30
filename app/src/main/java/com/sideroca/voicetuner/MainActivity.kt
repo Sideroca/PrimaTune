@@ -657,7 +657,16 @@ class MainActivity : AppCompatActivity() {
         val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
         val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
         val synthCall = { cb: SynthCallback ->
-            if (prov.shape == "openai" || prov.shape == "xai") {
+            if (prov.shape == "elevenlabs") {
+                ExtraTts.eleven(store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb)
+            } else if (prov.shape == "minimax") {
+                ExtraTts.minimax(
+                    store.providerBaseUrl(prov.id), provKey, store.workspace, req.model, req.voice,
+                    req.text, req.rate, req.pitch, req.volume, cb
+                )
+            } else if (prov.shape == "fish") {
+                ExtraTts.fish(store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb)
+            } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
                 val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
                 OpenAiCompatTts.synthesize(
