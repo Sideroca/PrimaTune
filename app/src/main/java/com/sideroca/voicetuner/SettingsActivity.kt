@@ -942,16 +942,30 @@ class SettingsActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
-        val uri = data?.data ?: return
-        val slot = if (requestCode == REQ_MAIN) "main" else "page"
-        if (Wp.import(this, uri, slot)) {
-            val path = Wp.file(this, slot).absolutePath
+
+        // ① 系统选图回来 → 先进「二次截取」页，让你决定要哪一块
+        if (requestCode == REQ_MAIN || requestCode == REQ_PAGE) {
+            val uri = data?.data ?: return
+            val slot = if (requestCode == REQ_MAIN) "main" else "page"
+            startActivityForResult(
+                Intent(this, CropActivity::class.java)
+                    .putExtra(CropActivity.EXTRA_SLOT, slot)
+                    .putExtra(CropActivity.EXTRA_URI, uri.toString()),
+                if (slot == "main") REQ_CROP_MAIN else REQ_CROP_PAGE
+            )
+            return
+        }
+
+        // ② 截取页回来 → 裁好的图直接作为该槽位壁纸
+        val slot = if (requestCode == REQ_CROP_MAIN) "main" else "page"
+        val path = data?.getStringExtra(CropActivity.EXTRA_PATH).orEmpty()
+        if (path.isNotEmpty() && File(path).exists()) {
             if (slot == "main") store.wpMain = path else store.wpPage = path
             refreshWpStates()
             applyLook()
-            toast("壁纸已应用")
+            toast("壁纸已应用（已截取）")
         } else {
-            toast("图片读取失败")
+            toast("没有拿到截取结果")
         }
     }
 
@@ -962,5 +976,7 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         private const val REQ_MAIN = 2001
         private const val REQ_PAGE = 2002
+        private const val REQ_CROP_MAIN = 2003
+        private const val REQ_CROP_PAGE = 2004
     }
 }
