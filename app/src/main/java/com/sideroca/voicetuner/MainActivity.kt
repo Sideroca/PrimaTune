@@ -201,6 +201,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         store = Store(this)
         customVoices.addAll(store.loadCustomVoices())
+        hiddenVoices.addAll(store.hiddenVoices)
         bindViews()
         setupVoicePicker()
         setupSliders()
@@ -326,9 +327,13 @@ class MainActivity : AppCompatActivity() {
         llVoice.layoutParams = lp
     }
 
-    /** 全部音色 = 内置 + 自建 */
+    /** 内置音色里被用户隐藏掉的（本地生效，可恢复） */
+    private val hiddenVoices = mutableSetOf<String>()
+
+    /** 全部音色 = 内置（去掉已隐藏的） + 自建 */
     private fun allVoices(): List<Voice> =
-        voices + customVoices.map { Voice(it.name, it.id, "自建音色（前缀 " + it.prefix + "）") }
+        voices.filter { it.id !in hiddenVoices } +
+            customVoices.map { Voice(it.name, it.id, "自建音色（前缀 " + it.prefix + "）") }
 
     /** 设为某个音色（voiceId 为空/已失效时回落到第一个） */
     private fun setVoice(voiceId: String?) {
@@ -1106,10 +1111,11 @@ class MainActivity : AppCompatActivity() {
         pop.showAsDropDown(llVoice, 0, dp(2))
     }
 
-    // ---------------------------------------------------------------- 管理音色（自建音色的删除）
+    // ---------------------------------------------------------------- 管理音色（自建真删 / 内置隐藏）
     private fun manageVoices() {
-        if (customVoices.isEmpty()) {
-            toast("还没有自建音色")
+        val all = allVoices()
+        if (all.isEmpty() && hiddenVoices.isEmpty()) {
+            toast("音色列表是空的")
             return
         }
         val c = Skin.colors(this)
@@ -1117,40 +1123,101 @@ class MainActivity : AppCompatActivity() {
         box.orientation = LinearLayout.VERTICAL
         box.setPadding(dp(20), dp(4), dp(20), dp(4))
         var dlg: AlertDialog? = null
-        for (v in customVoices.toList()) {
-            val row = LinearLayout(this)
-            row.orientation = LinearLayout.HORIZONTAL
-            row.gravity = Gravity.CENTER_VERTICAL
-            row.setPadding(0, dp(10), 0, dp(10))
+
+        fun section(text: String) {
             val tv = TextView(this)
-            tv.text = v.name
+            tv.text = text
+            tv.setTextColor(c.dim)
+            tv.textSize = 12f
+            tv.setPadding(0, dp(14), 0, dp(2))
+            box.addView(tv)
+        }
+
+        fun row(name: String, note: String, action: String, actionColor: Int, onTap: () -> Unit) {
+            val r = LinearLayout(this)
+            r.orientation = LinearLayout.HORIZONTAL
+            r.gravity = Gravity.CENTER_VERTICAL
+            r.setPadding(0, dp(10), 0, dp(10))
+            val tv = TextView(this)
+            tv.text = name + if (note.isEmpty()) "" else "    " + note
             tv.setTextColor(c.txt)
             tv.textSize = 15f
-            row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            val del = TextView(this)
-            del.text = "删除"
-            del.setTextColor(DELETE_RED)
-            del.textSize = 14f
-            del.setPadding(dp(14), dp(8), dp(4), dp(8))
-            del.isClickable = true
-            del.isFocusable = true
-            del.setOnClickListener {
+            r.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            val act = TextView(this)
+            act.text = action
+            act.setTextColor(actionColor)
+            act.textSize = 14f
+            act.setPadding(dp(14), dp(8), dp(4), dp(8))
+            act.isClickable = true
+            act.isFocusable = true
+            act.setOnClickListener {
                 dlg?.dismiss()
-                confirmDeleteVoice(v)
+                onTap()
             }
-            row.addView(del)
-            box.addView(row)
+            r.addView(act)
+            box.addView(r)
         }
+
+        if (all.isNotEmpty()) {
+            section("可用音色（删除：自建为真删，内置为隐藏）")
+            for (v in all) {
+                val custom = customVoices.firstOrNull { it.id == v.id }
+                row(v.name, if (custom != null) "自建" else "内置", "删除", DELETE_RED) {
+                    if (custom != null) confirmDeleteVoice(custom) else hideVoice(v)
+                }
+            }
+        }
+        val hidden = voices.filter { it.id in hiddenVoices }
+        if (hidden.isNotEmpty()) {
+            section("已隐藏的内置音色（可恢复）")
+            for (v in hidden) row(v.name, "内置", "恢复", c.acc) { unhideVoice(v) }
+        }
+
         val sc = ScrollView(this)
         sc.addView(box)
         val d = AlertDialog.Builder(this)
-            .setTitle("管理音色（自建）")
+            .setTitle("管理音色")
             .setView(sc)
             .setPositiveButton("完成", null)
             .create()
         dlg = d
         d.setOnShowListener { skinDialog(d) }
         d.show()
+    }
+
+    /** 内置音色不能从代码里删除 → 从列表隐藏（可恢复） */
+    private fun hideVoice(v: Voice) {
+        val d = AlertDialog.Builder(this)
+            .setTitle("隐藏音色")
+            .setMessage(
+                "「" + v.name + "」是内置音色（写死在代码里，无法真正删除）。\n" +
+                    "把它从音色列表中隐藏？随时可在「管理音色」里恢复。"
+            )
+            .setPositiveButton("隐藏") { _, _ ->
+                hiddenVoices.add(v.id)
+                store.hiddenVoices = hiddenVoices
+                if (!voiceIsCustom && currentVoiceId == v.id) {
+                    currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+                }
+                fitVoiceWidth()
+                syncVoiceUi()
+                toast("已隐藏：" + v.name)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        d.setOnShowListener {
+            skinDialog(d)
+            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(DELETE_RED)
+        }
+        d.show()
+    }
+
+    private fun unhideVoice(v: Voice) {
+        hiddenVoices.remove(v.id)
+        store.hiddenVoices = hiddenVoices
+        fitVoiceWidth()
+        syncVoiceUi()
+        toast("已恢复：" + v.name)
     }
 
     private fun confirmDeleteVoice(v: CustomVoice) {

@@ -112,6 +112,11 @@ class Store(context: Context) {
         get() = prefs.getString("indicatorColor", "#2FE39B") ?: "#2FE39B"
         set(v) { prefs.edit().putString("indicatorColor", v).apply() }
 
+    /** 被隐藏的内置音色 id（内置音色写死在代码里，只能"隐藏"，可恢复） */
+    var hiddenVoices: MutableSet<String>
+        get() = (prefs.getStringSet("hiddenVoices", emptySet()) ?: emptySet()).toMutableSet()
+        set(v) { prefs.edit().putStringSet("hiddenVoices", HashSet(v)).apply() }
+
     var wpMain: String
         get() = prefs.getString("wpMain", "") ?: ""
         set(v) { prefs.edit().putString("wpMain", v).apply() }
