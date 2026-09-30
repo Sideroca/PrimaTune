@@ -480,15 +480,27 @@ class SettingsActivity : AppCompatActivity() {
             val bar2 = LinearLayout(this)
             bar2.orientation = LinearLayout.HORIZONTAL
 
-            val star = TextView(this)
-            star.textSize = 11.5f
+            val star = LinearLayout(this)
+            star.orientation = LinearLayout.HORIZONTAL
+            star.gravity = Gravity.CENTER_VERTICAL
             star.setPadding(0, dp(6f), dp(14f), dp(2f))
             star.isClickable = true
             star.isFocusable = true
+            val starIcon = ImageView(this)
+            starIcon.layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f))
+            star.addView(starIcon)
+            val starLabel = TextView(this)
+            starLabel.textSize = 11.5f
+            starLabel.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(4f) }
+            star.addView(starLabel)
             val refreshStar = {
                 val fav = t.id in store.favTakes
-                star.text = if (fav) "★ 已收藏" else "☆ 收藏"
-                star.setTextColor(if (fav) c.txt else c.dim)
+                starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
+                starIcon.imageTintList = android.content.res.ColorStateList.valueOf(c.dim)
+                starLabel.text = if (fav) "已收藏" else "收藏"
+                starLabel.setTextColor(c.dim)
             }
             refreshStar()
             star.setOnClickListener {

@@ -994,7 +994,26 @@ class MainActivity : AppCompatActivity() {
         val bPlay = smallBtn("▶ 播放")
         val bFill = smallBtn("回填")
         val bAttr = smallBtn("属性")
-        val bStar = smallBtn("★")
+        // 收藏星：手绘矢量（不再用 ☆/★ 字形——字形太小、且会被系统字体染成杂色）
+        val bStar = LinearLayout(this)
+        bStar.orientation = LinearLayout.HORIZONTAL
+        bStar.gravity = android.view.Gravity.CENTER_VERTICAL
+        bStar.background = ContextCompat.getDrawable(this, R.drawable.bg_btn)
+        bStar.setPadding(dp(12), dp(7), dp(12), dp(7))
+        bStar.isClickable = true
+        bStar.isFocusable = true
+        bStar.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { rightMargin = dp(8) }
+        val starIcon = ImageView(this)
+        starIcon.layoutParams = LinearLayout.LayoutParams(dp(17), dp(17))
+        bStar.addView(starIcon)
+        val starLabel = TextView(this)
+        starLabel.textSize = 13f                       // 与旁边按钮同字号
+        starLabel.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginStart = dp(5) }
+        bStar.addView(starLabel)
         val bShare = smallBtn("分享")
 
         bPlay.setOnClickListener { toggleTake(take) }
@@ -1009,8 +1028,11 @@ class MainActivity : AppCompatActivity() {
         }
         val refreshStar = {
             val fav = take.id in store.favTakes
-            bStar.text = if (fav) "★ 已收藏" else "☆ 收藏"
-            bStar.setTextColor(if (fav) cTxt else cDim)
+            starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
+            // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
+            starIcon.imageTintList = android.content.res.ColorStateList.valueOf(cTxt)
+            starLabel.text = if (fav) "已收藏" else "收藏"
+            starLabel.setTextColor(cTxt)
         }
         refreshStar()
         bStar.setOnClickListener {
