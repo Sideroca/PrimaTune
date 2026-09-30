@@ -64,10 +64,18 @@ class ThemePreviewView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         val c = col ?: return
-        val w = width.toFloat()
-        val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
+        val aw = width.toFloat()
+        val ah = height.toFloat()
+        if (aw <= 0f || ah <= 0f) return
         val d = resources.displayMetrics.density
+        // 虚拟画布：内容一律按"手机比例"(104:220 ≈ 0.473)绘制，再等比缩放居中到实际 View。
+        // 原先直接用实际 w/h 绘制 → 换任何尺寸都会横向或纵向被拉扁（比例失调）。
+        val w = 104f * d
+        val h = 220f * d
+        val s = minOf(aw / w, ah / h)
+        canvas.save()
+        canvas.translate((aw - w * s) / 2f, (ah - h * s) / 2f)
+        canvas.scale(s, s)
         val r = 10f * d
 
         // 屏底
@@ -176,5 +184,6 @@ class ThemePreviewView @JvmOverloads constructor(
             canvas.drawRoundRect(rect, 7 * d, 7 * d, stroke)
             stroke.alpha = 255
         }
+        canvas.restore()
     }
 }
