@@ -1012,7 +1012,7 @@ class MainActivity : AppCompatActivity() {
         starLabel.textSize = 13f                       // 与旁边按钮同字号
         starLabel.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { marginStart = dp(5) }
+        ).apply { marginStart = dp(2) }              // 星与文字贴近 → 缩短整个按钮长度
         bStar.addView(starLabel)
         val bShare = smallBtn("分享")
 
@@ -1031,7 +1031,7 @@ class MainActivity : AppCompatActivity() {
             starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
             starIcon.imageTintList = android.content.res.ColorStateList.valueOf(cTxt)
-            starLabel.text = if (fav) "已收藏" else "收藏"
+            starLabel.text = "收藏"                     // 文字恒定，只有星星上色/变实心
             starLabel.setTextColor(cTxt)
         }
         refreshStar()

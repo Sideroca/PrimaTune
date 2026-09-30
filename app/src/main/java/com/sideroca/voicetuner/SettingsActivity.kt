@@ -528,13 +528,13 @@ class SettingsActivity : AppCompatActivity() {
             starLabel.textSize = 11.5f
             starLabel.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(4f) }
+            ).apply { marginStart = dp(2f) }
             star.addView(starLabel)
             val refreshStar = {
                 val fav = t.id in store.favTakes
                 starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
                 starIcon.imageTintList = android.content.res.ColorStateList.valueOf(c.dim)
-                starLabel.text = if (fav) "已收藏" else "收藏"
+                starLabel.text = "收藏"                 // 文字恒定，只有星星上色/变实心
                 starLabel.setTextColor(c.dim)
             }
             refreshStar()
@@ -687,7 +687,10 @@ class SettingsActivity : AppCompatActivity() {
             more.setTextColor(c.dim)
             more.textSize = 13f
             more.gravity = Gravity.CENTER
-            more.setPadding(dp(12), dp(12), dp(12), dp(12))
+            // 整条都能点：固定 54dp 高、左右贯穿卡片宽度（截图里点文字下方那一块也算）
+            more.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(54f)
+            )
             more.isClickable = true
             more.isFocusable = true
             more.setOnClickListener {
