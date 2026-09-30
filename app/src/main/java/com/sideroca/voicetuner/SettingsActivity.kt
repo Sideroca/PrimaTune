@@ -84,6 +84,16 @@ class SettingsActivity : AppCompatActivity() {
         etKey = findViewById(R.id.etKey)
         etWs = findViewById(R.id.etWs)
         etModel = findViewById(R.id.etModel)
+        // 模型名自动补全：输入第一个字母就弹下拉（数据来自 TtsModels 目录）
+        (etModel as? android.widget.AutoCompleteTextView)?.let { ac ->
+            ac.setAdapter(
+                android.widget.ArrayAdapter(
+                    this, android.R.layout.simple_dropdown_item_1line,
+                    TtsModels.all.map { TtsModels.display(it) }
+                )
+            )
+            ac.threshold = 1
+        }
         llIndicator = findViewById(R.id.llIndicator)
         tvPageTitle = findViewById(R.id.tvPageTitle)
         pageModel = findViewById(R.id.pageModel)
@@ -579,7 +589,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveAll() {
         store.apiKey = etKey.text.toString().trim()
         store.workspace = etWs.text.toString().trim()
-        store.lastModel = etModel.text.toString().trim()
+        // 下拉项是「id   说明」，这里只取回 id
+        store.lastModel = TtsModels.idOf(etModel.text.toString())
         buildProviders()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }

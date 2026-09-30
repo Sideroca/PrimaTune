@@ -82,13 +82,14 @@
                             android:inputType="text"
                             android:singleLine="true" />
                         <TextView style="@style/VtLabel" android:text="默认 model" />
-                        <EditText
-                            android:id="@+id/etModel"
-                            style="@style/VtInput"
-                            android:hint="cosyvoice-v3.5-plus"
-                            android:importantForAutofill="no"
-                            android:inputType="text"
-                            android:singleLine="true" />
+                        <AutoCompleteTextView
+                        android:id="@+id/etModel"
+                        style="@style/VtInput"
+                        android:hint="cosyvoice-v3.5-plus"
+                        android:completionThreshold="1"
+                        android:importantForAutofill="no"
+                        android:inputType="text"
+                        android:singleLine="true" />
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

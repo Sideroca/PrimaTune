@@ -95,6 +95,10 @@ class DashScopeClient {
     }
 
     fun synthesize(req: SynthRequest, callback: SynthCallback): Cancellable {
+        // 千问系（Qwen-TTS / Qwen3-TTS-*）走 HTTP 一次性返回；CosyVoice / Qwen-Audio-TTS 仍走 WebSocket
+        if (TtsModels.byId(req.model)?.transport == "http") {
+            return QwenTtsClient.synthesize(req, callback)
+        }
         done = false
         resetBuffer()
         // workspace 是拼 URL 的，非法值会让 Request.Builder().url() 同步抛异常（旧版会闪退）
