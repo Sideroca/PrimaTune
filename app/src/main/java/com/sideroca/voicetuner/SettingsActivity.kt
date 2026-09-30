@@ -207,12 +207,13 @@ class SettingsActivity : AppCompatActivity() {
             dockIcons[i].imageTintList =
                 android.content.res.ColorStateList.valueOf(if (i == selectedPage) c.acc else c.dim)
         }
-        // 保存键：半透明键面 + 白描边 + 深色字（浅色主题）；深色主题自动换一套
-        if (c.light) {
-            btnSaveAll.setColors(0xE6FFE0D2.toInt(), 0xFFFFFFFF.toInt(), 0xFF7C3A2F.toInt())
-        } else {
-            btnSaveAll.setColors(0x33FFFFFF, 0x55FFFFFF, 0xFFDDE6F2.toInt())
-        }
+        // 保存键：严格走主题语义槽位（《夕汀前端规范》〇-6 组件内不写死颜色；〇-11 自动明度适配）
+        // 交互色(accent) 作底/描边，明度低时自动把字提亮 → 换主题即换色
+        val acc = c.acc
+        val faceTint = (acc and 0x00FFFFFF) or (0x33 shl 24)      // accent 20% —— 玻璃感
+        val strokeTint = (acc and 0x00FFFFFF) or (0x66 shl 24)    // accent 40% —— 描边
+        val ink = if (c.light) acc else Skin.Colors.mix(acc, 0xFFFFFFFF.toInt(), 0.45f)
+        btnSaveAll.setColors(faceTint, strokeTint, ink)
     }
 
     // ---------------------------------------------------------------- 模型页
