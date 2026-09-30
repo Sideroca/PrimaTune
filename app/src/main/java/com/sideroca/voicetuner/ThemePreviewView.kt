@@ -11,8 +11,10 @@ import android.util.AttributeSet
 import android.view.View
 
 /**
- * 主题预览台：把「当前配色 + 壁纸 + 遮罩 + 卡片浓度」实时画成一张迷你界面。
- * 只读主题的语义槽位（bg/card/line/accent/txt/dim），换主题或拖动滑条即刻重绘。
+ * 主题预览台：把「当前配色 + 壁纸 + 遮罩 + 卡片浓度」画成**贴近真实界面**的迷你屏。
+ * - pageMode = 0：主界面（标题条 / 参数卡三行滑条 / 生成大按钮 / 本地记录卡）
+ * - pageMode = 1：设置页（标题 / 配色卡若干行 + 色球 / 底部五格坞 / 保存条）
+ * 只读主题语义槽位，换主题或拖滑条即刻重绘。
  */
 class ThemePreviewView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -39,6 +41,27 @@ class ThemePreviewView @JvmOverloads constructor(
         invalidate()
     }
 
+    private fun rr(canvas: Canvas, x: Float, y: Float, w: Float, h: Float, r: Float) {
+        rect.set(x, y, x + w, y + h)
+        canvas.drawRoundRect(rect, r, r, fill)
+    }
+
+    /** 一条"文字"占位条 */
+    private fun bar(canvas: Canvas, x: Float, y: Float, w: Float, h: Float) {
+        rr(canvas, x, y, w, h, h / 2f)
+    }
+
+    private fun card(canvas: Canvas, x: Float, y: Float, w: Float, h: Float, r: Float, c: Skin.Colors) {
+        fill.color = c.card
+        fill.alpha = c.cardAlphaPct.coerceIn(30, 100) * 255 / 100
+        rr(canvas, x, y, w, h, r)
+        fill.alpha = 255
+        stroke.color = c.line
+        stroke.strokeWidth = 1.2f * resources.displayMetrics.density
+        rect.set(x, y, x + w, y + h)
+        canvas.drawRoundRect(rect, r, r, stroke)
+    }
+
     override fun onDraw(canvas: Canvas) {
         val c = col ?: return
         val w = width.toFloat()
@@ -47,7 +70,7 @@ class ThemePreviewView @JvmOverloads constructor(
         val d = resources.displayMetrics.density
         val r = 10f * d
 
-        // 底色
+        // 屏底
         fill.color = c.bg
         rect.set(0f, 0f, w, h)
         canvas.drawRoundRect(rect, r, r, fill)
@@ -65,39 +88,93 @@ class ThemePreviewView @JvmOverloads constructor(
             canvas.drawRoundRect(rect, r, r, scrimP)
         }
 
-        // 标题条
-        fill.color = c.acc
-        canvas.drawRoundRect(RectF(10 * d, 12 * d, 56 * d, 20 * d), 4 * d, 4 * d, fill)
+        val pad = 9f * d
+        val cw = w - pad * 2
 
-        // 两张卡（含卡片浓度）
-        fill.color = c.card
-        fill.alpha = c.cardAlphaPct.coerceIn(30, 100) * 255 / 100
-        val card1 = RectF(8 * d, 30 * d, w - 8 * d, 64 * d)
-        val card2 = RectF(8 * d, 70 * d, w - 8 * d, 96 * d)
-        canvas.drawRoundRect(card1, 8 * d, 8 * d, fill)
-        canvas.drawRoundRect(card2, 8 * d, 8 * d, fill)
-        fill.alpha = 255
-        stroke.color = c.line
-        stroke.strokeWidth = 1.5f * d
-        canvas.drawRoundRect(card1, 8 * d, 8 * d, stroke)
-        canvas.drawRoundRect(card2, 8 * d, 8 * d, stroke)
-
-        // 卡内"文字"条
-        fill.color = c.txt
-        canvas.drawRoundRect(RectF(14 * d, 38 * d, 64 * d, 44 * d), 3 * d, 3 * d, fill)
-        fill.color = c.dim
-        canvas.drawRoundRect(RectF(14 * d, 50 * d, 82 * d, 55 * d), 2.5f * d, 2.5f * d, fill)
-        canvas.drawRoundRect(RectF(14 * d, 77 * d, 82 * d, 83 * d), 3 * d, 3 * d, fill)
-
-        // 底部：设置页 = 主行动按钮；主界面 = 底部坞
-        if (pageMode == 1) {
+        if (pageMode == 0) {
+            // ---- 主界面 ----
+            fill.color = c.txt
+            bar(canvas, pad, pad + 2 * d, 34 * d, 9 * d)          // 标题
+            // 参数卡
+            val cy = pad + 18 * d
+            val ch = 54 * d
+            card(canvas, pad, cy, cw, ch, 7 * d, c)
+            for (i in 0 until 3) {
+                fill.color = c.dim
+                bar(canvas, pad + 7 * d, cy + (6 + i * 14) * d, 16 * d, 5 * d)      // 标签
+                fill.color = c.line
+                bar(canvas, pad + 28 * d, cy + (7 + i * 14) * d, cw - 60 * d, 3 * d) // 轨道
+                fill.color = c.acc
+                val kx = pad + 28 * d + (cw - 60 * d) * (0.30f + i * 0.16f)
+                canvas.drawCircle(kx, cy + (8.5f + i * 14) * d, 4 * d, fill)          // 滑钮
+                fill.color = c.txt
+                bar(canvas, w - pad - 16 * d, cy + (6 + i * 14) * d, 12 * d, 5 * d)   // 数值
+            }
+            // 生成大按钮
+            val by = cy + ch + 9 * d
             fill.color = c.acc
-            canvas.drawRoundRect(RectF(8 * d, h - 30 * d, w - 8 * d, h - 12 * d), 6 * d, 6 * d, fill)
+            rr(canvas, pad, by, cw, 22 * d, 11 * d)
+            fill.color = c.onAcc
+            bar(canvas, w / 2 - 9 * d, by + 8 * d, 18 * d, 6 * d)
+            // 本地记录卡
+            val ry = by + 30 * d
+            card(canvas, pad, ry, cw, h - ry - pad, 8 * d, c)
+            fill.color = c.txt
+            bar(canvas, pad + 7 * d, ry + 8 * d, cw * 0.62f, 6 * d)
+            bar(canvas, pad + 7 * d, ry + 18 * d, cw * 0.42f, 6 * d)
+            fill.color = c.dim
+            bar(canvas, pad + 7 * d, ry + 29 * d, cw * 0.5f, 5 * d)
+            fill.color = c.acc
+            rr(canvas, pad + 7 * d, ry + 38 * d, 26 * d, 14 * d, 7 * d)
+            fill.color = c.onAcc
+            bar(canvas, pad + 12 * d, ry + 43 * d, 16 * d, 4 * d)
         } else {
-            fill.color = c.card
-            fill.alpha = 235
-            canvas.drawRoundRect(RectF(8 * d, h - 26 * d, w - 8 * d, h - 8 * d), 8 * d, 8 * d, fill)
+            // ---- 设置页 ----
+            fill.color = c.txt
+            bar(canvas, pad, pad + 2 * d, 26 * d, 9 * d)          // 标题「设置」
+            // 配色卡：4 行「名字 + 4 色球」
+            val cy = pad + 17 * d
+            card(canvas, pad, cy, cw, 62 * d, 8 * d, c)
+            val dots = intArrayOf(0, 0, 0, 0)
+            for (i in 0 until 4) {
+                dots[0] = c.bg; dots[1] = c.card; dots[2] = c.acc; dots[3] = c.barBg
+                fill.color = c.txt
+                bar(canvas, pad + 7 * d, cy + (7 + i * 14) * d, cw * 0.45f, 5 * d)
+                for (k in 0 until 4) {
+                    fill.color = dots[k]
+                    canvas.drawCircle(
+                        pad + cw - (7 + (3 - k) * 9) * d,
+                        cy + (9.5f + i * 14) * d, 3.6f * d, fill
+                    )
+                }
+            }
+            // 指示符色卡
+            val iy = cy + 62 * d + 7 * d
+            card(canvas, pad, iy, cw, 30 * d, 8 * d, c)
+            fill.color = c.txt
+            bar(canvas, pad + 7 * d, iy + 7 * d, 26 * d, 5 * d)
+            fill.color = c.acc
+            bar(canvas, pad + 7 * d, iy + 17 * d, cw * 0.55f, 5 * d)
+            // 底部：五格坞 + 保存条
+            val dy = h - 46 * d
+            card(canvas, pad, dy, cw, 22 * d, 9 * d, c)
+            val seg = cw / 5f
+            for (i in 0 until 5) {
+                val cx = pad + seg * i + seg / 2
+                fill.color = if (i == 2) c.acc else c.dim
+                canvas.drawCircle(cx, dy + 8 * d, 3.2f * d, fill)
+                bar(canvas, cx - 7 * d, dy + 15 * d, 14 * d, 4 * d)
+            }
+            val sy = dy + 26 * d
+            fill.color = c.acc
+            fill.alpha = 56                                   // 玻璃感：accent @ 22%
+            rr(canvas, pad, sy, cw, 14 * d, 7 * d)
             fill.alpha = 255
+            stroke.color = c.acc
+            stroke.alpha = 102
+            rect.set(pad, sy, w - pad, sy + 14 * d)
+            canvas.drawRoundRect(rect, 7 * d, 7 * d, stroke)
+            stroke.alpha = 255
         }
     }
 }

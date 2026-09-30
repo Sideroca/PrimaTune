@@ -49,6 +49,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llVoices: LinearLayout
     private lateinit var llRecords: LinearLayout
     private lateinit var btnSaveAll: PressButton
+    private lateinit var cardPalette: LinearLayout
+    private lateinit var cardIndicator: LinearLayout
+    private lateinit var cardWallpaper: LinearLayout
     private lateinit var preview: ThemePreviewView
     private lateinit var btnPvMain: TextView
     private lateinit var btnPvPage: TextView
@@ -57,7 +60,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private val density = 0f   // 占位，运行时用 resources 取（保持字段顺序稳定）
 
-    private var cat = "orig"
+    private var cat = "modern"
     /** 配色列表是否展开全部（懒建：默认只建前 20 套） */
     private var palShowAll = false
 
@@ -65,7 +68,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         store = Store(this)
-        cat = if (store.themeId.isEmpty()) "orig" else (Palettes.byId(store.themeId)?.group ?: "orig")
+        cat = if (store.themeId.isEmpty()) "modern" else (Palettes.byId(store.themeId)?.group ?: "modern")
 
         wpImg = findViewById(R.id.wpImg)
         wpScrim = findViewById(R.id.wpScrim)
@@ -92,6 +95,9 @@ class SettingsActivity : AppCompatActivity() {
         llRecords = findViewById(R.id.llRecords)
         btnSaveAll = findViewById(R.id.btnSaveAll)
         preview = findViewById(R.id.preview)
+        cardPalette = findViewById(R.id.cardPalette)
+        cardIndicator = findViewById(R.id.cardIndicator)
+        cardWallpaper = findViewById(R.id.cardWallpaper)
         btnPvMain = findViewById(R.id.btnPvMain)
         btnPvPage = findViewById(R.id.btnPvPage)
         tvPvHint = findViewById(R.id.tvPvHint)
@@ -109,6 +115,7 @@ class SettingsActivity : AppCompatActivity() {
         buildVoices()
         buildRecords()
         btnSaveAll.setOnClickListener { saveAll() }
+        applyThemeTab()
         selectPage(0)
     }
 
@@ -643,9 +650,9 @@ class SettingsActivity : AppCompatActivity() {
         llCats.removeAllViews()
         val c = Skin.colors(this)
         val defs = listOf(
-            "orig" to "本机原色",
             "modern" to "现代经典 18",
-            "chinese" to "🏮 中国传统色 46"
+            "chinese" to "🏮 中国传统色 46",
+            "attrs" to "属性设置"
         )
         for ((id, label) in defs) {
             val tv = TextView(this)
@@ -660,8 +667,10 @@ class SettingsActivity : AppCompatActivity() {
             tv.isFocusable = true
             tv.setOnClickListener {
                 cat = id
+                palShowAll = false
                 buildCatChips()
                 renderPalettes()
+                applyThemeTab()
             }
             val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             lp.rightMargin = dp(8)
@@ -670,13 +679,18 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /** 「属性设置」= 只看壁纸与浓度；配色分类 = 看配色与指示符色 */
+    private fun applyThemeTab() {
+        val attrs = cat == "attrs"
+        cardPalette.visibility = if (attrs) View.GONE else View.VISIBLE
+        cardIndicator.visibility = if (attrs) View.GONE else View.VISIBLE
+        cardWallpaper.visibility = if (attrs) View.VISIBLE else View.GONE
+    }
+
     private fun renderPalettes() {
         llPalettes.removeAllViews()
         val c = Skin.colors(this)
-        if (cat == "orig") {
-            llPalettes.addView(palRow(null, c))
-            return
-        }
+        if (cat == "attrs") return        // 「属性设置」时整张配色卡隐藏
         val list = Palettes.all.filter { it.group == cat }
         // 懒建：默认只建前 20 行，其余点「显示全部」
         val shown = if (palShowAll) list else list.take(20)
