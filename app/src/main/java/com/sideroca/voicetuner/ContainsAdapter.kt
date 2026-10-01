@@ -15,10 +15,14 @@ class ContainsAdapter(
 
     private val all: MutableList<String> = items.toMutableList()
 
+    private fun norm(s: String?): String =
+        s.orEmpty().lowercase().filter { !it.isWhitespace() }
+
     override fun getFilter(): Filter = object : Filter() {
         override fun performFiltering(constraint: CharSequence?): FilterResults {
-            val q = constraint?.toString()?.trim()?.lowercase().orEmpty()
-            val res = if (q.isEmpty()) all.toList() else all.filter { it.lowercase().contains(q) }
+            // 归一化：小写 + 去掉所有空白 —— 手打 "fishaudio" 也能命中「Fish Audio    fish」
+            val q = norm(constraint?.toString())
+            val res = if (q.isEmpty()) all.toList() else all.filter { norm(it).contains(q) }
             return FilterResults().apply {
                 values = res
                 count = res.size

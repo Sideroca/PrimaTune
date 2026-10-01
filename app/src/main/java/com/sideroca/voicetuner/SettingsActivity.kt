@@ -928,10 +928,29 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     /** 保存当前厂商的这三项（Key 按厂商分开存；百炼额外把 Key 同步给老字段） */
     private fun saveProviderFields() {
-        store.setProviderKey(store.providerId, etKey.text.toString().trim())
-        if (store.providerId == "aliyun-bailian") store.apiKey = etKey.text.toString().trim()
-        store.workspace = etWs.text.toString().trim()
-        val mid = TtsProviders.modelIdOf(etModel.text.toString())
+        // 先留住用户刚输入的三项 —— 下面切厂商会刷新输入框，不先留就会被冲掉
+        val typedKey = etKey.text.toString().trim()
+        val typedWs = etWs.text.toString().trim()
+        val typedModel = etModel.text.toString()
+
+        // 再把"厂商"框里的文字解析成厂商：手打了名字但没点下拉项时，也要能正确切换并保存
+        val typed = etProvider.text.toString().trim()
+        val typedId = TtsProviders.idOf(typed)
+        val normTyped = typed.lowercase().filter { !it.isWhitespace() }
+        val resolved = TtsProviders.byId(typedId)
+            ?: TtsProviders.all.firstOrNull {
+                TtsProviders.display(it).lowercase().filter { c -> !c.isWhitespace() }.contains(normTyped) ||
+                    it.id.lowercase().contains(normTyped)
+            }
+        if (resolved != null && resolved.id != store.providerId) {
+            store.providerId = resolved.id
+            applyProvider(resolved.id)
+        }
+
+        store.setProviderKey(store.providerId, typedKey)
+        if (store.providerId == "aliyun-bailian") store.apiKey = typedKey
+        store.workspace = typedWs
+        val mid = TtsProviders.modelIdOf(typedModel)
         if (mid.isNotBlank()) store.lastModel = mid
         if (etBaseUrl.visibility == View.VISIBLE) {
             store.setProviderBaseUrl(store.providerId, etBaseUrl.text.toString())
