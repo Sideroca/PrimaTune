@@ -27,7 +27,7 @@ class EqBarsView @JvmOverloads constructor(
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
     /** 静态时三根的长短（未动画也像音柱） */
-    private val base = floatArrayOf(0.52f, 0.92f, 0.38f)
+    private val base = floatArrayOf(0.50f, 0.86f, 0.68f)   // 中间最高、右边次之，整体更和谐（可按喜好微调）
 
     /** 三根错开相位，避免"齐步走" */
     private val phases = floatArrayOf(0.00f, 0.42f, 0.78f)

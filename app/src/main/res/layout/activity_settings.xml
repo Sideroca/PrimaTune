@@ -122,7 +122,6 @@
                             android:singleLine="true"
                             android:visibility="gone" />
 
-
                         <TextView
                             android:id="@+id/tvKeyLabel"
                             style="@style/VtLabel"
@@ -197,15 +196,7 @@
                             android:layout_height="wrap_content"
                             android:orientation="vertical" />
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:lineSpacingExtra="3dp"
-                            android:text="上面选厂商 → 填该厂商 Key → 选模型。每家的 Key 与配置分开保存，只存在本机。"
-                            android:textColor="@color/hint"
-                            android:textSize="12sp" />
-                    </LinearLayout>
+                                            </LinearLayout>
                 </LinearLayout>
             </ScrollView>
 
@@ -326,7 +317,6 @@
                             android:layout_height="wrap_content"
                             android:orientation="vertical" />
                     </LinearLayout>
-
 
                     <!-- 壁纸与浓度（属于「主题」页） -->
                     <LinearLayout

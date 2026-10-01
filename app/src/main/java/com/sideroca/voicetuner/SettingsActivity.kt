@@ -310,14 +310,28 @@ class SettingsActivity : AppCompatActivity() {
     private fun buildProviders() {
         llProviders.removeAllViews()
         val c = Skin.colors(this)
+        // 不规则排列：每行个数 3/2/3/2/3…，并给每行一点左偏移，避免"整整齐齐一排排"
+        val perRow = intArrayOf(3, 2, 3, 2, 3, 2)
+        val leftShift = intArrayOf(0, 22, 8, 30, 12, 26)
+        val rowStart = ArrayList<Int>()
+        var acc = 0
+        for (n in perRow) {
+            if (acc >= TtsProviders.all.size) break
+            rowStart.add(acc)
+            acc += n
+        }
         var row: LinearLayout? = null
         TtsProviders.all.forEachIndexed { i, p ->
-            if (i % 3 == 0) {
+            if (rowStart.contains(i)) {
+                val ri = rowStart.indexOf(i)
                 row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutParams = LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply { topMargin = dp(8) }
+                    ).apply {
+                        topMargin = dp(8)
+                        leftMargin = dp(leftShift.getOrElse(ri) { 0 })
+                    }
                 }
                 llProviders.addView(row)
             }
@@ -877,6 +891,27 @@ class SettingsActivity : AppCompatActivity() {
         val cur = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
         etProvider.setText(TtsProviders.display(cur), false)
         applyProvider(cur.id)
+        // 关键：在厂商框里"直接打字"也要立刻切换（否则模型清单还是上一家的，输入 s 出来的是千问的模型）
+        etProvider.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(t: android.text.Editable?) {
+                val typed = t?.toString().orEmpty().trim()
+                val norm = typed.lowercase().filter { !it.isWhitespace() }
+                if (norm.isEmpty()) return
+                val hit = TtsProviders.byId(TtsProviders.idOf(typed))
+                    ?: TtsProviders.all.firstOrNull {
+                        TtsProviders.display(it).lowercase().filter { c -> !c.isWhitespace() }.contains(norm) ||
+                            it.id.lowercase().contains(norm)
+                    }
+                if (hit != null && hit.id != store.providerId) {
+                    store.providerId = hit.id
+                    applyProvider(hit.id)
+                }
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+
         etProvider.setOnItemClickListener { _, _, _, _ ->
             val id = TtsProviders.idOf(etProvider.text.toString())
             if (TtsProviders.byId(id) != null) {
