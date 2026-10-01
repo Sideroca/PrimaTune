@@ -396,6 +396,28 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 记录页
 
+    /** 记录页：分享这条记录（FileProvider，别的 App 可直接收） */
+    private fun shareHistory(t: Take) {
+        try {
+            val f = store.fileOf(t)
+            if (!f.exists()) {
+                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, packageName + ".fileprovider", f
+            )
+            val i = Intent(Intent.ACTION_SEND).apply {
+                type = if (t.fileName.endsWith("mp3")) "audio/mpeg" else "audio/wav"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(i, "分享到"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "分享失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     /** 记录页：试听（用系统 MediaPlayer 直接播本地文件） */
     private var recPlayer: android.media.MediaPlayer? = null
 
@@ -552,6 +574,16 @@ class SettingsActivity : AppCompatActivity() {
 
             val bar2 = LinearLayout(this)
             bar2.orientation = LinearLayout.HORIZONTAL
+
+            val share = TextView(this)
+            share.text = "分享"
+            share.setTextColor(c.dim)
+            share.textSize = 11.5f
+            share.setPadding(0, dp(6f), dp(16f), dp(2f))
+            share.isClickable = true
+            share.isFocusable = true
+            share.setOnClickListener { shareHistory(t) }
+            bar2.addView(share)
 
             // 试听（记录页也要有）
             val play = TextView(this)

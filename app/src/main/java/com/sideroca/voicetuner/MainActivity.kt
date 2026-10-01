@@ -1316,7 +1316,10 @@ class MainActivity : AppCompatActivity() {
             box.addView(tv)
         }
 
-        fun row(name: String, note: String, action: String, actionColor: Int, onTap: () -> Unit) {
+        fun row(
+            name: String, note: String, action: String, actionColor: Int,
+            rename: (() -> Unit)? = null, onTap: () -> Unit
+        ) {
             val r = LinearLayout(this)
             r.orientation = LinearLayout.HORIZONTAL
             r.gravity = Gravity.CENTER_VERTICAL
@@ -1337,8 +1340,50 @@ class MainActivity : AppCompatActivity() {
                 dlg?.dismiss()
                 onTap()
             }
+            if (rename != null) {
+                val rn = TextView(this)
+                rn.text = "改名"
+                rn.setTextColor(c.acc)
+                rn.textSize = 14f
+                rn.setPadding(dp(12), dp(8), dp(4), dp(8))
+                rn.isClickable = true
+                rn.isFocusable = true
+                rn.setOnClickListener {
+                    dlg?.dismiss()
+                    rename()
+                }
+                r.addView(rn)
+            }
             r.addView(act)
             box.addView(r)
+        }
+
+        fun renameVoice(cv: CustomVoice) {
+            val et = EditText(this)
+            et.setText(cv.name)
+            et.setSelection(cv.name.length)
+            val d = AlertDialog.Builder(this)
+                .setTitle("重命名音色")
+                .setView(et)
+                .setPositiveButton("保存") { _, _ ->
+                    val nn = et.text.toString().trim()
+                    if (nn.isEmpty()) {
+                        toast("名字不能为空")
+                    } else {
+                        val idx = customVoices.indexOfFirst { it.id == cv.id }
+                        if (idx >= 0) {
+                            customVoices[idx] = customVoices[idx].copy(name = nn)
+                            store.saveCustomVoices(customVoices)
+                            fitVoiceWidth()
+                            syncVoiceUi()
+                            toast("已改名为：" + nn)
+                        }
+                    }
+                }
+                .setNegativeButton("取消", null)
+                .create()
+            d.setOnShowListener { skinDialog(d) }
+            d.show()
         }
 
         if (all.isNotEmpty()) {
