@@ -381,7 +381,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupActions() {
         btnSettings.setOnClickListener { openSettings() }
-        btnCreateVoice.setOnClickListener { openCreateVoice() }
+        btnCreateVoice.setOnClickListener {
+            // 声音复刻目前只有百炼实现：别的厂商点了必然失败，直接拦下并说明
+            if (TtsProviders.byId(store.providerId)?.canClone != true) {
+                toast("当前厂商（" + (TtsProviders.byId(store.providerId)?.name ?: "") + "）不支持声音复刻，请切到「阿里云百炼」再建音色")
+                return@setOnClickListener
+            }
+ openCreateVoice() }
         btnDice.setOnClickListener { etSeed.setText((0..65535).random().toString()) }
         tvAdvanced.setOnClickListener {
             val show = llAdvanced.visibility != View.VISIBLE
@@ -417,6 +423,13 @@ class MainActivity : AppCompatActivity() {
         listOf(R.id.tvRate, R.id.tvPitch, R.id.tvVol).forEach { id ->
             findViewById<View>(id)?.alpha = a
         }
+        // 「+ 建音色」：当前厂商不支持复刻就置灰（避免点了白等）
+        val canClone = TtsProviders.byId(store.providerId)?.canClone == true
+        findViewById<TextView>(R.id.btnCreateVoice)?.apply {
+            isEnabled = canClone
+            alpha = if (canClone) 1f else 0.4f
+        }
+
         findViewById<TextView>(R.id.tvParamNote).apply {
             text = note
             visibility = if (note.isEmpty()) View.GONE else View.VISIBLE

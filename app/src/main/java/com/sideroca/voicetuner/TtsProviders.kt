@@ -18,13 +18,15 @@ object TtsProviders {
         val baseUrl: String,
         val shape: String,
         val keyHint: String,
-        val models: List<String>
+        val models: List<String>,
+        /** 是否支持"声音复刻/克隆"。目前只有百炼实现；Fish / ElevenLabs / MiniMax 计划中 */
+        val canClone: Boolean = false
     )
 
     val all: List<P> = listOf(
         P(
             "aliyun-bailian", "阿里云百炼", "https://dashscope.aliyuncs.com", "dashscope", "sk-ws-…",
-            TtsModels.all.map { it.id }
+            TtsModels.all.map { it.id }, canClone = true      // 目前唯一已实现复刻的厂商
         ),
         P(
             "openai", "OpenAI", "https://api.openai.com/v1", "openai", "sk-…",
