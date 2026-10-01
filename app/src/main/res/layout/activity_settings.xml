@@ -541,12 +541,26 @@
 
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="关于" />
+
+                        <TextView
+                            android:id="@+id/btnCheckUpdate"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_btn"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:padding="11dp"
+                            android:text="检查更新"
+                            android:textColor="@color/txt"
+                            android:textSize="14sp" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="语音调控台 v0.5.3 · 桌面名「玲珑调音」\n直连阿里云百炼 CosyVoice v3.5-plus · 支持自建音色（可一次多选样本，自动合并）\n配色方案：现代经典 18 + 中国传统色 46（共 64 套）\n主题与壁纸均只保存在本机\n\n（这一页的内容还没想好，先占位）"
+                            android:text="玲珑调音 · Prima Tune\n版本 v0.5.3\n\n· 语音合成：已接入 10 家厂商 + 本机系统 TTS + 自定义渠道\n· 音色：内置 4 个 + 自建（声音复刻）\n· 外观：64 套配色 · 指示符颜色 · 壁纸（支持二次截取）\n· 数据：全部只保存在本机，不上传\n\n许可与致谢\n· 界面设计参照《夕汀前端规范》\n· 各第三方模型与名称归各自厂商所有"
                             android:textColor="@color/dim"
                             android:textSize="13sp" />
                     </LinearLayout>

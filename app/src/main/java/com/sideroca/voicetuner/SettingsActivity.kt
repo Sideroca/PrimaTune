@@ -933,6 +933,20 @@ https://ifdian.net/a/qq2093523014
 软件代码全开源，以下是代码仓库地址
 https://github.com/Sideroca?tab=repositories""".trimIndent()
 
+        // 检查更新：打开 GitHub 最新发布页（本机不联网自检，避免多一个权限）
+        findViewById<TextView>(R.id.btnCheckUpdate)?.setOnClickListener {
+            try {
+                startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://github.com/Sideroca/PrimaTune/releases/latest")
+                    )
+                )
+            } catch (e: Exception) {
+                toast("打不开浏览器：" + (e.message ?: ""))
+            }
+        }
+
         val hint = findViewById<TextView>(R.id.tvDevCopyHint)
         val doCopy = {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
