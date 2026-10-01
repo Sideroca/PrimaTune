@@ -62,13 +62,19 @@ class EqBarsView @JvmOverloads constructor(
     fun start() {
         if (anim != null) return
         anim = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1600
-            repeatCount = ValueAnimator.INFINITE
+            duration = 1500            // 只抖 1.5 秒（按用户要求：点进来动一下就好）
+            repeatCount = 0            // 跑一遍就停，不再无限循环
             interpolator = LinearInterpolator()
             addUpdateListener {
                 t = it.animatedValue as Float
                 invalidate()
             }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    anim = null        // 回到"静止形状"（三条长短不一的柱子）
+                    invalidate()
+                }
+            })
             start()
         }
     }
