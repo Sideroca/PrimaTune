@@ -409,11 +409,13 @@ class MainActivity : AppCompatActivity() {
         val ok = TtsModels.supports(store.providerId, store.lastModel, "rate")
         val note = TtsModels.unsupportedNote(store.providerId, store.lastModel)
         val a = if (ok) 1f else 0.4f
+        // 一律按 View 取（View 本身就有 isEnabled/alpha）—— 之前按具体类型强取，
+        // 遇到 id 实际是别的控件（如语言提示栏其实是 TextView）会 ClassCastException 崩在启动路径上
         listOf(R.id.sbRate, R.id.sbPitch, R.id.sbVol).forEach { id ->
-            findViewById<SeekBar>(id).apply { isEnabled = ok; alpha = a }
+            findViewById<View>(id)?.apply { isEnabled = ok; alpha = a }
         }
         listOf(R.id.tvRate, R.id.tvPitch, R.id.tvVol).forEach { id ->
-            findViewById<TextView>(id).alpha = a
+            findViewById<View>(id)?.alpha = a
         }
         findViewById<TextView>(R.id.tvParamNote).apply {
             text = note
@@ -421,10 +423,9 @@ class MainActivity : AppCompatActivity() {
         }
         // 高级参数里同样按"厂商/模型"置灰：语言提示 / hotfix / 额外参数 / SSML
         val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
-        listOf(R.id.etLangHints, R.id.etHotfix, R.id.etExtra).forEach { id ->
-            findViewById<EditText>(id).apply { isEnabled = advOk; alpha = a }
+        listOf(R.id.etLangHints, R.id.etHotfix, R.id.etExtra, R.id.cbSsml).forEach { id ->
+            findViewById<View>(id)?.apply { isEnabled = advOk; alpha = a }
         }
-        findViewById<android.widget.CheckBox>(R.id.cbSsml).apply { isEnabled = advOk; alpha = a }
         val all = allVoices()
         val cur = all.firstOrNull { it.id == currentVoiceId }
         tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
