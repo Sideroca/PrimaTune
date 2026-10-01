@@ -165,6 +165,20 @@ class Store(context: Context) {
         prefs.edit().putString("base_" + id, value.trim()).apply()
     }
 
+    /** 该厂商"用过/填过"的 Base URL 历史（最近在前，最多 10 个） */
+    fun providerBaseUrlHistory(id: String): List<String> =
+        (prefs.getString("bases_" + id, "") ?: "").split('\n').filter { it.isNotBlank() }
+
+    fun addProviderBaseUrlToHistory(id: String, url: String) {
+        val u = url.trim()
+        if (u.isEmpty()) return
+        val list = ArrayList(providerBaseUrlHistory(id))
+        list.remove(u)
+        list.add(0, u)
+        while (list.size > 10) list.removeAt(list.size - 1)
+        prefs.edit().putString("bases_" + id, list.joinToString("\n")).apply()
+    }
+
     /** 自定义渠道：端点路径（空 = 按形态默认），如 /audio/speech 或 /v1/tts */
     fun providerPath(id: String): String = prefs.getString("path_" + id, "").orEmpty()
 

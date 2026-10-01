@@ -20,7 +20,9 @@ object TtsProviders {
         val keyHint: String,
         val models: List<String>,
         /** 是否支持"声音复刻/克隆"。目前只有百炼实现；Fish / ElevenLabs / MiniMax 计划中 */
-        val canClone: Boolean = false
+        val canClone: Boolean = false,
+        /** 端点预设（Base URL 下拉里的候选；第一项视为"推荐"） */
+        val presets: List<String> = emptyList()
     )
 
     val all: List<P> = listOf(
@@ -69,7 +71,8 @@ object TtsProviders {
         ),
         P(
             "index-tts", "B站 IndexTTS", "", "openai", "自建服务的 Key（可留空）",
-            listOf("IndexTTS2.5", "IndexTTS2")   // 哔哩哔哩开源；需自建服务 → Base URL 自己填
+            listOf("IndexTTS2.5", "IndexTTS2"),   // 哔哩哔哩开源；B站自身不运营，由第三方托管
+            presets = listOf("https://api.siliconflow.cn/v1")   // 国内最知名：硅基流动（已核实其 IndexTTS-2 模型页可达）
         ),
         P(
             "system", "系统 TTS（本地）", "", "system", "（无需 Key）",

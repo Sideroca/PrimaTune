@@ -65,7 +65,7 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="厂商（输入首字母即匹配）" />
+                        <TextView style="@style/VtLabel" android:text="厂商（输入关键字即匹配）" />
 
                         <AutoCompleteTextView
                             android:id="@+id/etProvider"
@@ -82,9 +82,10 @@
                             android:text="Base URL（已自动填好，一般不用改；走代理/中转才动）"
                             android:visibility="gone" />
 
-                        <EditText
+                        <AutoCompleteTextView
                             android:id="@+id/etBaseUrl"
                             style="@style/VtInput"
+                            android:completionThreshold="0"
                             android:hint="https://你的域名/v1"
                             android:importantForAutofill="no"
                             android:inputType="textUri"

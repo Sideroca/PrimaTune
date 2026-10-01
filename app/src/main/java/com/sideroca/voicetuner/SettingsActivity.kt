@@ -923,7 +923,28 @@ class SettingsActivity : AppCompatActivity() {
         val customBase = p.shape != "system"   // 所有厂商都可改（走代理/中转时会用），系统 TTS 除外
         findViewById<TextView>(R.id.tvBaseUrlLabel).visibility = if (customBase) View.VISIBLE else View.GONE
         etBaseUrl.visibility = if (customBase) View.VISIBLE else View.GONE
-        if (customBase) etBaseUrl.setText(store.providerBaseUrl(p.id))
+        if (customBase) {
+            etBaseUrl.setText(store.providerBaseUrl(p.id))
+            // Base URL 下拉：预设（第一项=推荐）+ 你用过/填过的其它地址
+            val items = ArrayList<String>()
+            p.presets.forEachIndexed { i, u ->
+                items.add(if (i == 0) "★" + u else u)
+            }
+            store.providerBaseUrlHistory(p.id).forEach { u ->
+                if (items.none { it.removePrefix("★") == u }) items.add(u)
+            }
+            if (etBaseUrl.text.toString().trim().isNotEmpty() &&
+                items.none { it.removePrefix("★") == etBaseUrl.text.toString().trim() }
+            ) {
+                items.add(0, etBaseUrl.text.toString().trim() + " ")
+            }
+            (etBaseUrl as? android.widget.AutoCompleteTextView)?.let { ac ->
+                ac.setAdapter(UrlAdapter(this, items))
+                ac.threshold = 0
+                ac.setOnClickListener { ac.showDropDown() }
+                ac.setOnFocusChangeListener { _, has -> if (has) ac.showDropDown() }
+            }
+        }
 
         // 自定义渠道专属三项：端点路径 / 鉴权头 / 返回形式
         listOf(R.id.tvPathLabel, R.id.etPath, R.id.tvAuthLabel, R.id.etAuth, R.id.tvRespLabel, R.id.tvResp)
@@ -1026,6 +1047,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         if (mid.isNotBlank()) store.lastModel = mid
         if (etBaseUrl.visibility == View.VISIBLE) {
             store.setProviderBaseUrl(store.providerId, etBaseUrl.text.toString())
+            store.addProviderBaseUrlToHistory(store.providerId, etBaseUrl.text.toString())
             store.setProviderPath(store.providerId, findViewById<EditText>(R.id.etPath).text.toString())
             store.setProviderAuth(store.providerId, findViewById<EditText>(R.id.etAuth).text.toString())
         }
