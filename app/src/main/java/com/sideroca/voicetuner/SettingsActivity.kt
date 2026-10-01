@@ -141,6 +141,7 @@ class SettingsActivity : AppCompatActivity() {
         Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, c.bg)
         // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
         styleDock(c)
+        styleDropdowns(c)
         updatePreview()
     }
 
@@ -259,6 +260,15 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /** 坞 + 保存键的显式上色（浅/深主题各一套） */
+    /** 三个自动补全框的下拉弹窗：浅底 + 主题描边（原来跟随系统，深色很突兀） */
+    private fun styleDropdowns(c: Skin.Colors) {
+        val bg = Skin.shapeDp(this, c.card, c.line, 12f, 100, 1f)
+        listOf(R.id.etProvider, R.id.etModel, R.id.etKey).forEach { id ->
+            (findViewById<View>(id) as? android.widget.AutoCompleteTextView)
+                ?.setDropDownBackgroundDrawable(bg)
+        }
+    }
+
     /** 坞 + 保存键的显式上色（颜色走 11 槽；形状/质感走 4 参数 —— 对齐《夕汀前端规范》） */
     private fun styleDock(c: Skin.Colors) {
         val pal = Palettes.byId(store.themeId)

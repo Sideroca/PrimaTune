@@ -18,6 +18,13 @@ class ContainsAdapter(
     private fun norm(s: String?): String =
         s.orEmpty().lowercase().filter { !it.isWhitespace() }
 
+    /** 下拉每一项的文字颜色跟着主题走（否则浅色弹窗上会是白字，看不见） */
+    override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+        val v = super.getView(position, convertView, parent)
+        (v as? android.widget.TextView)?.setTextColor(Skin.colors(context).txt)
+        return v
+    }
+
     override fun getFilter(): Filter = object : Filter() {
         override fun performFiltering(constraint: CharSequence?): FilterResults {
             // 归一化：小写 + 去掉所有空白 —— 手打 "fishaudio" 也能命中「Fish Audio    fish」
