@@ -38,7 +38,9 @@ class EqBarsView @JvmOverloads constructor(
     private fun ratio(i: Int): Float {
         if (anim == null) return base[i]
         val s = kotlin.math.sin((t + phases[i]) * 2.0 * Math.PI).toFloat()
-        return (base[i] + s * 0.32f).coerceIn(0.16f, 1f)
+        // 包络：t=0 与 t=1 处为 0 —— 动画第一帧/最后一帧都等于静止形状，起止不跳变
+        val env = kotlin.math.sin(Math.PI * t).toFloat()
+        return (base[i] + s * 0.32f * env).coerceIn(0.16f, 1f)
     }
 
     override fun onDraw(canvas: Canvas) {

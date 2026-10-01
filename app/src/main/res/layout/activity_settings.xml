@@ -79,7 +79,7 @@
                         <TextView
                             android:id="@+id/tvBaseUrlLabel"
                             style="@style/VtLabel"
-                            android:text="Base URL（自定义渠道填这里）"
+                            android:text="Base URL（已自动填好，一般不用改；走代理/中转才动）"
                             android:visibility="gone" />
 
                         <EditText
