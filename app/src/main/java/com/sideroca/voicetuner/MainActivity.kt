@@ -1007,6 +1007,17 @@ class MainActivity : AppCompatActivity() {
         head.addView(x)
         row.addView(head)
 
+        // ✕ 的判定范围：宽度保持 48dp，高度向下延伸到"卡片高度的一半"（长方形、随卡片变化）
+        row.post {
+            val half = row.height / 2
+            if (half > dp(48)) {
+                (x.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { lp ->
+                    lp.height = half
+                    x.layoutParams = lp
+                }
+            }
+        }
+
         // 常驻信息：时间 · 音色 · 格式 · 字数 · 时长（🎲 与语速/音调/音量/模型都收进「属性」）
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
