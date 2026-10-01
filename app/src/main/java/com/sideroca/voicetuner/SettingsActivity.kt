@@ -176,6 +176,7 @@ class SettingsActivity : AppCompatActivity() {
     private val dockItems = mutableListOf<LinearLayout>()
     private val dockPads = mutableListOf<android.widget.FrameLayout>()
     private val dockIcons = mutableListOf<ImageView>()
+    private var eqBars: EqBarsView? = null
     private val dockLabels = mutableListOf<TextView>()
     private var selectedPage = 0
 
@@ -204,10 +205,18 @@ class SettingsActivity : AppCompatActivity() {
             val pad = android.widget.FrameLayout(this)
             pad.layoutParams = LinearLayout.LayoutParams(dp(52f), dp(40f))
             pad.elevation = 3f * resources.displayMetrics.density
-            val iv = ImageView(this)
-            iv.layoutParams = android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
-            iv.setImageResource(dockIconRes[i])
-            pad.addView(iv)
+            if (i == 1) {
+                // 「音色」：三条动态音柱（切到本页时长短起伏）
+                val eq = EqBarsView(this)
+                eq.layoutParams = android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
+                pad.addView(eq)
+                eqBars = eq
+            } else {
+                val iv = ImageView(this)
+                iv.layoutParams = android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
+                iv.setImageResource(dockIconRes[i])
+                pad.addView(iv)
+            }
 
             val lb = TextView(this)
             lb.text = dockDefs[i]
@@ -223,7 +232,9 @@ class SettingsActivity : AppCompatActivity() {
             item.isFocusable = true
             item.setOnClickListener { selectPage(idx) }
             llDock.addView(item)
-            dockItems.add(item); dockPads.add(pad); dockIcons.add(iv); dockLabels.add(lb)
+            dockItems.add(item); dockPads.add(pad)
+            dockIcons.add(pad.getChildAt(0) as? ImageView ?: ImageView(this))   // 音色那格不是 ImageView，占位以免索引错位
+            dockLabels.add(lb)
         }
     }
 
@@ -242,6 +253,8 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         tvPageTitle.text = pageTitles.getOrElse(i) { "设置" }
+        // 「音色」图标的均衡器动效：到这一页起伏，离开就停
+        if (i == 1) eqBars?.start() else eqBars?.stop()
         styleDock(Skin.colors(this))
     }
 
