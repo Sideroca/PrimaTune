@@ -497,7 +497,11 @@ class SettingsActivity : AppCompatActivity() {
                         buildRecords()
                     }
                     .setNegativeButton("取消", null)
-                    .show()
+                    .create()
+                    .also { dd ->
+                        dd.setOnShowListener { dd.window?.setDimAmount(0.28f) }
+                        dd.show()
+                    }
             }
             head.addView(x)
             box.addView(head)

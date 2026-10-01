@@ -562,6 +562,8 @@ class MainActivity : AppCompatActivity() {
 
     /** 弹窗统一换肤：面板 / 标题 / 正文 / 按钮 */
     private fun skinDialog(dlg: AlertDialog) {
+        // 遮罩再显式压浅一次（主题里也设了 0.28，这里兜底）
+        dlg.window?.setDimAmount(0.28f)
         val c = Skin.colors(this)
         Skin.apply(dlg.window!!.decorView, c)
         dlg.window?.setBackgroundDrawable(Skin.dialogPanel(this, c))
