@@ -200,24 +200,19 @@
 
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="模型（可对接多家语音合成）" />
+
                         <LinearLayout
                             android:id="@+id/llProviders"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
-                            android:text="＋ 添加模型（预留：Google TTS / Azure / ElevenLabs / 火山引擎…）"
-                            android:textColor="@color/dim"
-                            android:textSize="13sp" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="每家协议不同，本版先把「模型」做成列表 + 统一的 Provider 接口（当前只接通阿里云百炼），后续一家一家接。"
+                            android:text="上面选厂商 → 填该厂商 Key → 选模型。每家的 Key 与配置分开保存，只存在本机。"
                             android:textColor="@color/hint"
                             android:textSize="12sp" />
                     </LinearLayout>

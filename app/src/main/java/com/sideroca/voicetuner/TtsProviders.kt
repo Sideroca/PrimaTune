@@ -53,7 +53,7 @@ object TtsProviders {
         ),
         P(
             "fish", "Fish Audio", "https://api.fish.audio", "fish", "…",
-            listOf("s2.1-pro", "s2-pro", "s1")   // 官方 playground 列出 S2 Pro / S2.1 Pro / S1（API 侧 id 待真机验证）
+            listOf("s2.1-pro-free", "s2.1-pro", "s2-pro", "s1")   // s2.1-pro-free = 官方免费档（Fair Use 不限量）
         ),
 
         P(
@@ -63,6 +63,10 @@ object TtsProviders {
         P(
             "mimo", "MiMo 小米", "https://api.mimo.mi.com/v1", "mimo", "MIMO_API_KEY",
             listOf("MiMo-V2.5-TTS")          // 文档已核实模型名；端点与返回格式待真机验证
+        ),
+        P(
+            "index-tts", "B站 IndexTTS", "", "openai", "自建服务的 Key（可留空）",
+            listOf("IndexTTS2.5", "IndexTTS2")   // 哔哩哔哩开源；需自建服务 → Base URL 自己填
         ),
         P(
             "system", "系统 TTS（本地）", "", "system", "（无需 Key）",

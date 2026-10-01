@@ -296,24 +296,34 @@ class SettingsActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 模型页
 
     /** Provider 列表（当前只有阿里云百炼；接第二家时把这段抽成 TtsProvider 实现即可） */
+    /** 模型页第二张卡：只列"厂商"（引擎/模型在上面那栏选），每行 3 个 chip */
     private fun buildProviders() {
         llProviders.removeAllViews()
         val c = Skin.colors(this)
-        val cur = TextView(this)
-        cur.text = "阿里云百炼 · CosyVoice"
-        cur.setTextColor(c.txt)
-        cur.textSize = 15f
-        llProviders.addView(cur)
-
-        val sum = TextView(this)
-        sum.text = "v3.5-plus · 业务空间 " + store.workspace + " · " +
-                (if (store.apiKey.isBlank()) "Key 未配置" else "Key 已配置")
-        sum.setTextColor(c.dim)
-        sum.textSize = 12f
-        sum.layoutParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(3f) }
-        llProviders.addView(sum)
+        var row: LinearLayout? = null
+        TtsProviders.all.forEachIndexed { i, p ->
+            if (i % 3 == 0) {
+                row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = dp(8) }
+                }
+                llProviders.addView(row)
+            }
+            val tv = TextView(this)
+            tv.text = p.name
+            tv.textSize = 12.5f
+            tv.setPadding(dp(12), dp(7), dp(12), dp(7))
+            tv.background = Skin.shapeDp(this, c.card2, c.line, 96f, 100, 1f)
+            tv.setTextColor(c.dim)
+            row?.addView(
+                tv,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { rightMargin = dp(8) }
+            )
+        }
     }
 
     // ---------------------------------------------------------------- 音色页
