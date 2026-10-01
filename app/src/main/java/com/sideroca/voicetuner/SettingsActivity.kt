@@ -123,6 +123,7 @@ class SettingsActivity : AppCompatActivity() {
         buildProviders()
         buildVoices()
         buildRecords()
+        bindAbout()
         btnSaveAll.setOnClickListener { saveAll() }
         applyThemeTab()
         selectPage(0)
@@ -880,6 +881,32 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.btnPaste).visibility = if (needKey) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.btnSaveKey).visibility = if (needKey) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
+    }
+
+    /** 开发者联系与支持：整块点一下复制（仿闪译；只提 DeepSeek，不提 GLM） */
+    private fun bindAbout() {
+        val tv = findViewById<TextView>(R.id.tvDevInfo)
+        tv.text = """开发者联系与支持
+
+QQ：2093523014（邮箱同号）
+任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，
+尤其是 deepseek-v4.1-flash
+
+如果这个软件帮助了你，请打赏开发者
+https://ifdian.net/a/qq2093523014
+你的支持将帮助我们拿出更好、更美观的实用软件。
+
+软件代码全开源，以下是代码仓库地址
+https://github.com/Sideroca?tab=repositories""".trimIndent()
+
+        val hint = findViewById<TextView>(R.id.tvDevCopyHint)
+        val doCopy = {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText("dev", tv.text))
+            toast("已复制开发者联系与支持")
+        }
+        tv.setOnClickListener { doCopy() }
+        hint.setOnClickListener { doCopy() }
     }
 
     /** 保存当前厂商的这三项（Key 按厂商分开存；百炼额外把 Key 同步给老字段） */
