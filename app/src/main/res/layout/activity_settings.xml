@@ -137,9 +137,10 @@
                             android:id="@+id/tvKeyLabel"
                             style="@style/VtLabel"
                             android:text="API Key（当前厂商；仅保存在本机）" />
-                        <EditText
+                        <AutoCompleteTextView
                             android:id="@+id/etKey"
                             style="@style/VtInput"
+                            android:completionThreshold="0"
                             android:hint="sk-ws-…"
                             android:importantForAutofill="no"
                             android:inputType="textVisiblePassword"

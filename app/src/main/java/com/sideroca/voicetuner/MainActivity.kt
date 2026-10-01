@@ -659,6 +659,7 @@ class MainActivity : AppCompatActivity() {
         // P1：按厂商形态分派 —— 百炼内部再按模型分 ws/http；OpenAI 系走 OpenAI 兼容客户端
         val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
         val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
+        store.addProviderKeyToHistory(prov.id, provKey)   // 用过的密钥进该厂商的历史下拉
         val synthCall = { cb: SynthCallback ->
             if (prov.shape == "system") {
                 ExtraTts2.system(this@MainActivity, req.text, req.rate, req.pitch, cb)

@@ -841,6 +841,13 @@ class SettingsActivity : AppCompatActivity() {
         val isBailian = p.shape == "dashscope"
         etKey.setText(store.providerKey(providerId))
         etKey.hint = p.keyHint
+        // 密钥历史：点进这一栏（键盘弹出）时自动展开下拉
+        (etKey as? android.widget.AutoCompleteTextView)?.let { ac ->
+            ac.setAdapter(ContainsAdapter(this, store.providerKeyHistory(providerId)))
+            ac.threshold = 0
+            ac.setOnClickListener { ac.showDropDown() }
+            ac.setOnFocusChangeListener { _, has -> if (has) ac.showDropDown() }
+        }
         (etModel as? android.widget.AutoCompleteTextView)?.let { ac ->
             ac.setAdapter(ContainsAdapter(this, TtsProviders.modelDisplays(providerId)))
             ac.threshold = 1

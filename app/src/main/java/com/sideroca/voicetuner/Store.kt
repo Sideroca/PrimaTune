@@ -136,6 +136,20 @@ class Store(context: Context) {
     /** 每个厂商各自的 API Key（按 id 分开存，互不覆盖） */
     fun providerKey(id: String): String = prefs.getString("key_" + id, "") ?: ""
 
+    /** 该厂商"用过/填过的密钥"历史（最近在前，最多留 12 个） */
+    fun providerKeyHistory(id: String): List<String> =
+        (prefs.getString("keys_" + id, "") ?: "").split('\n').filter { it.isNotBlank() }
+
+    fun addProviderKeyToHistory(id: String, key: String) {
+        val k = key.trim()
+        if (k.isEmpty()) return
+        val list = ArrayList(providerKeyHistory(id))
+        list.remove(k)
+        list.add(0, k)
+        while (list.size > 12) list.removeAt(list.size - 1)
+        prefs.edit().putString("keys_" + id, list.joinToString("\n")).apply()
+    }
+
     fun setProviderKey(id: String, value: String) {
         prefs.edit().putString("key_" + id, value).apply()
     }
