@@ -320,9 +320,8 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:id="@+id/cardPalette"
-                        style="@style/VtCard">
+                    <!-- 分类按钮：常驻，不随下面两张卡切换而消失（否则进了"壁纸属性"就回不来） -->
+                    <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="主题配色（点选即换）" />
                         <LinearLayout
                             android:id="@+id/llCats"
@@ -330,6 +329,11 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:orientation="horizontal" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/cardPalette"
+                        style="@style/VtCard">
                         <LinearLayout
                             android:id="@+id/llPalettes"
                             android:layout_width="match_parent"

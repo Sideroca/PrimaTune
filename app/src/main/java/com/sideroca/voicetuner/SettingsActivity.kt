@@ -980,7 +980,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun pick(slot: String) {
-        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        // 优先走"系统相册"（ACTION_PICK），而不是 SAF 文件浏览器；没有相册再退回 SAF
+        val gallery = Intent(
+            Intent.ACTION_PICK,
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        ).apply { type = "image/*" }
+        val i = if (gallery.resolveActivity(packageManager) != null) gallery else Intent(Intent.ACTION_GET_CONTENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "image/*"
         }
