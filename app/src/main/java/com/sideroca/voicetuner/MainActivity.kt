@@ -1085,7 +1085,7 @@ class MainActivity : AppCompatActivity() {
         bStar.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { rightMargin = dp(8) }
-        val starIcon = ImageView(this)
+        val starIcon = StarView(this)          // 自绘：绕开 tint/ColorFilter 不生效的问题
         starIcon.layoutParams = LinearLayout.LayoutParams(dp(17), dp(17))
         bStar.addView(starIcon)
         val starLabel = TextView(this)
@@ -1111,15 +1111,16 @@ class MainActivity : AppCompatActivity() {
         title.setOnClickListener { toggleAll() }
         meta.setOnClickListener { toggleAll() }
         detail.setOnClickListener { toggleAll() }
+        // 整张卡片都能点开/收起（原来点文字之间的空隙没反应）
+        row.setOnClickListener { toggleAll() }
 
         // 这一格改成「下载」（与"本次结果"里那颗同功能：弹命名+选目录）
         bDown.setOnClickListener { exportTake(take) }
         val refreshStar = {
             val fav = take.id in store.favTakes
-            starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
+            starIcon.colorSolid = cTxt    // 未收藏＝描边跟旁边文字同色
+            starIcon.filled = fav         // 已收藏＝亮黄渐变（StarView 里直接画）
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
-            if (fav) starIcon.clearColorFilter()      // 已收藏：用 drawable 自带的亮黄渐变
-            else starIcon.setColorFilter(cTxt, android.graphics.PorterDuff.Mode.SRC_IN)   // 未收藏：跟旁边文字同色
             starLabel.text = "收藏"                     // 文字恒定，只有星星上色/变实心
             starLabel.setTextColor(cTxt)
         }

@@ -612,7 +612,7 @@ class SettingsActivity : AppCompatActivity() {
             star.setPadding(0, dp(6f), dp(14f), dp(2f))
             star.isClickable = true
             star.isFocusable = true
-            val starIcon = ImageView(this)
+            val starIcon = StarView(this)
             starIcon.layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f))
             star.addView(starIcon)
             val starLabel = TextView(this)
@@ -623,9 +623,8 @@ class SettingsActivity : AppCompatActivity() {
             star.addView(starLabel)
             val refreshStar = {
                 val fav = t.id in store.favTakes
-                starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
-                if (fav) starIcon.clearColorFilter()
-                else starIcon.setColorFilter(c.dim, android.graphics.PorterDuff.Mode.SRC_IN)
+                starIcon.colorSolid = c.dim
+                starIcon.filled = fav
                 starLabel.text = "收藏"                 // 文字恒定，只有星星上色/变实心
                 starLabel.setTextColor(c.dim)
             }
