@@ -948,16 +948,38 @@ class SettingsActivity : AppCompatActivity() {
 
         // 业务空间那栏：百炼 = workspace；MiniMax = GroupId（同一栏复用）
         val needGroup = isBailian || p.shape == "minimax"
-        findViewById<TextView>(R.id.tvWsLabel).visibility = if (needGroup) View.VISIBLE else View.GONE
-        etWs.visibility = if (needGroup) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.tvWsLabel).text =
-            if (isBailian) "业务空间 ID" else "GroupId（MiniMax 需要）"
+        // 按约定：不适用的项「置灰禁填」而不是隐藏（隐藏会让布局忽长忽短，切换厂商整页乱跳）
+        findViewById<TextView>(R.id.tvWsLabel).apply {
+            visibility = View.VISIBLE
+            alpha = if (needGroup) 1f else 0.4f
+            text = when {
+                isBailian -> "业务空间 ID"
+                p.shape == "minimax" -> "GroupId（MiniMax 需要）"
+                else -> "业务空间 ID（" + p.name + " 不需要，已停用）"
+            }
+        }
+        etWs.apply {
+            visibility = View.VISIBLE
+            isEnabled = needGroup
+            alpha = if (needGroup) 1f else 0.4f
+        }
 
         // Base URL：自定义渠道（没写在目录里的）才显示
         // 只有"自定义渠道"才需要手填 Base URL / 路径 / 鉴权 / 返回形式（本地系统 TTS 不需要任何一项）
-        val customBase = p.shape != "system"   // 所有厂商都可改（走代理/中转时会用），系统 TTS 除外
+        val customBase = true                  // 一律显示（按约定：不适用就置灰，不隐藏 → 布局稳定）
+        val editable = p.shape != "system"     // 系统 TTS 用不到这些
         findViewById<TextView>(R.id.tvBaseUrlLabel).visibility = if (customBase) View.VISIBLE else View.GONE
         etBaseUrl.visibility = if (customBase) View.VISIBLE else View.GONE
+        listOf(
+            R.id.tvBaseUrlLabel, R.id.etBaseUrl, R.id.tvPathLabel, R.id.etPath,
+            R.id.tvAuthLabel, R.id.etAuth
+        ).forEach { id ->
+            findViewById<View>(id).apply {
+                visibility = View.VISIBLE
+                isEnabled = editable
+                alpha = if (editable) 1f else 0.4f
+            }
+        }
         if (customBase) {
             etBaseUrl.setText(store.providerBaseUrl(p.id))
             // Base URL 下拉：预设（第一项=推荐）+ 你用过/填过的其它地址
@@ -993,10 +1015,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // 本地系统 TTS 不需要 Key：整栏隐藏
         val needKey = p.shape != "system"
-        findViewById<TextView>(R.id.tvKeyLabel).visibility = if (needKey) View.VISIBLE else View.GONE
-        etKey.visibility = if (needKey) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.btnPaste).visibility = if (needKey) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.btnSaveKey).visibility = if (needKey) View.VISIBLE else View.GONE
+        listOf(R.id.tvKeyLabel, R.id.etKey, R.id.btnPaste, R.id.btnSaveKey).forEach { id ->
+            findViewById<View>(id).apply {
+                visibility = View.VISIBLE
+                isEnabled = needKey
+                alpha = if (needKey) 1f else 0.4f
+            }
+        }
         findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
     }
 
