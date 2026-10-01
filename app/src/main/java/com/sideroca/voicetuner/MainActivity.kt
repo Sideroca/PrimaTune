@@ -1487,7 +1487,7 @@ class MainActivity : AppCompatActivity() {
         box.setPadding(dp(20), dp(8), dp(20), dp(4))
 
         val tvTip = TextView(this)
-        tvTip.text = "样本要求：干净人声、无背景音乐/杂音；可一次选多个文件（数量不限，App 自动合并）；支持 wav / mp3 / m4a 等。官方建议：10~20 秒，最长 60 秒。"
+        tvTip.text = "样本要求：干净人声、无背景音乐/杂音；可一次选多个文件（数量不限，App 自动合并）；支持 wav / mp3 / m4a 等。"
         tvTip.setTextColor(cDim)
         tvTip.textSize = 12f
         box.addView(tvTip)
@@ -1628,13 +1628,16 @@ class MainActivity : AppCompatActivity() {
                     pendingSampleMime = "audio/wav"
                     ui {
                         val failNote = if (r.fail > 0) "（" + r.fail + " 个无法解析，已跳过）" else ""
-                        createFileTv?.text = "已合并 " + r.ok + " 个文件" + failNote + " · " +
-                                fmtDur(r.durMs) + " · " + (dst.length() / 1024) + " KB"
-                        createStatus?.text = when {
-                            r.durMs > 60000 -> "⚠️ 合并后总时长超过 60 秒（官方建议 ≤60 秒），可能创建失败"
-                            r.durMs > 20000 -> "⚠️ 合并后超过 20 秒，仍可创建（官方推荐 10~20 秒）"
-                            else -> "✅ 素材就绪"
+                        // 逐个列出每个文件的时长，再给合计
+                        val each = StringBuilder()
+                        for (i in uris.indices) {
+                            val d = probeUriDuration(uris[i])
+                            if (i > 0) each.append("   ")
+                            each.append("[").append(i + 1).append("] ").append(if (d > 0) fmtDur(d) else "?")
                         }
+                        createFileTv?.text = "已合并 " + r.ok + " 个文件" + failNote + " · 合计 " +
+                                fmtDur(r.durMs) + " · " + (dst.length() / 1024) + " KB\n" + each
+                        createStatus?.text = "✅ 素材就绪"
                         if ((createPrefixEt?.text?.toString() ?: "").isBlank()) {
                             createPrefixEt?.setText(suggestPrefix(displayNameOf(uris[0]) ?: "merged"))
                         }
@@ -1697,11 +1700,7 @@ class MainActivity : AppCompatActivity() {
                 ui {
                     createFileTv?.text = dn + " · " + (if (durMs > 0) fmtDur(durMs) else "时长未知") +
                             " · " + (dst.length() / 1024) + " KB"
-                    createStatus?.text = when {
-                        durMs > 60000 -> "⚠️ 样本超过 60 秒（官方建议 ≤60 秒），请先裁剪（推荐 10~20 秒）"
-                        durMs > 20000 -> "⚠️ 样本超过 20 秒，仍可创建（官方推荐 10~20 秒）"
-                        else -> ""
-                    }
+                    createStatus?.text = "✅ 素材就绪"
                     if ((createPrefixEt?.text?.toString() ?: "").isBlank()) {
                         createPrefixEt?.setText(suggestPrefix(dn))
                     }
@@ -1747,7 +1746,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (pendingSampleDurMs > 300000) {
-            createStatus?.text = "❌ 样本超过 5 分钟，请减少素材后再来（官方建议 ≤60 秒）"
+            createStatus?.text = "❌ 样本超过 5 分钟，请减少素材后再来"
             return
         }
         val prefix = (createPrefixEt?.text?.toString() ?: "").trim().lowercase(Locale.US)
@@ -1839,6 +1838,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun fmtDur(ms: Long): String =
         if (ms <= 0) "未知" else String.format(Locale.US, "%.1f 秒", ms / 1000.0)
+
+    /** 单个 Uri 的时长（音频/视频通用；失败返回 0）—— 给"逐个列出样本时长"用 */
+    private fun probeUriDuration(uri: Uri): Long = try {
+        val r = MediaMetadataRetriever()
+        r.setDataSource(this, uri)
+        val d = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        r.release()
+        d
+    } catch (e: Exception) {
+        0L
+    }
 
     private fun probeDurationMs(file: File): Long {
         // WAV 按文件实际长度自己算：服务端头里的 size 是 ≈2GB 流式占位值，
