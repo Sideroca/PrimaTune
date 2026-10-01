@@ -53,7 +53,7 @@ object TtsProviders {
         ),
         P(
             "fish", "Fish Audio", "https://api.fish.audio", "fish", "…",
-            listOf("s1")
+            listOf("s2.1-pro", "s2-pro", "s1")   // 官方 playground 列出 S2 Pro / S2.1 Pro / S1（API 侧 id 待真机验证）
         ),
 
         P(
