@@ -879,7 +879,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // Base URL：自定义渠道（没写在目录里的）才显示
         // 只有"自定义渠道"才需要手填 Base URL / 路径 / 鉴权 / 返回形式（本地系统 TTS 不需要任何一项）
-        val customBase = p.baseUrl.isBlank() && p.shape == "openai"
+        val customBase = p.shape != "system"   // 所有厂商都可改（走代理/中转时会用），系统 TTS 除外
         findViewById<TextView>(R.id.tvBaseUrlLabel).visibility = if (customBase) View.VISIBLE else View.GONE
         etBaseUrl.visibility = if (customBase) View.VISIBLE else View.GONE
         if (customBase) etBaseUrl.setText(store.providerBaseUrl(p.id))

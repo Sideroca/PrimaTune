@@ -210,6 +210,8 @@ class MainActivity : AppCompatActivity() {
         if (store.apiKey.isBlank()) {
             tvStatus.text = "首次使用：请点右上角「设置」填入 API Key（可从剪贴板粘贴）"
         }
+        installCrashGuard()
+        showCrashIfAny()
         applyLook()
     }
 
@@ -431,8 +433,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<TextView>(R.id.tvParamNote).apply {
-            text = note
-            visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
+            // 首次使用引导：一个厂商都没配 → 直接告诉他去哪配（普通用户不用去看文档）
+            val noKey = TtsProviders.all.none { p ->
+                p.shape == "system" || store.providerKey(p.id).isNotBlank() || store.apiKey.isNotBlank() && p.id == "aliyun-bailian"
+            }
+            text = if (noKey) "还没配置任何厂商：进「设置 → 模型」选厂商、填 Key 就能用。\n本机「系统 TTS」不需要 Key，也可以直接选它先试一句。" else note
+            visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
         }
         // 高级参数里同样按"厂商/模型"置灰：语言提示 / hotfix / 额外参数 / SSML
         val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
@@ -739,10 +745,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onError(message: String) {
+                val friendly = Err.friendly(message)
                 ui {
                     finishBusy()
-                    tvStatus.text = "❌ " + message
-                    toast("合成失败：" + message)
+                    tvStatus.text = "❌ " + friendly
+                    toast("合成失败：" + friendly.take(120))
                 }
             }
         })
@@ -1874,6 +1881,44 @@ class MainActivity : AppCompatActivity() {
 
     private fun fmtDur(ms: Long): String =
         if (ms <= 0) "未知" else String.format(Locale.US, "%.1f 秒", ms / 1000.0)
+
+    /** 崩溃兜底：把未捕获异常写到本机，下次进来自动提示"可复制" */
+    private fun installCrashGuard() {
+        val prev = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try {
+                java.io.File(filesDir, "crash.txt").writeText(
+                    "时间：" + java.util.Date() + "\n" + android.util.Log.getStackTraceString(e)
+                )
+            } catch (x: Exception) {
+                // ignore
+            }
+            prev?.uncaughtException(t, e)
+        }
+    }
+
+    /** 上次若崩过：提示一次，可一键复制错误信息 */
+    private fun showCrashIfAny() {
+        val f = java.io.File(filesDir, "crash.txt")
+        if (!f.exists()) return
+        val text = try {
+            f.readText()
+        } catch (e: Exception) {
+            ""
+        }
+        f.delete()
+        if (text.isBlank()) return
+        android.app.AlertDialog.Builder(this)
+            .setTitle("上次运行时出了点问题")
+            .setMessage(text.take(600))
+            .setPositiveButton("复制错误信息") { _, _ ->
+                (getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager)
+                    ?.setPrimaryClip(android.content.ClipData.newPlainText("crash", text))
+                toast("已复制，可直接发给我")
+            }
+            .setNegativeButton("知道了", null)
+            .show()
+    }
 
     /** 单个 Uri 的时长（音频/视频通用；失败返回 0）—— 给"逐个列出样本时长"用 */
     private fun probeUriDuration(uri: Uri): Long = try {
