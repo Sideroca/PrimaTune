@@ -9,5 +9,6 @@
         android:pathData="M12.00,2.40 L14.60,8.43 L21.13,14.97 L14.60,15.57 L12.00,21.60 L9.40,15.57 L2.87,14.97 L7.80,10.64 L6.36,4.23 L12.00,7.58 Z"
         android:strokeColor="#8A8A8A"
         android:strokeWidth="1.25"
-        android:strokeLineJoin="miter" />
+        android:strokeLineJoin="miter"
+        android:strokeMiterLimit="2" />
 </vector>

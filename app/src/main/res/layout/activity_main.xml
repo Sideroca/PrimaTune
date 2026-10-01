@@ -476,7 +476,7 @@
                     <TextView
                         android:id="@+id/btnExport"
                         style="@style/VtMiniBtn"
-                        android:text="导出到下载" />
+                        android:text="下载" />
                 </LinearLayout>
             </HorizontalScrollView>
         </LinearLayout>
@@ -552,7 +552,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.5.2 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v0.5.3 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

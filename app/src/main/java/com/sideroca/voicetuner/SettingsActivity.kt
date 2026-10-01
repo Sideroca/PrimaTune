@@ -469,7 +469,7 @@ class SettingsActivity : AppCompatActivity() {
             val x = TextView(this)
             x.text = "✕"
             x.textSize = 9f
-            x.setTextColor(c.dim)
+            x.setTextColor(Skin.Colors.mix(c.dim, c.bg, 0.15f))
             x.gravity = Gravity.TOP or Gravity.END
             x.setPadding(0, dp(3.5f), dp(3.5f), 0)     // 字形内距 3.5dp
             x.layoutParams = android.widget.FrameLayout.LayoutParams(

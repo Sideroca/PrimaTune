@@ -875,43 +875,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 待下载的文件（用户选好名字/目录后再写入） */
+    private var pendingSaveFile: java.io.File? = null
+    private val REQ_SAVE = 9001
+
+    /** 下载：先让用户命名 + 选目录（SAF），不再直接塞进 下载/VoiceTuner */
     private fun exportTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
             toast("文件不存在")
             return
         }
-        if (Build.VERSION.SDK_INT >= 29) {
-            try {
-                val values = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeOf(file.name))
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/VoiceTuner")
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-                val resolver = contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    ?: throw IllegalStateException("无法创建下载项")
-                resolver.openOutputStream(uri)?.use { out ->
-                    file.inputStream().use { input -> input.copyTo(out) }
-                }
-                values.clear()
-                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-                toast("已导出到 下载/VoiceTuner/")
-            } catch (e: Exception) {
-                toast("导出失败：" + e.message)
-            }
-        } else {
-            try {
-                val dir = File(getExternalFilesDir(Environment.DIRECTORY_MUSIC), "VoiceTuner")
-                dir.mkdirs()
-                val dst = File(dir, file.name)
-                file.copyTo(dst, overwrite = true)
-                toast("已导出到：" + dst.absolutePath)
-            } catch (e: Exception) {
-                toast("导出失败：" + e.message)
-            }
+        pendingSaveFile = file
+        val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mimeOf(file.name)
+            putExtra(Intent.EXTRA_TITLE, file.name)   // 先给个默认名，可改
+        }
+        try {
+            startActivityForResult(i, REQ_SAVE)
+        } catch (e: Exception) {
+            toast("无法打开保存对话框：" + e.message)
         }
     }
 
@@ -1004,7 +988,7 @@ class MainActivity : AppCompatActivity() {
         val x = TextView(this)
         x.text = "✕"
         x.textSize = 9f                             // 字形面积再 −10%
-        x.setTextColor(cDim)
+        x.setTextColor(Skin.Colors.mix(cDim, Skin.colors(this).bg, 0.15f))   // 比次文字再浅 15%
         x.gravity = android.view.Gravity.TOP or android.view.Gravity.END
         val xInset = (3.5f * resources.displayMetrics.density).toInt()   // 字形内距 3.5dp
         x.setPadding(0, xInset, xInset, 0)
@@ -1086,7 +1070,7 @@ class MainActivity : AppCompatActivity() {
             val fav = take.id in store.favTakes
             starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
-            starIcon.imageTintList = android.content.res.ColorStateList.valueOf(cTxt)
+            starIcon.setColorFilter(cTxt, android.graphics.PorterDuff.Mode.SRC_IN)  // imageTintList 之前没生效，星星一直是灰的
             starLabel.text = "收藏"                     // 文字恒定，只有星星上色/变实心
             starLabel.setTextColor(cTxt)
         }
@@ -1392,7 +1376,10 @@ class MainActivity : AppCompatActivity() {
     /** 点 ▼ 弹下拉：列出记录里出现过的音色 ID，选一个 → 只显示该 ID 的记录 */
     private fun showVoiceFilterPopup() {
         val c = Skin.colors(this)
+        // 顺序按"音色目录"走（内置的原有顺序 + 自建），不再随历史先后乱跳
+        val takenIds = takes.map { it.voiceId }.toSet()
         val ids = LinkedHashSet<String>()
+        for (v in allVoices()) if (v.id in takenIds) ids.add(v.id)
         for (t in takes) if (t.voiceId.isNotBlank()) ids.add(t.voiceId)
 
         var pop: PopupWindow? = null
@@ -1559,6 +1546,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_SAVE && resultCode == RESULT_OK) {
+            val uri = data?.data
+            val f = pendingSaveFile
+            if (uri != null && f != null) {
+                try {
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        f.inputStream().use { input -> input.copyTo(out) }
+                    }
+                    toast("已保存：" + f.name)
+                } catch (e: Exception) {
+                    toast("保存失败：" + e.message)
+                }
+            }
+            pendingSaveFile = null
+            return
+        }
+
         if (requestCode == REQ_PICK_AUDIO && resultCode == RESULT_OK) {
             val list = ArrayList<Uri>()
             val clip = data?.clipData
