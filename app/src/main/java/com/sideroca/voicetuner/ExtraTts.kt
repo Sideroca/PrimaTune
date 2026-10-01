@@ -19,7 +19,7 @@ object ExtraTts {
         text: String, stability: Double, similarity: Double, cb: SynthCallback
     ): Cancellable {
         val v = voice.ifBlank { "21m00Tcm4TlvDq8ikWAM" }        // 官方公开示例音色 Rachel
-        val url = baseUrl.trimEnd('/') + "/v1/text-to-speech/" + v + "?output_format=mp3_44100_128"
+        val url = baseUrl.trimEnd('/') + "/v1/text-to-speech/" + v + "?output_format=pcm_24000"   // 它没有 wav 容器 → 要裸 PCM，本地套头（无损）"
         val body = JSONObject().apply {
             put("text", text)
             put("model_id", model.ifBlank { "eleven_multilingual_v2" })
@@ -28,7 +28,8 @@ object ExtraTts {
                 put("similarity_boost", similarity)
             })
         }
-        return post(url, mapOf("xi-api-key" to apiKey), body, cb)
+        // 返回的是 24k 裸 PCM → 本地套 44 字节 WAV 头
+        return post(url, mapOf("xi-api-key" to apiKey), body, cb, wrapPcm = true)
     }
 
     // ------------------------------------------------------------------ MiniMax
@@ -49,7 +50,7 @@ object ExtraTts {
                 put("vol", volume)                  // 0~100
             })
             put("audio_setting", JSONObject().apply {
-                put("format", "mp3")
+                put("format", "wav")     // 官方支持 wav，无损；原来图省事写了 mp3
                 put("sample_rate", 32000)
             })
         }
@@ -75,7 +76,8 @@ object ExtraTts {
         headers: Map<String, String>,
         body: JSONObject,
         cb: SynthCallback,
-        hexIn: String? = null
+        hexIn: String? = null,
+        wrapPcm: Boolean = false
     ): Cancellable {
         var cancelled = false
         val th = Thread {
@@ -100,7 +102,7 @@ object ExtraTts {
                 }
                 val raw = conn.inputStream.use { it.readBytes() }
                 if (cancelled) return@Thread
-                val audio: ByteArray = if (hexIn != null) {
+                var audio: ByteArray = if (hexIn != null) {
                     val hex = jsonPath(String(raw, Charsets.UTF_8), hexIn)
                     if (hex.isBlank()) {
                         cb.onError("返回里没找到音频（路径 " + hexIn + "）")
@@ -108,6 +110,10 @@ object ExtraTts {
                     }
                     hexToBytes(hex)
                 } else raw
+                // 裸 PCM（24k/16bit/mono）→ 套 WAV 头（已是 RIFF 容器则跳过）
+                if (wrapPcm && !(audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte())) {
+                    audio = WavUtil.wrap24kMono(audio)
+                }
                 cb.onProgress(audio.size)
                 cb.onFinished(audio)
             } catch (e: Exception) {

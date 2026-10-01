@@ -759,7 +759,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveTake(req: SynthRequest, fmt: Fmt, audio: ByteArray): Take {
-        val file = store.newAudioFile(fmt.ext)
+        // 扩展名按"真实字节"来（有的厂商返回 mp3，别叫成 .wav）
+        val isWav = audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()
+        val file = store.newAudioFile(if (isWav) fmt.ext else "mp3")
         file.writeBytes(audio)
         fixWavHeader(file)
         val take = Take(
