@@ -688,7 +688,7 @@ class MainActivity : AppCompatActivity() {
                     req.text, req.rate, req.pitch, req.volume, cb
                 )
             } else if (prov.shape == "fish") {
-                ExtraTts.fish(store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb)
+                ExtraTts.fish(store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model)
             } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
                 val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
@@ -1765,7 +1765,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val prefix = (createPrefixEt?.text?.toString() ?: "").trim().lowercase(Locale.US)
-        if (!Regex("^[a-z0-9]{1,10}$").matches(prefix)) {
+        val nonBailian = TtsProviders.byId(store.providerId)?.id != "aliyun-bailian"
+        if (!nonBailian && !Regex("^[a-z0-9]{1,10}$").matches(prefix)) {
             createStatus?.text = "❌ 前缀需为 1~10 位小写字母/数字"
             return
         }
@@ -1783,6 +1784,26 @@ class MainActivity : AppCompatActivity() {
 
         Thread {
             try {
+                // 非百炼：目前只有 Fish Audio 支持复刻（multipart 上传参考音频；不用前缀）
+                if (nonBailian) {
+                    val vid = ExtraTts.fishCreateVoice(
+                        store.providerBaseUrl(store.providerId),
+                        store.providerKey(store.providerId).ifBlank { store.apiKey },
+                        sample.readBytes(),
+                        name.ifBlank { "自建音色" },
+                        "private"
+                    )
+                    ui {
+                        customVoices.add(CustomVoice(vid, name, "", System.currentTimeMillis()))
+                        store.saveCustomVoices(customVoices)
+                        setVoice(vid)
+                        syncVoiceUi()
+                        if (createDlg?.isShowing == true) createDlg?.dismiss()
+                        toast("音色已创建（Fish Audio）")
+                    }
+                    return@Thread
+                }
+
                 val b64 = Base64.encodeToString(sample.readBytes(), Base64.NO_WRAP)
                 val dataUri = "data:" + pendingSampleMime + ";base64," + b64
                 ui { createStatus?.text = "上传创建中…（几秒到几十秒）" }

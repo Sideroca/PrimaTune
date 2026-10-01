@@ -50,7 +50,7 @@ object ExtraTts {
                 put("vol", volume)                  // 0~100
             })
             put("audio_setting", JSONObject().apply {
-                put("format", "wav")     // 官方支持 wav，无损；原来图省事写了 mp3
+                put("format", "mp3")     // TODO 待核：MiniMax 是否支持 wav/pcm（支持再改无损）
                 put("sample_rate", 32000)
             })
         }
@@ -59,15 +59,63 @@ object ExtraTts {
 
     // ------------------------------------------------------------------ Fish Audio
     fun fish(
-        baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback
+        baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback,
+        model: String = ""
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/v1/tts"
         val body = JSONObject().apply {
             put("text", text)
-            put("format", "mp3")
+            put("format", "wav")     // 官方支持 wav，无损
             if (voice.isNotBlank()) put("reference_id", voice)
         }
-        return post(url, mapOf("Authorization" to "Bearer " + apiKey), body, cb)
+        // 【实测】不带 model header 会走付费模型并返回 402；免费档必须显式带这个 header
+        val m = model.ifBlank { "s2.1-pro-free" }
+        return post(url, mapOf("Authorization" to "Bearer " + apiKey, "model" to m), body, cb)
+    }
+
+    // ------------------------------------------------------------------ Fish Audio 建音色
+    /**
+     * 【实测流程】POST {base}/model · multipart：
+     *   type=tts（必填）· title · voices=@参考音频(wav) · train_mode=fast · visibility=private
+     * 返回 JSON 的 _id 即新音色 id（32 位十六进制），之后合成时当 reference_id 用。
+     */
+    fun fishCreateVoice(
+        baseUrl: String, apiKey: String, wav: ByteArray, title: String, visibility: String
+    ): String {
+        val boundary = "----vt" + System.currentTimeMillis()
+        val bos = java.io.ByteArrayOutputStream()
+        fun w(str: String) = bos.write(str.toByteArray(Charsets.UTF_8))
+        fun field(name: String, value: String) {
+            w("--" + boundary + "\r\n")
+            w("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n")
+            w(value + "\r\n")
+        }
+        field("type", "tts")
+        field("title", title)
+        field("train_mode", "fast")
+        field("visibility", visibility)
+        w("--" + boundary + "\r\n")
+        w("Content-Disposition: form-data; name=\"voices\"; filename=\"sample.wav\"\r\n")
+        w("Content-Type: audio/wav\r\n\r\n")
+        bos.write(wav)
+        w("\r\n--" + boundary + "--\r\n")
+
+        val conn = (java.net.URL(baseUrl.trimEnd('/') + "/model").openConnection() as java.net.HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 180_000
+            doOutput = true
+            setRequestProperty("Authorization", "Bearer " + apiKey)
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
+        }
+        conn.outputStream.use { it.write(bos.toByteArray()) }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) throw IllegalStateException("Fish 建音色返回 " + code + "：" + text.take(300))
+        val id = JSONObject(text).optString("_id")
+        if (id.isBlank()) throw IllegalStateException("Fish 建音色没返回音色 id：" + text.take(300))
+        return id
     }
 
     // ------------------------------------------------------------------ 公共 POST

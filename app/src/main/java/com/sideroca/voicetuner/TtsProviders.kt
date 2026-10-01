@@ -55,7 +55,8 @@ object TtsProviders {
         ),
         P(
             "fish", "Fish Audio", "https://api.fish.audio", "fish", "…",
-            listOf("s2.1-pro-free", "s2.1-pro", "s2-pro", "s1")   // s2.1-pro-free = 官方免费档（Fair Use 不限量）
+            listOf("s2.1-pro-free", "s2.1-pro", "s2-pro", "s1"),  // s2.1-pro-free = 官方免费档（Fair Use 不限量）
+            canClone = true                                       // 【已实测】建音色 + 免费档合成均通过
         ),
 
         P(
