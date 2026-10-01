@@ -879,7 +879,17 @@ class MainActivity : AppCompatActivity() {
     private var pendingSaveFile: java.io.File? = null
     private val REQ_SAVE = 9001
 
-    /** 下载：先让用户命名 + 选目录（SAF），不再直接塞进 下载/VoiceTuner */
+    /** 默认文件名 = 音色 + 正文一小段（去掉文件名非法字符、限长，空则回退） */
+    private fun defaultFileName(take: Take): String {
+        val ext = take.fileName.substringAfterLast('.', "wav")
+        val voice = take.voiceName.ifBlank { "音色" }.trim()
+        val snippet = take.text.replace(Regex("[\\s\\r\\n]+"), " ").trim().take(18)
+        val raw = if (snippet.isEmpty()) voice else voice + "·" + snippet
+        val safe = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().ifBlank { "语音" }
+        return safe + "." + ext
+    }
+
+    /** 下载：先让用户命名 + 选目录（SAF） */
     private fun exportTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
@@ -890,7 +900,7 @@ class MainActivity : AppCompatActivity() {
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = mimeOf(file.name)
-            putExtra(Intent.EXTRA_TITLE, file.name)   // 先给个默认名，可改
+            putExtra(Intent.EXTRA_TITLE, defaultFileName(take))   // 默认名 = 音色 + 正文片段（可改）
         }
         try {
             startActivityForResult(i, REQ_SAVE)
@@ -979,12 +989,6 @@ class MainActivity : AppCompatActivity() {
         head.addView(title, android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ))
-        title.setOnClickListener {
-            val ex = title.maxLines != Int.MAX_VALUE
-            title.maxLines = if (ex) Int.MAX_VALUE else 2
-            title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
-        }
-
         val x = TextView(this)
         x.text = "✕"
         x.textSize = 9f                             // 字形面积再 −10%
@@ -1033,7 +1037,7 @@ class MainActivity : AppCompatActivity() {
 
         val bPlay = smallBtn("▶ 播放")
         val bFill = smallBtn("回填")
-        val bAttr = smallBtn("属性")
+        val bDown = smallBtn("下载")
         // 收藏星：手绘矢量（不再用 ☆/★ 字形——字形太小、且会被系统字体染成杂色）
         val bStar = LinearLayout(this)
         bStar.orientation = LinearLayout.HORIZONTAL
@@ -1061,16 +1065,25 @@ class MainActivity : AppCompatActivity() {
             fillFrom(take)
             toast("已回填参数")
         }
-        bAttr.setOnClickListener {
-            val show = detail.visibility != View.VISIBLE
-            detail.visibility = if (show) View.VISIBLE else View.GONE
-            bAttr.text = if (show) "收起" else "属性"
+        // 「属性」撤掉：正文 / 常驻信息 / 参数行 合成一个功能 —— 点哪边都展开（或收起）全文+参数
+        fun toggleAll() {
+            val ex = title.maxLines != Int.MAX_VALUE
+            title.maxLines = if (ex) Int.MAX_VALUE else 2
+            title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
+            detail.visibility = if (ex) View.VISIBLE else View.GONE
         }
+        title.setOnClickListener { toggleAll() }
+        meta.setOnClickListener { toggleAll() }
+        detail.setOnClickListener { toggleAll() }
+
+        // 这一格改成「下载」（与"本次结果"里那颗同功能：弹命名+选目录）
+        bDown.setOnClickListener { exportTake(take) }
         val refreshStar = {
             val fav = take.id in store.favTakes
             starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
-            starIcon.setColorFilter(cTxt, android.graphics.PorterDuff.Mode.SRC_IN)  // imageTintList 之前没生效，星星一直是灰的
+            if (fav) starIcon.clearColorFilter()      // 已收藏：用 drawable 自带的亮黄渐变
+            else starIcon.setColorFilter(cTxt, android.graphics.PorterDuff.Mode.SRC_IN)   // 未收藏：跟旁边文字同色
             starLabel.text = "收藏"                     // 文字恒定，只有星星上色/变实心
             starLabel.setTextColor(cTxt)
         }
@@ -1090,7 +1103,7 @@ class MainActivity : AppCompatActivity() {
 
         btnRow.addView(bPlay)
         btnRow.addView(bFill)
-        btnRow.addView(bAttr)
+        btnRow.addView(bDown)
         btnRow.addView(bStar)
         btnRow.addView(bShare)
 
@@ -1236,7 +1249,9 @@ class MainActivity : AppCompatActivity() {
 
         val h = minOf(dp(430), dp(12) + dp(48) * (all.size + 2))
         val w = minOf(dp(310), resources.displayMetrics.widthPixels - dp(32))
-        pop = PopupWindow(panel, w, h, true)
+        pop = PopupWindow(panel, w, h, false)   // 非获焦：关掉后焦点不会被抢走（否则会自动弹出键盘）
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
         pop.isOutsideTouchable = true
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
@@ -1428,7 +1443,9 @@ class MainActivity : AppCompatActivity() {
         val rowCount = ids.size + 1
         val h = minOf(dp(320), dp(12) + dp(45) * rowCount)
         val w = minOf(dp(290), resources.displayMetrics.widthPixels - dp(32))
-        pop = PopupWindow(panel, w, h, true)
+        pop = PopupWindow(panel, w, h, false)   // 非获焦：关掉后焦点不会被抢走（否则会自动弹出键盘）
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
         pop.isOutsideTouchable = true
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()

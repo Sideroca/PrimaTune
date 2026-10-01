@@ -88,12 +88,7 @@ class SettingsActivity : AppCompatActivity() {
         etModel = findViewById(R.id.etModel)
         // 模型名自动补全：输入第一个字母就弹下拉（数据来自 TtsModels 目录）
         (etModel as? android.widget.AutoCompleteTextView)?.let { ac ->
-            ac.setAdapter(
-                android.widget.ArrayAdapter(
-                    this, android.R.layout.simple_dropdown_item_1line,
-                    TtsModels.all.map { TtsModels.display(it) }
-                )
-            )
+            ac.setAdapter(ContainsAdapter(this, TtsModels.all.map { TtsModels.display(it) }))
             ac.threshold = 1
         }
         llIndicator = findViewById(R.id.llIndicator)
@@ -163,7 +158,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun styleSeg(tv: TextView, on: Boolean, c: Skin.Colors) {
         tv.background = Skin.shapeDp(
-            this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 100f, 100, 1f
+            this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f
         )
         tv.setTextColor(if (on) c.onAcc else c.dim)
     }
@@ -418,7 +413,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.textSize = 12.5f
             tv.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
             tv.background = Skin.shapeDp(
-                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 100f, 100, 1f
+                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f
             )
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
@@ -461,11 +456,6 @@ class SettingsActivity : AppCompatActivity() {
             head.addView(a, android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
-            a.setOnClickListener {
-                val ex = a.maxLines != Int.MAX_VALUE
-                a.maxLines = if (ex) Int.MAX_VALUE else 2
-                a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
-            }
             val x = TextView(this)
             x.text = "✕"
             x.textSize = 9f
@@ -520,6 +510,16 @@ class SettingsActivity : AppCompatActivity() {
             d2.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(2f) }
+            // 正文 / 常驻信息 / 参数行 —— 点哪边都展开收起（与首页同款）
+            fun toggleAll() {
+                val ex = a.maxLines != Int.MAX_VALUE
+                a.maxLines = if (ex) Int.MAX_VALUE else 2
+                a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
+                d2.visibility = if (ex) View.VISIBLE else View.GONE
+            }
+            a.setOnClickListener { toggleAll() }
+            b.setOnClickListener { toggleAll() }
+            d2.setOnClickListener { toggleAll() }
             box.addView(d2)
 
             val bar2 = LinearLayout(this)
@@ -554,7 +554,8 @@ class SettingsActivity : AppCompatActivity() {
             val refreshStar = {
                 val fav = t.id in store.favTakes
                 starIcon.setImageResource(if (fav) R.drawable.ic_star_filled else R.drawable.ic_star_hollow)
-                starIcon.imageTintList = android.content.res.ColorStateList.valueOf(c.dim)
+                if (fav) starIcon.clearColorFilter()
+                else starIcon.setColorFilter(c.dim, android.graphics.PorterDuff.Mode.SRC_IN)
                 starLabel.text = "收藏"                 // 文字恒定，只有星星上色/变实心
                 starLabel.setTextColor(c.dim)
             }
@@ -673,7 +674,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.setPadding(dp(12), dp(6), dp(12), dp(6))
             val sel = id == cat
             tv.isSelected = sel
-            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) null else c.line, 100f)
+            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) null else c.line, 96f)   // 96 避开 Skin 的 chip 角色(100dp)，否则被重绘成浅色
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
@@ -801,10 +802,7 @@ class SettingsActivity : AppCompatActivity() {
     /** P1：厂商选择（输入首字母即匹配）→ 切换该厂商的 Key 与模型清单 */
     private fun setupProviderPicker() {
         etProvider.setAdapter(
-            android.widget.ArrayAdapter(
-                this, android.R.layout.simple_dropdown_item_1line,
-                TtsProviders.all.map { TtsProviders.display(it) }
-            )
+            ContainsAdapter(this, TtsProviders.all.map { TtsProviders.display(it) })
         )
         etProvider.threshold = 1
         val cur = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
@@ -826,12 +824,7 @@ class SettingsActivity : AppCompatActivity() {
         etKey.setText(store.providerKey(providerId))
         etKey.hint = p.keyHint
         (etModel as? android.widget.AutoCompleteTextView)?.let { ac ->
-            ac.setAdapter(
-                android.widget.ArrayAdapter(
-                    this, android.R.layout.simple_dropdown_item_1line,
-                    TtsProviders.modelDisplays(providerId)
-                )
-            )
+            ac.setAdapter(ContainsAdapter(this, TtsProviders.modelDisplays(providerId)))
             ac.threshold = 1
         }
         val saved = store.lastModel
