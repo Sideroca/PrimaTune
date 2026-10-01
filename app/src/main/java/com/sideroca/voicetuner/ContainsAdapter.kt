@@ -11,7 +11,9 @@ import android.widget.Filter
 class ContainsAdapter(
     ctx: Context,
     private val items: List<String>
-) : ArrayAdapter<String>(ctx, android.R.layout.simple_dropdown_item_1line, items) {
+) : ArrayAdapter<String>(ctx, android.R.layout.simple_dropdown_item_1line, items.toMutableList()) {
+    // 注意：必须传"可变拷贝" —— ArrayAdapter(ctx,res,list) 会直接持有这个 List，
+    // 若传进来的是不可变列表（如目录里的 listOf），Filter 里一 clear() 就 UnsupportedOperationException
 
     private val all: MutableList<String> = items.toMutableList()
 
