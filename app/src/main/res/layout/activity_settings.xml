@@ -122,17 +122,6 @@
                             android:singleLine="true"
                             android:visibility="gone" />
 
-                        <TextView
-                            android:id="@+id/tvRespLabel"
-                            style="@style/VtLabel"
-                            android:text="音频返回形式（点一下切换）"
-                            android:visibility="gone" />
-
-                        <TextView
-                            android:id="@+id/tvResp"
-                            style="@style/VtInput"
-                            android:text="二进制（直接返回音频）"
-                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/tvKeyLabel"

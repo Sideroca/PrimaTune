@@ -947,27 +947,13 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 自定义渠道专属三项：端点路径 / 鉴权头 / 返回形式
-        listOf(R.id.tvPathLabel, R.id.etPath, R.id.tvAuthLabel, R.id.etAuth, R.id.tvRespLabel, R.id.tvResp)
+        // 自定义渠道专属两项：端点路径 / 鉴权头
+        // （"音频返回形式"已删：程序会自动识别二进制 / base64 / URL，没必要让用户选这么专业的东西）
+        listOf(R.id.tvPathLabel, R.id.etPath, R.id.tvAuthLabel, R.id.etAuth)
             .forEach { findViewById<View>(it).visibility = if (customBase) View.VISIBLE else View.GONE }
         if (customBase) {
             findViewById<EditText>(R.id.etPath).setText(store.providerPath(p.id))
             findViewById<EditText>(R.id.etAuth).setText(store.providerAuth(p.id))
-            val tvResp = findViewById<TextView>(R.id.tvResp)
-            fun label(): String = when {
-                store.providerResp(p.id).startsWith("base64") -> "base64（默认取 output.audio.data）"
-                store.providerResp(p.id) == "url" -> "URL（JSON 里给音频地址）"
-                else -> "二进制（直接返回音频）"
-            }
-            tvResp.text = label()
-            tvResp.setOnClickListener {
-                val next = when {
-                    store.providerResp(p.id).startsWith("base64") -> "url"
-                    store.providerResp(p.id) == "url" -> "binary"
-                    else -> "base64:output.audio.data"
-                }
-                store.setProviderResp(p.id, next)
-                tvResp.text = label()
-            }
         }
 
         // 本地系统 TTS 不需要 Key：整栏隐藏

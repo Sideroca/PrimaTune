@@ -71,7 +71,7 @@ object OpenAiCompatTts {
                 val raw = conn.inputStream.use { it.readBytes() }
                 if (cancelled) return@Thread
 
-                // 返回形式：binary（直接是音频）/ base64:<json路径> / url（JSON 里给音频地址）
+                // 返回形式由程序自动识别（界面上不再让用户选）：①直接是音频 ②JSON 里 base64 ③JSON 里给下载地址
                 val audio: ByteArray = when {
                     cfg.resp == "url" -> {
                         val u = firstUrl(String(raw, Charsets.UTF_8))
@@ -94,7 +94,23 @@ object OpenAiCompatTts {
                         }
                         java.util.Base64.getDecoder().decode(b64)
                     }
-                    else -> raw
+                    else -> {
+                        // 不是音频容器 → 看看是不是 JSON，再决定取 base64 还是取 URL
+                        val text = String(raw, Charsets.UTF_8)
+                        val u = firstUrl(text)
+                        val b64 = longestBase64(text)
+                        when {
+                            b64 != null -> java.util.Base64.getDecoder().decode(b64)
+                            u != null -> {
+                                val c3 = (java.net.URL(u).openConnection() as HttpURLConnection).apply {
+                                    connectTimeout = 15_000
+                                    readTimeout = 90_000
+                                }
+                                c3.inputStream.use { it.readBytes() }
+                            }
+                            else -> raw
+                        }
+                    }
                 }
                 cb.onProgress(audio.size)
                 cb.onFinished(audio)
@@ -142,5 +158,13 @@ object OpenAiCompatTts {
             }
         }
         return null
+    }
+
+    /** 从 JSON 文本里找最长的一段 base64（有些厂商把音频塞在某个字段里） */
+    private fun longestBase64(text: String): String? {
+        val re = Regex("[A-Za-z0-9+/]{2000,}={0,2}")
+        var best = ""
+        for (m in re.findAll(text)) if (m.value.length > best.length) best = m.value
+        return if (best.isEmpty()) null else best
     }
 }
