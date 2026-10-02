@@ -54,13 +54,10 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var cardPalette: LinearLayout
     private lateinit var cardIndicator: LinearLayout
     private lateinit var cardWallpaper: LinearLayout
-    private lateinit var preview: ThemePreviewView
-    private lateinit var btnPvMain: TextView
-    private lateinit var btnPvPage: TextView
-    private lateinit var tvPvHint: TextView
-    private var previewPage = 0
-
-    private val density = 0f   // 占位，运行时用 resources 取（保持字段顺序稳定）
+    private lateinit var ivIconPreview: ImageView
+    private lateinit var llIconStyles: LinearLayout
+    private lateinit var etEntryName: EditText
+    private lateinit var llTips: LinearLayout
 
     private var cat = "modern"
     /** 配色列表是否展开全部（懒建：默认只建前 20 套） */
@@ -70,6 +67,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         store = Store(this)
+        store.hidePresetVoicesOnce()
         // 「本机原色」已下线：老设备若存的是空主题，兜底迁移到默认竹青
         if (store.themeId.isEmpty()) store.themeId = "tea"
         cat = Palettes.byId(store.themeId)?.group ?: "modern"
@@ -103,15 +101,14 @@ class SettingsActivity : AppCompatActivity() {
         llVoices = findViewById(R.id.llVoices)
         llRecords = findViewById(R.id.llRecords)
         btnSaveAll = findViewById(R.id.btnSaveAll)
-        preview = findViewById(R.id.preview)
         cardPalette = findViewById(R.id.cardPalette)
         cardIndicator = findViewById(R.id.cardIndicator)
         cardWallpaper = findViewById(R.id.cardWallpaper)
-        btnPvMain = findViewById(R.id.btnPvMain)
-        btnPvPage = findViewById(R.id.btnPvPage)
-        tvPvHint = findViewById(R.id.tvPvHint)
-        btnPvMain.setOnClickListener { previewPage = 0; updatePreview() }
-        btnPvPage.setOnClickListener { previewPage = 1; updatePreview() }
+        setupIconWorkshop()
+        ivIconPreview = findViewById(R.id.ivIconPreview)
+        llIconStyles = findViewById(R.id.llIconStyles)
+        etEntryName = findViewById(R.id.etEntryName)
+        llTips = findViewById(R.id.llTips)
 
         buildCatChips()
         renderPalettes()
@@ -132,6 +129,10 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         applyLook()
+        // Store = 唯一数据源：首页/本页任何增删改（音色、记录）回来即同步
+        buildVoices()
+        buildProviders()
+        buildRecords()
     }
 
     private fun applyLook() {
@@ -142,27 +143,8 @@ class SettingsActivity : AppCompatActivity() {
         // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
         styleDock(c)
         styleDropdowns(c)
-        updatePreview()
-    }
-
-    /** 预览台：把当前配色 + 壁纸 + 遮罩实时画出来 */
-    private fun updatePreview() {
-        val c = Skin.colors(this)
-        val path = if (previewPage == 1) store.wpPage else store.wpMain
-        val scrim = if (previewPage == 1) store.scrimPage else store.scrimMain
-        val bmp = if (path.isNotEmpty() && File(path).exists()) Wp.decode(path, 600) else null
-        preview.pageMode = previewPage
-        preview.setData(c, bmp, scrim)
-        styleSeg(btnPvMain, previewPage == 0, c)
-        styleSeg(btnPvPage, previewPage == 1, c)
-        tvPvHint.setTextColor(c.hint)
-    }
-
-    private fun styleSeg(tv: TextView, on: Boolean, c: Skin.Colors) {
-        tv.background = Skin.shapeDp(
-            this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f
-        )
-        tv.setTextColor(if (on) c.onAcc else c.dim)
+        renderIconStyleChips()
+        buildTips()
     }
 
     // ---------------------------------------------------------------- 分页 + 坞
@@ -194,7 +176,9 @@ class SettingsActivity : AppCompatActivity() {
                 dv.layoutParams = LinearLayout.LayoutParams(dp(1f).coerceAtLeast(1), dp(17f)).apply {
                     gravity = Gravity.CENTER_VERTICAL
                 }
-                dv.setBackgroundColor(0x1A786E60)
+                // 跟随主题的线色（原来写死 0x1A786E60，所有主题都不变）
+                val lineCol = Skin.colors(this).line
+                dv.setBackgroundColor((lineCol and 0x00FFFFFF) or (0x80 shl 24))
                 llDock.addView(dv)
             }
             val item = LinearLayout(this)
@@ -232,6 +216,7 @@ class SettingsActivity : AppCompatActivity() {
             item.isClickable = true
             item.isFocusable = true
             item.setOnClickListener { selectPage(idx) }
+            fx(item)
             llDock.addView(item)
             dockItems.add(item); dockPads.add(pad)
             dockIcons.add(pad.getChildAt(0) as? ImageView ?: ImageView(this))   // 音色那格不是 ImageView，占位以免索引错位
@@ -257,9 +242,13 @@ class SettingsActivity : AppCompatActivity() {
         // 「音色」图标的均衡器动效：到这一页起伏，离开就停
         if (i == 1) eqBars?.start() else eqBars?.stop()
         styleDock(Skin.colors(this))
+        dockPads.getOrNull(i)?.let { pad ->
+            pad.scaleX = 0.9f; pad.scaleY = 0.9f; pad.alpha = 0.5f
+            pad.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(160)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.4f)).start()
+        }
     }
 
-    /** 坞 + 保存键的显式上色（浅/深主题各一套） */
     /** 三个自动补全框的下拉弹窗：浅底 + 主题描边（原来跟随系统，深色很突兀） */
     private fun styleDropdowns(c: Skin.Colors) {
         val bg = Skin.shapeDp(this, c.card, c.line, 12f, 100, 1f)
@@ -283,7 +272,7 @@ class SettingsActivity : AppCompatActivity() {
         val onFill = (c.acc and 0x00FFFFFF) or (0x2B shl 24)      // 主色 17% 透明
         dockPads.forEachIndexed { i, pad ->
             pad.background = if (i == selectedPage) {
-                Skin.shapeDp(this, onFill, 0xFFFFFFFF.toInt(), btnR, 100, 1.5f)
+                Skin.shapeDp(this, onFill, (c.acc and 0x00FFFFFF) or (0x99 shl 24), btnR, 100, 1.5f)
             } else {
                 Skin.shapeDp(this, 0x00000000, null, btnR)
             }
@@ -335,14 +324,26 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 llProviders.addView(row)
             }
+            val sel = p.id == store.providerId
             val tv = TextView(this)
             tv.text = p.name
             tv.textSize = 12.5f
             tv.isSingleLine = true          // 关键：chip 内部不许换行（"自定义渠道"原来被折成两行）
             tv.maxLines = 1
+            tv.isSelected = sel
             tv.setPadding(dp(12), dp(7), dp(12), dp(7))
-            tv.background = Skin.shapeDp(this, c.card2, c.line, 96f, 100, 1f)
-            tv.setTextColor(c.dim)
+            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) c.acc else c.line, 96f, 100, 1f)
+            tv.setTextColor(if (sel) c.onAcc else c.dim)
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                // 点厂商 chip = 选这家（原来 chips 只是摆设、点了没反应）
+                store.providerId = p.id
+                etProvider.setText(TtsProviders.display(p), false)
+                applyProvider(p.id)
+                buildProviders()
+            }
             row?.addView(
                 tv,
                 LinearLayout.LayoutParams(
@@ -359,7 +360,7 @@ class SettingsActivity : AppCompatActivity() {
         val c = Skin.colors(this)
         val hidden = store.hiddenVoices
 
-        fun addRow(name: String, id: String, builtIn: Boolean, hiddenRow: Boolean = false) {
+        fun addRow(name: String, id: String, builtIn: Boolean) {
             val box = LinearLayout(this)
             box.orientation = LinearLayout.VERTICAL
             box.setPadding(0, dp(9f), 0, dp(9f))
@@ -373,23 +374,35 @@ class SettingsActivity : AppCompatActivity() {
             nm.textSize = 15f
             head.addView(nm, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             val act = TextView(this)
-            act.text = if (hiddenRow) "恢复" else "删除"
-            act.setTextColor(if (hiddenRow) c.acc else 0xFFC44E4E.toInt())
+            act.text = "删除"
+            act.setTextColor(dangerColor())
             act.textSize = 14f
             act.setPadding(dp(14f), dp(6f), dp(4f), dp(6f))
             act.isClickable = true
             act.isFocusable = true
+            fx(act)
             act.setOnClickListener {
-                if (hiddenRow) {
-                    val h = store.hiddenVoices; h.remove(id); store.hiddenVoices = h
-                } else if (builtIn) {
-                    val h = store.hiddenVoices; h.add(id); store.hiddenVoices = h
-                } else {
-                    val list = store.loadCustomVoices()
-                    list.removeAll { it.id == id }
-                    store.saveCustomVoices(list)
+                // 删除 = 直接从列表移除（内置的记入本机隐藏表，不再有「已隐藏」区）
+                val dd = androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("删除这个音色？")
+                    .setMessage("「" + name + "」将从音色列表移除。")
+                    .setPositiveButton("删除") { _, _ ->
+                        if (builtIn) {
+                            val h = store.hiddenVoices; h.add(id); store.hiddenVoices = h
+                        } else {
+                            val list = store.loadCustomVoices()
+                            list.removeAll { it.id == id }
+                            store.saveCustomVoices(list)
+                        }
+                        buildVoices(); buildProviders()
+                    }
+                    .setNegativeButton("取消", null)
+                    .create()
+                dd.setOnShowListener {
+                    skinDialog(dd)
+                    dd.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(dangerColor())
                 }
-                buildVoices(); buildProviders()
+                dd.show()
             }
             head.addView(act)
             box.addView(head)
@@ -408,15 +421,13 @@ class SettingsActivity : AppCompatActivity() {
 
         VoiceCatalog.builtIn.forEach { if (it.second !in hidden) addRow(it.first, it.second, true) }
         store.loadCustomVoices().forEach { addRow(it.name, it.id, false) }
-        val hiddenOnes = VoiceCatalog.builtIn.filter { it.second in hidden }
-        if (hiddenOnes.isNotEmpty()) {
-            val sec = TextView(this)
-            sec.text = "已隐藏"
-            sec.setTextColor(c.dim)
-            sec.textSize = 12f
-            sec.setPadding(0, dp(14f), 0, dp(1f))
-            llVoices.addView(sec)
-            hiddenOnes.forEach { addRow(it.first, it.second, true, hiddenRow = true) }
+        if (llVoices.childCount == 0) {
+            val tv = TextView(this)
+            tv.text = "还没有音色：在主页用「＋ 建音色」上传样本，或粘贴自定义音色 ID。"
+            tv.setTextColor(c.hint)
+            tv.textSize = 12.5f
+            tv.setPadding(0, dp(10f), 0, dp(2f))
+            llVoices.addView(tv)
         }
     }
 
@@ -450,7 +461,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun playHistory(t: Take) {
         try {
             recPlayer?.release()
-            val f = java.io.File(java.io.File(filesDir, "history"), t.fileName)
+            val f = store.fileOf(t)
             if (!f.exists()) {
                 Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
                 return
@@ -490,6 +501,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
+            fx(tv)
             tv.setOnClickListener { tap() }
             bar.addView(tv, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -539,8 +551,9 @@ class SettingsActivity : AppCompatActivity() {
             )
             x.isClickable = true
             x.isFocusable = true
+            fx(x)
             x.setOnClickListener {
-                android.app.AlertDialog.Builder(this)
+                val dd = androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle("删除这条记录？")
                     .setMessage(t.text.take(60))
                     .setPositiveButton("删除") { _, _ ->
@@ -548,7 +561,7 @@ class SettingsActivity : AppCompatActivity() {
                         list.removeAll { it.id == t.id }
                         store.saveTakes(list)
                         try {
-                            java.io.File(java.io.File(filesDir, "history"), t.fileName).delete()
+                            store.fileOf(t).delete()
                         } catch (e: Exception) {
                             // ignore
                         }
@@ -556,10 +569,8 @@ class SettingsActivity : AppCompatActivity() {
                     }
                     .setNegativeButton("取消", null)
                     .create()
-                    .also { dd ->
-                        dd.setOnShowListener { dd.window?.setDimAmount(0.28f) }
-                        dd.show()
-                    }
+                dd.setOnShowListener { skinDialog(dd) }
+                dd.show()
             }
             head.addView(x)
             box.addView(head)
@@ -608,6 +619,7 @@ class SettingsActivity : AppCompatActivity() {
             share.setPadding(0, dp(6f), dp(16f), dp(2f))
             share.isClickable = true
             share.isFocusable = true
+            fx(share)
             share.setOnClickListener { shareHistory(t) }
             bar2.addView(share)
 
@@ -619,6 +631,7 @@ class SettingsActivity : AppCompatActivity() {
             play.setPadding(0, dp(6f), dp(16f), dp(2f))
             play.isClickable = true
             play.isFocusable = true
+            fx(play)
             play.setOnClickListener { playHistory(t) }
             bar2.addView(play)
 
@@ -645,6 +658,7 @@ class SettingsActivity : AppCompatActivity() {
                 starLabel.setTextColor(c.dim)
             }
             refreshStar()
+            fx(star)
             star.setOnClickListener {
                 val set = store.favTakes
                 if (set.contains(t.id)) set.remove(t.id) else set.add(t.id)
@@ -653,21 +667,11 @@ class SettingsActivity : AppCompatActivity() {
             }
             bar2.addView(star)
 
-            val attr = TextView(this)
-            attr.text = "属性"
-            attr.setTextColor(c.dim)
-            attr.textSize = 11.5f
-            attr.setPadding(0, dp(6f), 0, dp(2f))
-            attr.isClickable = true
-            attr.isFocusable = true
-            attr.setOnClickListener {
-                val show = d2.visibility != View.VISIBLE
-                d2.visibility = if (show) View.VISIBLE else View.GONE
-                attr.text = if (show) "收起" else "属性"
-            }
-            bar2.addView(attr)
-
             box.addView(bar2)
+
+            // 整卡可点展开/收起（与首页一致；去掉冗余的「属性」按钮）
+            box.isClickable = true
+            box.setOnClickListener { toggleAll() }
 
             llRecords.addView(box)
         }
@@ -705,6 +709,7 @@ class SettingsActivity : AppCompatActivity() {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(dp(12), dp(10), dp(12), dp(10))
+            row.isSelected = selected          // Skin 按 isSelected 重绘 bg_btn 角色 → 不设就会丢高亮
             row.background = Skin.shapeDp(
                 this, c.card2, if (selected) c.acc else c.line, 10f, 100, if (selected) 2f else 1f
             )
@@ -733,6 +738,7 @@ class SettingsActivity : AppCompatActivity() {
 
             row.isClickable = true
             row.isFocusable = true
+            fx(row)
             row.setOnClickListener {
                 store.indicatorColor = hex
                 renderIndicatorColors()
@@ -770,6 +776,7 @@ class SettingsActivity : AppCompatActivity() {
                 renderPalettes()
                 applyThemeTab()
             }
+            fx(tv)
             val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             lp.rightMargin = dp(8)
             tv.layoutParams = lp
@@ -846,6 +853,7 @@ class SettingsActivity : AppCompatActivity() {
             row.addView(strip)
         }
 
+        fx(row)
         row.setOnClickListener {
             // 原地换肤：不 recreate()，滚动位置保持不变，只有颜色变
             val keepY = pageTheme.scrollY
@@ -868,6 +876,8 @@ class SettingsActivity : AppCompatActivity() {
         etModel.setText(store.lastModel)
         setupProviderPicker()
 
+        fx(findViewById(R.id.btnPaste))
+        fx(findViewById(R.id.btnSaveKey))
         findViewById<TextView>(R.id.btnPaste).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             val clip = cm?.primaryClip
@@ -1063,6 +1073,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             cm?.setPrimaryClip(android.content.ClipData.newPlainText("dev", tv.text))
             toast("已复制开发者联系与支持")
         }
+        fx(tv); fx(hint); fx(findViewById(R.id.btnCheckUpdate))
         tv.setOnClickListener { doCopy() }
         hint.setOnClickListener { doCopy() }
     }
@@ -1114,24 +1125,27 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         sbCardAlpha.progress = store.cardAlphaPct
         tvCardAlpha.text = "${store.cardAlphaPct}%"
 
-        sbScrimMain.setOnSeekBarChangeListener(seek { p ->
+        // 棘轮卡位：共 20 档 = 量程 ÷ 20（遮罩 0~80 → 每档 4；卡片 0~100 → 每档 5）
+        Ratchet.attach(sbScrimMain, (sbScrimMain.max / 20).coerceAtLeast(1)) {
+            val p = sbScrimMain.progress
             store.scrimMain = p
             tvScrimMain.text = "$p%"
-            updatePreview()
-        })
-        sbScrimPage.setOnSeekBarChangeListener(seek { p ->
+        }
+        Ratchet.attach(sbScrimPage, (sbScrimPage.max / 20).coerceAtLeast(1)) {
+            val p = sbScrimPage.progress
             store.scrimPage = p
             tvScrimPage.text = "$p%"
             Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, Skin.colors(this).bg)
-            updatePreview()
-        })
-        sbCardAlpha.setOnSeekBarChangeListener(seek { p ->
+        }
+        Ratchet.attach(sbCardAlpha, (sbCardAlpha.max / 20).coerceAtLeast(1)) {
+            val p = sbCardAlpha.progress
             store.cardAlphaPct = p
             tvCardAlpha.text = "$p%"
             Skin.apply(window.decorView, Skin.colors(this))
-            updatePreview()
-        })
+        }
 
+        listOf(R.id.btnWpMain, R.id.btnWpMainClear, R.id.btnWpPage, R.id.btnWpPageClear, R.id.btnWpReset)
+            .forEach { fx(findViewById(it)) }
         findViewById<TextView>(R.id.btnWpMain).setOnClickListener { pick("main") }
         findViewById<TextView>(R.id.btnWpMainClear).setOnClickListener {
             Wp.clear(this, "main")
@@ -1168,17 +1182,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         refreshWpStates()
     }
 
-    private fun seek(f: (Int) -> Unit): SeekBar.OnSeekBarChangeListener =
-        object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                f(progress)
-            }
-
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        }
-
     private fun refreshWpStates() {
         tvWpMainState.text = if (store.wpMain.isNotEmpty() && File(store.wpMain).exists()) "已设置" else "未设置"
         tvWpPageState.text = if (store.wpPage.isNotEmpty() && File(store.wpPage).exists()) "已设置" else "未设置"
@@ -1202,6 +1205,17 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         if (resultCode != Activity.RESULT_OK) return
 
         // ① 系统选图回来 → 先进「二次截取」页，让你决定要哪一块
+        if (requestCode == REQ_ICON_PICK) {
+            val uri = data?.data ?: return
+            startActivityForResult(
+                Intent(this, CropActivity::class.java)
+                    .putExtra(CropActivity.EXTRA_SLOT, "icon")
+                    .putExtra(CropActivity.EXTRA_URI, uri.toString()),
+                REQ_CROP_ICON
+            )
+            return
+        }
+
         if (requestCode == REQ_MAIN || requestCode == REQ_PAGE) {
             val uri = data?.data ?: return
             val slot = if (requestCode == REQ_MAIN) "main" else "page"
@@ -1211,6 +1225,17 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     .putExtra(CropActivity.EXTRA_URI, uri.toString()),
                 if (slot == "main") REQ_CROP_MAIN else REQ_CROP_PAGE
             )
+            return
+        }
+
+        // ①' 图标取景回来 → 用裁好的图钉一个桌面入口
+        if (requestCode == REQ_CROP_ICON) {
+            val path = data?.getStringExtra(CropActivity.EXTRA_PATH).orEmpty()
+            if (path.isEmpty()) { toast("没有拿到截取结果"); return }
+            val bmp = try { android.graphics.BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
+            if (bmp == null) { toast("图片读取失败"); return }
+            val label = etEntryName.text.toString().trim().ifEmpty { getString(R.string.app_name_launcher) }
+            pinShortcut("custom_" + System.currentTimeMillis(), label, bmp)
             return
         }
 
@@ -1227,6 +1252,227 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
     }
 
+    // ---------------------------------------------------------------- 快捷图标工坊（仿闪译）
+    /** 内置图标样式（App 自身图标 + 桌面入口都能用） */
+    private val iconStyles = listOf(
+        "default" to "紫·默认",
+        "a" to "银环比",
+        "b" to "白方框",
+        "c" to "调音台"
+    )
+    private var curIconStyle = "default"
+
+    private fun iconFgRes(key: String) = when (key) {
+        "a" -> R.drawable.icon_style_a_fg
+        "b" -> R.drawable.icon_style_b_fg
+        "c" -> R.drawable.icon_style_c_fg
+        else -> R.drawable.icon_style_d_fg
+    }
+
+    private fun iconBgRes(key: String) = when (key) {
+        "a" -> R.drawable.icon_style_a_bg
+        "b" -> R.drawable.icon_style_b_bg
+        "c" -> R.drawable.icon_style_c_bg
+        else -> R.drawable.icon_style_d_bg
+    }
+
+    /** 合成一张该样式的完整图标位图（背景层铺底 + 前景层盖上） */
+    private fun composeIcon(key: String, size: Int): android.graphics.Bitmap {
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val cv = android.graphics.Canvas(bmp)
+        val bg = androidx.core.content.ContextCompat.getDrawable(this, iconBgRes(key))
+        val fg = androidx.core.content.ContextCompat.getDrawable(this, iconFgRes(key))
+        bg?.setBounds(0, 0, size, size); bg?.draw(cv)
+        fg?.setBounds(0, 0, size, size); fg?.draw(cv)
+        return bmp
+    }
+
+    private fun setupIconWorkshop() {
+        curIconStyle = store.appIconStyle
+        ivIconPreview.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: View, o: android.graphics.Outline) {
+                o.setRoundRect(0, 0, v.width, v.height, 26f * resources.displayMetrics.density)
+            }
+        }
+        ivIconPreview.clipToOutline = true
+        listOf(R.id.btnPinEntry, R.id.btnPinCustom, R.id.btnIconReset).forEach { fx(findViewById(it)) }
+        findViewById<TextView>(R.id.btnPinEntry).setOnClickListener { pinEntry() }
+        findViewById<TextView>(R.id.btnIconReset).setOnClickListener { applyAppIconStyle("default", tell = true) }
+        findViewById<TextView>(R.id.btnPinCustom).setOnClickListener { pickIconImage() }
+        renderIconStyleChips()
+        updateIconPreview()
+        // 兜底：保证恰好有一个 alias 开着（否则桌面上会没有图标）
+        applyAppIconStyle(curIconStyle, tell = false)
+    }
+
+    private fun renderIconStyleChips() {
+        llIconStyles.removeAllViews()
+        val c = Skin.colors(this)
+        for ((key, label) in iconStyles) {
+            val tv = TextView(this)
+            tv.text = label
+            tv.textSize = 12.5f
+            tv.isSingleLine = true
+            tv.maxLines = 1
+            val sel = key == curIconStyle
+            tv.isSelected = sel
+            tv.setPadding(dp(13f), dp(7f), dp(13f), dp(7f))
+            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) c.acc else c.line, 96f, 100, 1f)
+            tv.setTextColor(if (sel) c.onAcc else c.dim)
+            tv.isClickable = true; tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener { applyAppIconStyle(key, tell = true) }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.rightMargin = dp(8f)
+            tv.layoutParams = lp
+            llIconStyles.addView(tv)
+        }
+    }
+
+    private fun updateIconPreview() {
+        val c = Skin.colors(this)
+        ivIconPreview.background = Skin.shapeDp(this, c.card2, c.line, 26f, 100, 1f)
+        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240))
+    }
+
+    /** 切换 App 自身图标：每套样式对应一个 activity-alias，运行时只开一个 */
+    private fun applyAppIconStyle(key: String, tell: Boolean) {
+        curIconStyle = key
+        store.appIconStyle = key
+        val aliases = mapOf(
+            "default" to ".IconStyleDefault", "a" to ".IconStyleA",
+            "b" to ".IconStyleB", "c" to ".IconStyleC"
+        )
+        val pm = packageManager
+        for ((k, alias) in aliases) {
+            try {
+                pm.setComponentEnabledSetting(
+                    android.content.ComponentName(packageName, packageName + alias),
+                    if (k == key) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                    else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    android.content.pm.PackageManager.DONT_KILL_APP
+                )
+            } catch (e: Exception) {
+                // alias 未声明则跳过
+            }
+        }
+        renderIconStyleChips()
+        updateIconPreview()
+        if (tell) toast("已切换 App 图标：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key))
+    }
+
+    /** 钉一个桌面入口（用当前样式的图标） */
+    private fun pinEntry() {
+        val label = etEntryName.text.toString().trim().ifEmpty { getString(R.string.app_name_launcher) }
+        pinShortcut("style_" + curIconStyle + "_" + System.currentTimeMillis(), label, composeIcon(curIconStyle, 256))
+    }
+
+    private fun pinShortcut(id: String, label: String, bmp: android.graphics.Bitmap) {
+        try {
+            val si = androidx.core.content.pm.ShortcutInfoCompat.Builder(this, id)
+                .setShortLabel(label).setLongLabel(label)
+                .setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bmp))
+                .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+                .build()
+            androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(this, si, null)
+            toast("已请求钉到桌面：" + label)
+        } catch (e: Exception) {
+            toast("创建失败：" + (e.message ?: ""))
+        }
+    }
+
+    /** 自定义：选图 → 取景(1:1) → 用那张图钉一个桌面入口 */
+    private fun pickIconImage() {
+        val gallery = Intent(
+            Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        ).apply { type = "image/*" }
+        val i = if (gallery.resolveActivity(packageManager) != null) gallery
+        else Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE); type = "image/*"
+        }
+        startActivityForResult(i, REQ_ICON_PICK)
+    }
+
+    /** 弹窗统一换肤：面板 / 标题 / 正文 / 按钮（与首页同一套） */
+    private fun skinDialog(dlg: androidx.appcompat.app.AlertDialog) {
+        dlg.window?.setDimAmount(0.28f)
+        val c = Skin.colors(this)
+        Skin.apply(dlg.window!!.decorView, c)
+        dlg.window?.setBackgroundDrawable(Skin.dialogPanel(this, c))
+        val titleId = resources.getIdentifier("alertTitle", "id", "android")
+        if (titleId != 0) dlg.findViewById<TextView>(titleId)?.setTextColor(c.txt)
+        dlg.findViewById<TextView>(android.R.id.message)?.setTextColor(c.dim)
+        dlg.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(c.acc)
+        dlg.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)?.setTextColor(c.dim)
+        dlg.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)?.setTextColor(c.dim)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
+        recPlayer = null
+    }
+
+    /** 点按水波（+ root 时在该卡片里迸"留痕"星点） */
+    private fun fx(v: View?, root: View? = null) {
+        v ?: return
+        TapFx.press(v, Skin.colors(this).acc, root)
+    }
+
+    /** 「提示」栏：使用提示 / 关于 / 许可与致谢 —— 分组 + 细线，颜色全走主题 */
+    private fun buildTips() {
+        llTips.removeAllViews()
+        val c = Skin.colors(this)
+        fun label(t: String) {
+            val tv = TextView(this)
+            tv.text = t; tv.setTextColor(c.dim); tv.textSize = 13f
+            tv.setPadding(0, dp(16f), 0, 0)
+            llTips.addView(tv)
+        }
+        fun line(t: String, col: Int, size: Float = 12.5f) {
+            val tv = TextView(this)
+            tv.text = t; tv.setTextColor(col); tv.textSize = size
+            tv.setLineSpacing(dp(4f).toFloat(), 1f)
+            tv.setPadding(0, dp(6f), 0, 0)
+            llTips.addView(tv)
+        }
+        fun divider() {
+            val v = View(this)
+            v.setBackgroundColor((c.line and 0x00FFFFFF) or (0x80 shl 24))
+            v.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1f)
+            ).apply { topMargin = dp(14f) }
+            llTips.addView(v)
+        }
+        label("使用提示")
+        line("① 「模型」页选厂商、填 API Key（本机「系统 TTS」免 Key）", c.dim)
+        line("② 选音色；没有合适的就「＋ 建音色」上传样本做声音复刻", c.dim)
+        line("③ 输入文本 → 生成；记录卡支持「播放 / 回填 / 重抽 / 分享 / 下载」", c.dim)
+        line("④ 外观：主题页 64 套配色 + 壁纸二次截取；「App 图标与桌面入口」可换图标、钉桌面入口", c.dim)
+        divider()
+        label("关于")
+        val ver = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) { "" }
+        line("玲珑调音 · Prima Tune    v" + ver, c.txt, 13f)
+        line("· 语音合成：10 家厂商 + 本机系统 TTS + 自定义渠道", c.dim)
+        line("· 音色：预制音色（默认隐藏）+ 自建（声音复刻）", c.dim)
+        line("· 数据：全部只保存在本机，不上传", c.dim)
+        divider()
+        label("许可与致谢")
+        line("· 界面设计参照《夕汀前端规范》", c.dim)
+        line("· 各第三方模型与名称归各自厂商所有", c.dim)
+    }
+
+    /** 危险色（删除）：不写死一个红 —— 浅色主题用更深、深色主题提亮，保证对比 */
+    private fun dangerColor(): Int {
+        val c = Skin.colors(this)
+        return if (c.light) 0xFFB23A34.toInt()
+        else Skin.Colors.mix(0xFFE06B64.toInt(), c.txt, 0.18f)
+    }
+
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
@@ -1234,6 +1480,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     companion object {
         private const val REQ_MAIN = 2001
         private const val REQ_PAGE = 2002
+        private const val REQ_ICON_PICK = 2005
+        private const val REQ_CROP_ICON = 2006
         private const val REQ_CROP_MAIN = 2003
         private const val REQ_CROP_PAGE = 2004
     }

@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
 
     private class BadJsonException(val label: String) : Exception()
 
-    private data class RowRef(val take: Take, val playBtn: TextView)
+    private data class RowRef(val take: Take, val playBtn: TextView, val prog: View)
 
     private val voices = VoiceCatalog.builtIn.map { Voice(it.first, it.second, it.third) }
     private val customLabel = "✏️ 自定义音色 ID…"
@@ -106,8 +106,12 @@ class MainActivity : AppCompatActivity() {
 
     private val cTxt = Color.parseColor("#E8EEF8")
     private val cDim = Color.parseColor("#8D99AD")
-    /** 破坏性动作（删除）用红色文字 */
-    private val DELETE_RED = Color.parseColor("#C44E4E")
+    /** 破坏性动作（删除）的红色：不写死一个 —— 浅色主题更深、深色主题提亮 */
+    private fun deleteRed(): Int {
+        val c = Skin.colors(this)
+        return if (c.light) 0xFFB23A34.toInt()
+        else Skin.Colors.mix(0xFFE06B64.toInt(), c.txt, 0.18f)
+    }
 
     // ---------------------------------------------------------------- 状态
     private lateinit var store: Store
@@ -134,8 +138,22 @@ class MainActivity : AppCompatActivity() {
 
     private var player: MediaPlayer? = null
     private var playingId: String? = null
+    /** 正在播放那行的细进度条 */
+    private var playingProgress: View? = null
+    private val progTick = object : Runnable {
+        override fun run() {
+            val mp = player ?: return
+            val p = playingProgress ?: return
+            val dur = try { mp.duration } catch (e: Exception) { -1 }
+            if (dur > 0) p.scaleX = (mp.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
+            mainHandler.postDelayed(this, 150)
+        }
+    }
     private var currentTake: Take? = null
     private var busy = false
+    /** 高级参数里的 model 是否被用户手改过（onResume 时据此决定要不要用 store 覆盖） */
+    private var modelTouched = false
+    private var suppressModelWatch = false
 
     /** 本地记录的音色筛选（null = 全部）；仅本次运行有效 */
     private var filterVoiceId: String? = null
@@ -196,6 +214,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         store = Store(this)
+        store.hidePresetVoicesOnce()          // 预设音色默认隐藏（一次性）
         customVoices.addAll(store.loadCustomVoices())
         hiddenVoices.addAll(store.hiddenVoices)
         bindViews()
@@ -218,9 +237,35 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         applyLook()
-        // 设置页改过「默认 model」时同步到高级参数
-        if (etModel.text.toString() != store.lastModel) etModel.setText(store.lastModel)
+        // 设置页可能删/改过记录、音色、隐藏列表 → 以 Store 为准整表重载（Store = 唯一数据源）
+        reloadFromStore()
+        // 设置页改过「默认 model」且用户没在高级参数里手改过 → 同步过来（不覆盖用户输入）
+        if (!modelTouched) setModelField(store.lastModel)
         if (etApiKey.text.toString() != store.apiKey) etApiKey.setText(store.apiKey)
+    }
+
+    /**
+     * 以 Store（唯一数据源）整表重载，修掉「设置页删了记录/音色，主页还显示旧的」这类跨页不同步。
+     * 原来只在 onCreate 读一次，onResume 只换肤 → 内存缓存会一直停留在旧数据。
+     */
+    private fun reloadFromStore() {
+        takes.clear(); takes.addAll(store.loadTakes())
+        customVoices.clear(); customVoices.addAll(store.loadCustomVoices())
+        hiddenVoices.clear(); hiddenVoices.addAll(store.hiddenVoices)
+        if (!voiceIsCustom && allVoices().none { it.id == currentVoiceId }) {
+            currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+        }
+        fitVoiceWidth()
+        syncVoiceUi()
+        renderHistory()
+    }
+
+    /** 设置「模型」输入框并把它标记为"未被用户手改" */
+    private fun setModelField(v: String) {
+        suppressModelWatch = true
+        etModel.setText(v)
+        suppressModelWatch = false
+        modelTouched = false
     }
 
     /** v0.3：主题 + 壁纸统一入口（设置页改完回来即生效） */
@@ -233,6 +278,8 @@ class MainActivity : AppCompatActivity() {
         val ddw = resources.displayMetrics.widthPixels - dp(28)
         spFormat.setPopupBackgroundDrawable(Skin.shapeDp(this, c.bg, c.line, 12f))
         spFormat.setDropDownWidth(ddw)
+        // 结果卡三颗按钮与记录卡统一成"玻璃按键"
+        listOf(btnPlay, btnShare, btnExport).forEach { it.background = glassBg(); it.tag = "bg:keep" }
     }
 
     private fun bindViews() {
@@ -258,18 +305,24 @@ class MainActivity : AppCompatActivity() {
         etSeed = findViewById(R.id.etSeed)
         btnDice = findViewById(R.id.btnDice)
         sbRate = findViewById(R.id.sbRate)
-        ratchet(sbRate, 5)        // 语速：0.05 一档
+        Ratchet.attach(sbRate, 5) { onParamChanged() }   // 语速：0.05 一档
         tvRate = findViewById(R.id.tvRate)
         sbPitch = findViewById(R.id.sbPitch)
-        ratchet(sbPitch, 5)       // 音调：0.05 一档
+        Ratchet.attach(sbPitch, 5) { onParamChanged() }  // 音调：0.05 一档
         tvPitch = findViewById(R.id.tvPitch)
         sbVol = findViewById(R.id.sbVol)
-        ratchet(sbVol, 2)        // 音量：2% 一档
+        Ratchet.attach(sbVol, 2) { onParamChanged() }    // 音量：2% 一档
         tvVol = findViewById(R.id.tvVol)
         spFormat = findViewById(R.id.spFormat)
         tvAdvanced = findViewById(R.id.tvAdvanced)
         llAdvanced = findViewById(R.id.llAdvanced)
         etModel = findViewById(R.id.etModel)
+        // 记录用户是否手改过 model（onResume 时据此决定要不要用 store 覆盖，避免丢输入）
+        etModel.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { if (!suppressModelWatch) modelTouched = true }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
         etApiKey = findViewById(R.id.etApiKey)
         // 高级参数里的 API 密钥：改完即生效（与设置页共用同一个本机存档）
         etApiKey.setText(store.apiKey)
@@ -296,6 +349,74 @@ class MainActivity : AppCompatActivity() {
         btnClearHistory = findViewById(R.id.btnClearHistory)
         llHistory = findViewById(R.id.llHistory)
         llHistoryTitle = findViewById(R.id.llHistoryTitle)
+
+        // 点按反馈：小按钮 = 水波（记录卡里另有"留痕"），主行动 = 水波 + 下沉
+        listOf<View>(btnSettings, btnCreateVoice, btnDice, btnCancel, btnPlay,
+            btnShare, btnExport, btnClearHistory, btnClearText, tvAdvanced).forEach { fx(it) }
+        fxPrimary(btnGenerate)
+
+        setAdvanced(store.advExpanded, animate = false)
+    }
+
+    /** 高级参数展开/收起：180ms 高度过渡（原来瞬变） */
+    private fun setAdvanced(show: Boolean, animate: Boolean) {
+        tvAdvanced.text = if (show) "高级参数 ▾" else "高级参数 ▸"
+        if (!animate) {
+            llAdvanced.visibility = if (show) View.VISIBLE else View.GONE
+            return
+        }
+        if (show) {
+            llAdvanced.visibility = View.VISIBLE
+            llAdvanced.alpha = 0f
+            val w = llAdvanced.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+            llAdvanced.measure(
+                View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            val h = llAdvanced.measuredHeight
+            val a = android.animation.ValueAnimator.ofInt(0, h)
+            a.addUpdateListener {
+                llAdvanced.layoutParams = llAdvanced.layoutParams.apply { height = it.animatedValue as Int }
+                llAdvanced.requestLayout()
+            }
+            a.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(an: android.animation.Animator) {
+                    llAdvanced.layoutParams = llAdvanced.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+                    llAdvanced.requestLayout()
+                }
+            })
+            a.duration = 180; a.start()
+            llAdvanced.animate().alpha(1f).setDuration(180).start()
+        } else {
+            val h = llAdvanced.height
+            if (h <= 0) { llAdvanced.visibility = View.GONE; return }
+            val a = android.animation.ValueAnimator.ofInt(h, 0)
+            a.addUpdateListener {
+                llAdvanced.layoutParams = llAdvanced.layoutParams.apply { height = it.animatedValue as Int }
+                llAdvanced.alpha = 1f - it.animatedFraction
+                llAdvanced.requestLayout()
+            }
+            a.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(an: android.animation.Animator) {
+                    llAdvanced.layoutParams = llAdvanced.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+                    llAdvanced.visibility = View.GONE
+                    llAdvanced.alpha = 1f
+                }
+            })
+            a.duration = 180; a.start()
+        }
+    }
+
+    /** 点按水波（+ 传 root 时在该卡片里迸"留痕"星点） */
+    private fun fx(v: View?, root: View? = null) {
+        v ?: return
+        TapFx.press(v, Skin.colors(this).acc, root)
+    }
+
+    /** 主行动按钮：额外加"按下下沉 / 松手回弹" */
+    private fun fxPrimary(v: View?) {
+        v ?: return
+        TapFx.press(v, Skin.colors(this).acc, null, primary = true)
     }
 
     /** 下拉浮层适配器：浮层条目文字颜色跟随主题（其余沿用系统样式） */
@@ -325,7 +446,7 @@ class MainActivity : AppCompatActivity() {
         syncVoiceUi()
 
         spFormat.adapter = ThemedSpinnerAdapter(this, formats.map { it.label })
-        etModel.setText(store.lastModel)
+        setModelField(store.lastModel)
     }
 
     /** 展开态宽度对齐原 Spinner：取最长条目宽度 → 名字靠左、三角靠右 */
@@ -362,26 +483,15 @@ class MainActivity : AppCompatActivity() {
         syncVoiceUi()
     }
 
+    /**
+     * 只设初值 + 刷一次标签。**不能**在这里再 setOnSeekBarChangeListener ——
+     * 那会把 bindViews() 里 ratchet() 装的监听器覆盖掉（v0.5.5 的棘轮卡位/轻震就是这样被废掉的）。
+     */
     private fun setupSliders() {
-        bindSlider(sbRate, tvRate, 0.5, 0.01, "%.2f")
-        bindSlider(sbPitch, tvPitch, 0.5, 0.01, "%.2f")
-        bindSlider(sbVol, tvVol, 0.0, 1.0, "%.0f")
         sbRate.progress = 50
         sbPitch.progress = 50
         sbVol.progress = 50
-    }
-
-    private fun bindSlider(sb: SeekBar, tv: TextView, from: Double, step: Double, fmt: String) {
-        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tv.text = String.format(Locale.US, fmt, from + progress * step)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-        tv.text = String.format(Locale.US, fmt, from + sb.progress * step)
+        onParamChanged()
     }
 
     private fun setupActions() {
@@ -396,8 +506,8 @@ class MainActivity : AppCompatActivity() {
         btnDice.setOnClickListener { etSeed.setText((0..65535).random().toString()) }
         tvAdvanced.setOnClickListener {
             val show = llAdvanced.visibility != View.VISIBLE
-            llAdvanced.visibility = if (show) View.VISIBLE else View.GONE
-            tvAdvanced.text = if (show) "高级参数 ▾" else "高级参数 ▸"
+            setAdvanced(show, animate = true)
+            store.advExpanded = show
         }
         btnGenerate.setOnClickListener { generate(null) }
         btnCancel.setOnClickListener {
@@ -413,38 +523,6 @@ class MainActivity : AppCompatActivity() {
         btnClearHistory.setOnClickListener { confirmClearHistory() }
         llHistoryTitle.setOnClickListener { showVoiceFilterPopup() }
         etLangHints.setOnClickListener { openLangPicker() }
-    }
-
-    /**
-     * 给滑条装"棘轮卡位"：拖动时吸附到 step 的整数倍 + 每过一档给一次轻震。
-     * 语速/音调：progress 0~100 → 值 0.5~1.5，step=5 即 0.05 一档（21 档）；
-     * 音量：0~100，step=2 即 2% 一档（51 档）。
-     */
-    private fun ratchet(sb: SeekBar, step: Int) {
-        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                if (!fromUser) return
-                val snapped = ((progress + step / 2) / step) * step
-                if (snapped != progress) {
-                    bar.progress = snapped
-                    return
-                }
-                bar.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                onParamChanged()
-            }
-
-            override fun onStartTrackingTouch(bar: SeekBar) {}
-            override fun onStopTrackingTouch(bar: SeekBar) {
-                // 松手吸附到最近档位（140ms 动画 = 一点点阻尼/咔哒感）
-                val snapped = ((bar.progress + step / 2) / step) * step
-                if (snapped != bar.progress) {
-                    android.animation.ObjectAnimator.ofInt(bar, "progress", snapped)
-                        .setDuration(140).start()
-                    bar.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                }
-                onParamChanged()
-            }
-        })
     }
 
     /** 只刷新三根滑条的数字标签（不碰 progress、不换肤 → 不会和拖动打架） */
@@ -491,7 +569,6 @@ class MainActivity : AppCompatActivity() {
                     customVoices.add(CustomVoice(id, name, "", System.currentTimeMillis()))
                     store.saveCustomVoices(customVoices)
                 }
-                openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
                 etCustomVoice.setText(id)
                 setVoice(id)
                 syncVoiceUi()
@@ -523,7 +600,7 @@ class MainActivity : AppCompatActivity() {
             alpha = if (canClone) 1f else 0.4f
         }
 
-        findViewById<TextView>(R.id.tvParamNote).apply {
+        findViewById<TextView>(R.id.tvParamNote)?.apply {
             // 首次使用引导：一个厂商都没配 → 直接告诉他去哪配（普通用户不用去看文档）
             val noKey = TtsProviders.all.none { p ->
                 p.shape == "system" || store.providerKey(p.id).isNotBlank() || store.apiKey.isNotBlank() && p.id == "aliyun-bailian"
@@ -567,6 +644,7 @@ class MainActivity : AppCompatActivity() {
             tv.setPadding(dp(12), dp(6), dp(12), dp(6))
             tv.isClickable = true
             tv.isFocusable = true
+            fx(tv)
             tv.setOnClickListener { etInstr.setText(chip.text) }
             val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             lp.rightMargin = dp(8)
@@ -605,16 +683,18 @@ class MainActivity : AppCompatActivity() {
         listBox.orientation = LinearLayout.VERTICAL
         box.addView(listBox)
 
+        // 草稿：点「取消」不应改动已选语言（原来直接改 langSel —— 取消也生效、且和标签不一致）
+        val draft = LinkedHashSet(langSel)
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                renderLangList(listBox, etSearch)
+                renderLangList(listBox, etSearch, draft)
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
-        renderLangList(listBox, etSearch)
+        renderLangList(listBox, etSearch, draft)
 
         val sc = ScrollView(this)
         sc.addView(box)
@@ -622,7 +702,10 @@ class MainActivity : AppCompatActivity() {
         val dlg = AlertDialog.Builder(this)
             .setTitle("选择语言（可多选）")
             .setView(sc)
-            .setPositiveButton("确定") { _, _ -> applyLangSel() }
+            .setPositiveButton("确定") { _, _ ->
+                langSel.clear(); langSel.addAll(draft)   // 只有“确定”才落盘
+                applyLangSel()
+            }
             .setNeutralButton("清空") { _, _ ->
                 langSel.clear()
                 applyLangSel()
@@ -633,7 +716,7 @@ class MainActivity : AppCompatActivity() {
         dlg.show()
     }
 
-    private fun renderLangList(listBox: LinearLayout, etSearch: EditText) {
+    private fun renderLangList(listBox: LinearLayout, etSearch: EditText, sel: MutableSet<String>) {
         listBox.removeAllViews()
         val f = etSearch.text.toString().trim().lowercase(Locale.US)
         val items = langPresets.filter {
@@ -650,16 +733,17 @@ class MainActivity : AppCompatActivity() {
         }
         for ((code, name) in items) {
             val row = TextView(this)
-            val sel = code in langSel
-            row.text = (if (sel) "✓ " else "　 ") + name + "（" + code + "）"
-            row.setTextColor(if (sel) cTxt else cDim)
+            val on = code in sel
+            row.text = (if (on) "✓ " else "　 ") + name + "（" + code + "）"
+            row.setTextColor(if (on) cTxt else cDim)
             row.textSize = 14f
             row.setPadding(dp(4), dp(10), dp(4), dp(10))
             row.isClickable = true
             row.isFocusable = true
+            fx(row)
             row.setOnClickListener {
-                if (code in langSel) langSel.remove(code) else langSel.add(code)
-                renderLangList(listBox, etSearch)
+                if (code in sel) sel.remove(code) else sel.add(code)
+                renderLangList(listBox, etSearch, sel)
             }
             listBox.addView(row)
         }
@@ -737,6 +821,7 @@ class MainActivity : AppCompatActivity() {
         val instr = etInstr.text.toString().trim().take(128)
         val model = etModel.text.toString().trim().ifEmpty { "cosyvoice-v3.5-plus" }
         store.lastModel = model
+        modelTouched = false
         val hints = langSel.toList().ifEmpty { null }
 
         val req = SynthRequest(
@@ -760,6 +845,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         busy = true
+        btnGenerate.isEnabled = false
         btnGenerate.alpha = 0.55f
         btnCancel.visibility = View.VISIBLE
         svRoot.smoothScrollTo(0, 0)
@@ -857,8 +943,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveTake(req: SynthRequest, fmt: Fmt, audio: ByteArray): Take {
-        // 扩展名按"真实字节"来（有的厂商返回 mp3，别叫成 .wav）
+        // 扩展名/格式按"真实字节"来（有的厂商返回 mp3，别叫成 .wav）
         val isWav = audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()
+        // 记录格式：WAV 按 WAV 档位 key；本来就是 mp3 档位的保留 mp3_256/mp3_128（否则回填会丢档位）
+        val realFormat = when {
+            isWav -> fmt.key
+            fmt.format == "mp3" -> fmt.key
+            else -> "mp3"
+        }
         val file = store.newAudioFile(if (isWav) fmt.ext else "mp3")
         file.writeBytes(audio)
         fixWavHeader(file)
@@ -873,8 +965,8 @@ class MainActivity : AppCompatActivity() {
             pitch = req.pitch,
             volume = req.volume,
             seed = req.seed,
-            // 按真实字节记格式：RIFF 开头=wav，否则按 mp3 记（OpenAI 系可能返回 mp3）
-            format = if (audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()) fmt.key else "mp3",
+            // 按真实字节记格式（realFormat 在上方算好）
+            format = realFormat,
             model = req.model,
             durationMs = probeDurationMs(file),
             createdAt = System.currentTimeMillis()
@@ -902,6 +994,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun finishBusy() {
         busy = false
+        btnGenerate.isEnabled = true
         btnGenerate.alpha = 1f
         btnCancel.visibility = View.GONE
     }
@@ -941,6 +1034,11 @@ class MainActivity : AppCompatActivity() {
             mp.start()
             player = mp
             playingId = take.id
+            playingProgress = rowRefs.firstOrNull { it.take.id == take.id }?.prog?.apply {
+                pivotX = 0f; scaleX = 0f
+            }
+            mainHandler.removeCallbacks(progTick)
+            mainHandler.post(progTick)
         } catch (e: Exception) {
             stopPlayback()
             toast("播放失败：" + e.message)
@@ -961,6 +1059,8 @@ class MainActivity : AppCompatActivity() {
         }
         player = null
         playingId = null
+        playingProgress = null
+        mainHandler.removeCallbacks(progTick)
     }
 
     private fun refreshPlayButtons() {
@@ -968,6 +1068,7 @@ class MainActivity : AppCompatActivity() {
         btnPlay.text = if (cur != null && playingId == cur.id && player?.isPlaying == true) "⏸ 暂停" else "▶ 播放"
         for (r in rowRefs) {
             r.playBtn.text = if (playingId == r.take.id) "⏸ 暂停" else "▶ 播放"
+            r.prog.visibility = if (playingId == r.take.id) View.VISIBLE else View.GONE
         }
     }
 
@@ -1163,6 +1264,7 @@ class MainActivity : AppCompatActivity() {
         row.addView(hs)
 
         val bPlay = smallBtn("▶ 播放")
+        val bRe = smallBtn("↻ 重抽")
         val bFill = smallBtn("回填")
         val bDown = smallBtn("下载")
         // 收藏星：手绘矢量（不再用 ☆/★ 字形——字形太小、且会被系统字体染成杂色）
@@ -1188,6 +1290,13 @@ class MainActivity : AppCompatActivity() {
         val bShare = smallBtn("分享")
 
         bPlay.setOnClickListener { toggleTake(take) }
+        // 重抽 = 回填参数 + 换新种子 + 立刻生成（原来要 回填→🎲→生成 三步）
+        bRe.setOnClickListener {
+            fillFrom(take)
+            etSeed.setText((0..65535).random().toString())
+            toast("已换新种子重抽")
+            generate(null)
+        }
         bFill.setOnClickListener {
             fillFrom(take)
             toast("已回填参数")
@@ -1197,7 +1306,15 @@ class MainActivity : AppCompatActivity() {
             val ex = title.maxLines != Int.MAX_VALUE
             title.maxLines = if (ex) Int.MAX_VALUE else 2
             title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
-            detail.visibility = if (ex) View.VISIBLE else View.GONE
+            if (ex) {
+                detail.visibility = View.VISIBLE
+                detail.alpha = 0f
+                detail.animate().alpha(1f).setDuration(150).start()
+            } else {
+                detail.animate().alpha(0f).setDuration(120).withEndAction {
+                    detail.visibility = View.GONE
+                }.start()
+            }
         }
         title.setOnClickListener { toggleAll() }
         meta.setOnClickListener { toggleAll() }
@@ -1209,11 +1326,12 @@ class MainActivity : AppCompatActivity() {
         bDown.setOnClickListener { exportTake(take) }
         val refreshStar = {
             val fav = take.id in store.favTakes
-            starIcon.colorSolid = cTxt    // 未收藏＝描边跟旁边文字同色
+            val tc = Skin.colors(this).txt   // 自绘 View 不走 Skin.apply → 直接用当前主题文字色
+            starIcon.colorSolid = tc      // 未收藏＝描边跟旁边文字同色
             starIcon.filled = fav         // 已收藏＝亮黄渐变（StarView 里直接画）
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
-            starLabel.text = "收藏"                     // 文字恒定，只有星星上色/变实心
-            starLabel.setTextColor(cTxt)
+            starLabel.text = "收藏"                     // 恒定文字，只有星星上色/变实心
+            starLabel.setTextColor(tc)
         }
         refreshStar()
         bStar.setOnClickListener {
@@ -1225,17 +1343,34 @@ class MainActivity : AppCompatActivity() {
             }
             store.favTakes = set
             refreshStar()
+            starIcon.animate().scaleX(1.28f).scaleY(1.28f).setDuration(90).withEndAction {
+                starIcon.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+            }.start()
             toast(if (nowFav) "已收藏" else "已取消收藏")
         }
         bShare.setOnClickListener { shareTake(take) }
 
         btnRow.addView(bPlay)
+        btnRow.addView(bRe)
         btnRow.addView(bFill)
         btnRow.addView(bDown)
         btnRow.addView(bStar)
         btnRow.addView(bShare)
 
-        rowRefs.add(RowRef(take, bPlay))
+        // 播放进度：一条 2dp 细线（播放时才出现）
+        val prog = View(this)
+        prog.background = Skin.shapeDp(this, Skin.colors(this).acc, null, 0f)   // 圆角 0 → 不撞 Skin 的角色
+        prog.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(2)
+        ).apply { topMargin = dp(8) }
+        prog.visibility = View.GONE
+        row.addView(prog)
+
+        // 点按反馈：这些小按钮都在卡片里 → 带"留痕"
+        listOf(bPlay, bRe, bFill, bDown, bStar, bShare).forEach { fx(it, row) }
+        fx(x)
+
+        rowRefs.add(RowRef(take, bPlay, prog))
         return row
     }
 
@@ -1256,6 +1391,7 @@ class MainActivity : AppCompatActivity() {
         sbVol.progress = take.volume.coerceIn(0, 100)
         val fi = formats.indexOfFirst { it.key == take.format }
         if (fi >= 0) spFormat.setSelection(fi)
+        onParamChanged()   // 程序化设置 progress 不触发 ratchet 的标签刷新 → 手动刷一次
     }
 
     private fun confirmDelete(take: Take) {
@@ -1339,6 +1475,7 @@ class MainActivity : AppCompatActivity() {
             }
             row.isClickable = true
             row.isFocusable = true
+            fx(row)
             row.setOnClickListener { onClick() }
             // 长按 = 快速删除（自建真删 / 内置隐藏，二者都能在「管理音色」里找回）
             row.setOnLongClickListener {
@@ -1367,7 +1504,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         pop?.dismiss()
                         syncVoiceUi()
-                        toast(if (cv != null) "已删除" else "已隐藏（可在「管理音色…」恢复）")
+                        toast("已删除")
                     }
                     .setNegativeButton("取消", null)
                     .create()
@@ -1390,6 +1527,14 @@ class MainActivity : AppCompatActivity() {
             listBox.postDelayed({ pop?.dismiss() }, 790)
         }
 
+        if (all.isEmpty()) {
+            val hint = TextView(this)
+            hint.text = "还没有音色：用「＋ 建音色」上传样本，或用下面的「自定义音色 ID」"
+            hint.setTextColor(c.hint)
+            hint.textSize = 12.5f
+            hint.setPadding(dp(16), dp(10), dp(16), dp(10))
+            listBox.addView(hint)
+        }
         for (v in all) addRow(v.name, v.id, c.txt) { switchTo(v.id) }
         addRow(customLabel, null, c.dim) {
             openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
@@ -1412,9 +1557,9 @@ class MainActivity : AppCompatActivity() {
 
         val h = minOf(dp(430), dp(12) + dp(48) * (all.size + 2))
         val w = minOf(dp(310), resources.displayMetrics.widthPixels - dp(32))
-        pop = PopupWindow(panel, w, h, false)   // 非获焦：关掉后焦点不会被抢走（否则会自动弹出键盘）
-        pop.isOutsideTouchable = true
-        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+        // 获焦 = 返回键能关；INPUT_METHOD_NOT_NEEDED 防它把键盘带出来
+        pop = PopupWindow(panel, w, h, true)
+        pop.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
         pop.isOutsideTouchable = true
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
@@ -1463,6 +1608,7 @@ class MainActivity : AppCompatActivity() {
             act.setPadding(dp(14), dp(8), dp(4), dp(8))
             act.isClickable = true
             act.isFocusable = true
+            fx(act)
             act.setOnClickListener {
                 dlg?.dismiss()
                 onTap()
@@ -1475,6 +1621,7 @@ class MainActivity : AppCompatActivity() {
                 rn.setPadding(dp(12), dp(8), dp(4), dp(8))
                 rn.isClickable = true
                 rn.isFocusable = true
+                fx(rn)
                 rn.setOnClickListener {
                     dlg?.dismiss()
                     rename()
@@ -1517,15 +1664,10 @@ class MainActivity : AppCompatActivity() {
             section("可用音色")
             for (v in all) {
                 val custom = customVoices.firstOrNull { it.id == v.id }
-                row(v.name, "", "删除", DELETE_RED) {
+                row(v.name, "", "删除", deleteRed()) {
                     if (custom != null) confirmDeleteVoice(custom) else hideVoice(v)
                 }
             }
-        }
-        val hidden = voices.filter { it.id in hiddenVoices }
-        if (hidden.isNotEmpty()) {
-            section("已隐藏")
-            for (v in hidden) row(v.name, "", "恢复", c.acc) { unhideVoice(v) }
         }
 
         val sc = ScrollView(this)
@@ -1540,12 +1682,12 @@ class MainActivity : AppCompatActivity() {
         d.show()
     }
 
-    /** 内置音色不能从代码里删除 → 从列表隐藏（可恢复） */
+    /** 删除内置音色 = 从列表移除（记进本机隐藏表）。想找回：用「自定义音色 ID」粘贴它的 ID。 */
     private fun hideVoice(v: Voice) {
         val d = AlertDialog.Builder(this)
-            .setTitle("隐藏音色")
-            .setMessage("把「" + v.name + "」从音色列表里隐藏？之后可以在「已隐藏」里恢复。")
-            .setPositiveButton("隐藏") { _, _ ->
+            .setTitle("删除音色")
+            .setMessage("「" + v.name + "」将从音色列表移除。")
+            .setPositiveButton("删除") { _, _ ->
                 hiddenVoices.add(v.id)
                 store.hiddenVoices = hiddenVoices
                 if (!voiceIsCustom && currentVoiceId == v.id) {
@@ -1553,23 +1695,15 @@ class MainActivity : AppCompatActivity() {
                 }
                 fitVoiceWidth()
                 syncVoiceUi()
-                toast("已隐藏：" + v.name)
+                toast("已删除：" + v.name)
             }
             .setNegativeButton("取消", null)
             .create()
         d.setOnShowListener {
             skinDialog(d)
-            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(DELETE_RED)
+            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(deleteRed())
         }
         d.show()
-    }
-
-    private fun unhideVoice(v: Voice) {
-        hiddenVoices.remove(v.id)
-        store.hiddenVoices = hiddenVoices
-        fitVoiceWidth()
-        syncVoiceUi()
-        toast("已恢复：" + v.name)
     }
 
     private fun confirmDeleteVoice(v: CustomVoice) {
@@ -1590,7 +1724,7 @@ class MainActivity : AppCompatActivity() {
             .create()
         d.setOnShowListener {
             skinDialog(d)
-            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(DELETE_RED)
+            d.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(deleteRed())
         }
         d.show()
     }
@@ -1626,6 +1760,7 @@ class MainActivity : AppCompatActivity() {
             tv.setPadding(dp(14), dp(12), dp(14), dp(12))
             tv.isClickable = true
             tv.isFocusable = true
+            fx(tv)
             tv.setOnClickListener {
                 filterVoiceId = id
                 historyExpanded = false
@@ -1651,9 +1786,8 @@ class MainActivity : AppCompatActivity() {
         val rowCount = ids.size + 1
         val h = minOf(dp(320), dp(12) + dp(45) * rowCount)
         val w = minOf(dp(290), resources.displayMetrics.widthPixels - dp(32))
-        pop = PopupWindow(panel, w, h, false)   // 非获焦：关掉后焦点不会被抢走（否则会自动弹出键盘）
-        pop.isOutsideTouchable = true
-        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+        pop = PopupWindow(panel, w, h, true)
+        pop.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
         pop.isOutsideTouchable = true
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
@@ -1666,9 +1800,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 建音色（声音复刻）
+    /** 建音色用的 Key：百炼用 apiKey，其它支持复刻的厂商用该厂商自己的 Key */
+    private fun cloneKey(): String {
+        val prov = TtsProviders.byId(store.providerId)
+        return if (prov == null || prov.shape == "dashscope") store.apiKey.trim()
+        else store.providerKey(store.providerId).ifBlank { store.apiKey.trim() }
+    }
+
     private fun openCreateVoice() {
-        if (store.apiKey.isBlank()) {
-            toast("请先在「设置」里填写 API Key")
+        if (cloneKey().isBlank()) {
+            toast("请先在「设置 → 模型」填写该厂商的 API Key")
             openSettings()
             return
         }
@@ -1687,6 +1828,7 @@ class MainActivity : AppCompatActivity() {
         box.addView(tvTip)
 
         val btnPick = smallBtn("选择音频文件…（可多选）")
+        fx(btnPick)
         btnPick.setOnClickListener { pickAudioFile() }
         val rowPick = LinearLayout(this)
         rowPick.orientation = LinearLayout.HORIZONTAL
@@ -1820,12 +1962,13 @@ class MainActivity : AppCompatActivity() {
                     pendingSample = dst
                     pendingSampleDurMs = r.durMs
                     pendingSampleMime = "audio/wav"
+                    // 逐条时长放后台算（原来在主线程里对每个文件解一次，文件多会卡）
+                    val durs = LongArray(uris.size) { probeUriDuration(uris[it]) }
                     ui {
                         val failNote = if (r.fail > 0) "（" + r.fail + " 个无法解析，已跳过）" else ""
-                        // 逐个列出每个文件的时长，再给合计
                         val each = StringBuilder()
                         for (i in uris.indices) {
-                            val d = probeUriDuration(uris[i])
+                            val d = durs[i]
                             if (i > 0) each.append("   ")
                             each.append("[").append(i + 1).append("] ").append(if (d > 0) fmtDur(d) else "?")
                         }
@@ -1950,9 +2093,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val name = (createNameEt?.text?.toString() ?: "").trim().ifEmpty { prefix }
-        val key = store.apiKey.trim()
+        val key = cloneKey()
         if (key.isEmpty()) {
-            createStatus?.text = "❌ 请先在「设置」里填写 API Key"
+            createStatus?.text = "❌ 请先在「设置 → 模型」填写该厂商的 API Key"
             return
         }
         val ws = store.workspace.trim().ifEmpty { "ws-9y8n1gp7w6pg23tv" }
@@ -2012,13 +2155,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 小工具
+    /**
+     * 玻璃按键底（候选 B，与「保存」同语言）：accent 面 16% + accent 描边 42% + 主题 btnRadius。
+     * 半径取 11dp 而不是 bg_btn 的 10dp —— 刻意避开 Skin 的"圆角猜角色"，免得换肤把它重绘掉。
+     */
+    private fun glassBg(): android.graphics.drawable.Drawable {
+        val c = Skin.colors(this)
+        val r = (Palettes.byId(store.themeId)?.btnRadius ?: 11).toFloat()
+        val face = (c.acc and 0x00FFFFFF) or (0x29 shl 24)     // ~16%
+        val stroke = (c.acc and 0x00FFFFFF) or (0x6B shl 24)   // ~42%
+        return Skin.shapeDp(this, face, stroke, r, 100, 1.5f)
+    }
+
     private fun smallBtn(label: String): TextView {
         val tv = TextView(this)
         tv.text = label
         tv.setTextColor(cTxt)
         tv.textSize = 13f
-        tv.background = ContextCompat.getDrawable(this, R.drawable.bg_btn)
-        tv.setPadding(dp(12), dp(7), dp(12), dp(7))
+        tv.background = glassBg()
+        tv.tag = "bg:keep"          // 玻璃底的圆角 == 主题 btnRadius，会撞上 Skin 的魔法半径 → 明确声明别动
+        tv.setPadding(dp(13), dp(8), dp(13), dp(8))
         tv.isClickable = true
         tv.isFocusable = true
         val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -2080,7 +2236,7 @@ class MainActivity : AppCompatActivity() {
         }
         f.delete()
         if (text.isBlank()) return
-        android.app.AlertDialog.Builder(this)
+        val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("上次运行时出了点问题")
             .setMessage(text.take(600))
             .setPositiveButton("复制错误信息") { _, _ ->
@@ -2089,7 +2245,9 @@ class MainActivity : AppCompatActivity() {
                 toast("已复制，可直接发给我")
             }
             .setNegativeButton("知道了", null)
-            .show()
+            .create()
+        dlg.setOnShowListener { skinDialog(dlg) }
+        dlg.show()
     }
 
     /** 单个 Uri 的时长（音频/视频通用；失败返回 0）—— 给"逐个列出样本时长"用 */

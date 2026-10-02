@@ -116,10 +116,27 @@ class Store(context: Context) {
         get() = prefs.getString("indicatorColor", "#2FE39B") ?: "#2FE39B"
         set(v) { prefs.edit().putString("indicatorColor", v).apply() }
 
-    /** 被隐藏的内置音色 id（内置音色写死在代码里，只能"隐藏"，可恢复） */
+    /**
+     * 已从列表移除的内置音色 id。**首次运行（没存过这个键）默认把预设音色全部隐藏** ——
+     * 对多数人来说那几个预设（苏沐橙/艾丽妮…）没有意义，不该一上手就铺满列表。
+     * 想找回：用「自定义音色 ID」粘贴它的 ID 即可。
+     */
     var hiddenVoices: MutableSet<String>
-        get() = (prefs.getStringSet("hiddenVoices", emptySet()) ?: emptySet()).toMutableSet()
+        get() = prefs.getStringSet("hiddenVoices", null)?.toMutableSet()
+            ?: VoiceCatalog.builtIn.map { it.second }.toMutableSet()
         set(v) { prefs.edit().putStringSet("hiddenVoices", HashSet(v)).apply() }
+
+    /**
+     * 一次性把「预设音色」全部隐藏（新老用户各做一次，做完打标记）。
+     * 为什么不在 getter 里默认：老用户本机已经存过 hiddenVoices，只靠默认值不会生效。
+     */
+    fun hidePresetVoicesOnce() {
+        if (prefs.getBoolean("presetVoicesHiddenV1", false)) return
+        val h = hiddenVoices
+        VoiceCatalog.builtIn.forEach { h.add(it.second) }
+        hiddenVoices = h
+        prefs.edit().putBoolean("presetVoicesHiddenV1", true).apply()
+    }
 
     /** 收藏的合成记录（Take.id 集合） */
     var favTakes: MutableSet<String>
@@ -219,6 +236,16 @@ class Store(context: Context) {
     var cardAlphaPct: Int
         get() = prefs.getInt("cardAlpha", 100)
         set(v) { prefs.edit().putInt("cardAlpha", v).apply() }
+
+    /** 选过的 App 图标样式 key（default / a / b / c） */
+    var appIconStyle: String
+        get() = prefs.getString("appIconStyle", "default") ?: "default"
+        set(v) { prefs.edit().putString("appIconStyle", v).apply() }
+
+    /** 主界面「高级参数」是否展开（记忆上次状态） */
+    var advExpanded: Boolean
+        get() = prefs.getBoolean("advExpanded", false)
+        set(v) { prefs.edit().putBoolean("advExpanded", v).apply() }
 
     fun newAudioFile(ext: String): File =
         File(dir, "vt_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().take(6) + "." + ext)

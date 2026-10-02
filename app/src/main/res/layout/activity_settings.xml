@@ -241,60 +241,114 @@
                     android:orientation="vertical"
                     android:padding="14dp">
 
-                    <!-- 预览台：实时反映 配色 / 壁纸 / 遮罩（玲珑调音的做法） -->
+                    <!-- 快捷图标工坊：App 图标样式 + 桌面入口（仿闪译） -->
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="预览台（实时）" />
-                        <LinearLayout
+                        <TextView style="@style/VtLabel" android:text="App 图标与桌面入口" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="快捷图标工坊"
+                            android:textColor="@color/dim"
+                            android:textSize="13sp" />
+                        <TextView
+                            android:id="@+id/tvIconHint"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:lineSpacingExtra="3dp"
+                            android:text="样式 → 点选即换 App 图标；满意后「创建桌面入口」钉一个独立入口到桌面。"
+                            android:textColor="@color/hint"
+                            android:textSize="11.5sp" />
+
+                        <ImageView
+                            android:id="@+id/ivIconPreview"
+                            android:layout_width="120dp"
+                            android:layout_height="120dp"
+                            android:layout_marginTop="10dp"
+                            android:scaleType="fitCenter" />
+
+                        <TextView style="@style/VtLabel" android:text="样式" />
+                        <LinearLayout
+                            android:id="@+id/llIconStyles"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="horizontal" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:orientation="horizontal">
-                            <com.sideroca.voicetuner.ThemePreviewView
-                                android:id="@+id/preview"
-                                android:layout_width="104dp"
-                                android:layout_height="220dp" />
-                            <LinearLayout
+                            <TextView
+                                android:id="@+id/btnPinEntry"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
                                 android:layout_weight="1"
-                                android:orientation="vertical">
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal">
-                                    <TextView
-                                        android:id="@+id/btnPvMain"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:clickable="true"
-                                        android:focusable="true"
-                                        android:paddingHorizontal="14dp"
-                                        android:paddingVertical="7dp"
-                                        android:text="主界面"
-                                        android:textSize="12.5sp" />
-                                    <TextView
-                                        android:id="@+id/btnPvPage"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="8dp"
-                                        android:clickable="true"
-                                        android:focusable="true"
-                                        android:paddingHorizontal="14dp"
-                                        android:paddingVertical="7dp"
-                                        android:text="设置页"
-                                        android:textSize="12.5sp" />
-                                </LinearLayout>
-                                <TextView
-                                    android:id="@+id/tvPvHint"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="8dp"
-                                    android:lineSpacingExtra="3dp"
-                                    android:text="配色、壁纸、遮罩、卡片浓度都会实时反映到左边这块小屏；下面「壁纸与浓度」拖动即可看到变化。"
-                                    android:textSize="11.5sp" />
-                            </LinearLayout>
+                                android:background="@drawable/bg_btn_primary"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:padding="12dp"
+                                android:text="创建桌面入口"
+                                android:textColor="#FFFFFF"
+                                android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/btnIconReset"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:padding="12dp"
+                                android:text="还原成默认图标"
+                                android:textColor="@color/dim"
+                                android:textSize="14sp" />
                         </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:lineSpacingExtra="3dp"
+                            android:text="或用你自己的图片 + 名字：选图 → 取景（挑照片哪一块）→ 创建桌面独立入口（原应用图标可拖进文件夹隐藏）："
+                            android:textColor="@color/dim"
+                            android:textSize="11.5sp" />
+
+                        <EditText
+                            android:id="@+id/etEntryName"
+                            style="@style/VtInput"
+                            android:hint="桌面入口名称"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true" />
+
+                        <TextView
+                            android:id="@+id/btnPinCustom"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_btn_primary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:padding="12dp"
+                            android:text="选图并创建桌面入口"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:lineSpacingExtra="3dp"
+                            android:text="若点「创建」后没有弹窗：系统设置 → 应用管理 → 玲珑调音 → 权限管理 →「桌面快捷方式」→ 允许，再试一次。"
+                            android:textColor="@color/hint"
+                            android:textSize="11sp" />
                     </LinearLayout>
 
                     <!-- 分类按钮：常驻，不随下面两张卡切换而消失（否则进了"壁纸属性"就回不来） -->
@@ -372,7 +426,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:max="80" />
+                                android:max="100" />
                             <TextView
                                 android:id="@+id/tvScrimMain"
                                 style="@style/VtSliderValue"
@@ -429,7 +483,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:max="80" />
+                                android:max="100" />
                             <TextView
                                 android:id="@+id/tvScrimPage"
                                 style="@style/VtSliderValue"
@@ -520,7 +574,7 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="关于" />
+                        <TextView style="@style/VtLabel" android:text="提示" />
 
                         <TextView
                             android:id="@+id/btnCheckUpdate"
@@ -535,14 +589,13 @@
                             android:text="检查更新"
                             android:textColor="@color/txt"
                             android:textSize="14sp" />
-                        <TextView
+
+                        <!-- 提示内容（分组 + 分隔线；由代码按主题排版） -->
+                        <LinearLayout
+                            android:id="@+id/llTips"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingExtra="3dp"
-                            android:text="玲珑调音 · Prima Tune\n版本 v0.5.7\n\n· 语音合成：已接入 10 家厂商 + 本机系统 TTS + 自定义渠道\n· 音色：内置 4 个 + 自建（声音复刻）\n· 外观：64 套配色 · 指示符颜色 · 壁纸（支持二次截取）\n· 数据：全部只保存在本机，不上传\n\n许可与致谢\n· 界面设计参照《夕汀前端规范》\n· 各第三方模型与名称归各自厂商所有"
-                            android:textColor="@color/dim"
-                            android:textSize="13sp" />
+                            android:orientation="vertical" />
                     </LinearLayout>
 
                     <!-- 开发者联系与支持（仿闪译；整块点一下复制） -->

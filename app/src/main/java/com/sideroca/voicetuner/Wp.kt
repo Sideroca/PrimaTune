@@ -73,7 +73,7 @@ object Wp {
         }
     }
 
-    /** 应用到一个槽位：img 垫底、scrim 遮罩（主题底色 + 浓度 0~80） */
+    /** 应用到一个槽位：img 垫底、scrim 遮罩（主题底色 + 浓度 0~100） */
     fun applySlot(ctx: Context, img: ImageView?, scrim: View?, path: String?, scrimPct: Int, baseColor: Int) {
         if (img == null || scrim == null) return
         if (path.isNullOrEmpty() || !File(path).exists()) {
@@ -97,7 +97,7 @@ object Wp {
             img.tag = key
         }
         img.visibility = View.VISIBLE
-        val a = scrimPct.coerceIn(0, 80) * 255 / 100
+        val a = scrimPct.coerceIn(0, 100) * 255 / 100
         scrim.setBackgroundColor(Color.argb(a, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor)))
         scrim.visibility = if (a == 0) View.GONE else View.VISIBLE
     }

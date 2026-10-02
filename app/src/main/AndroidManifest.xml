@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 钉桌面快捷方式（部分 ROM 会单列一条「桌面快捷方式」权限） -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
     <application
         android:allowBackup="false"
@@ -10,15 +12,63 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VoiceTuner">
 
+        <!-- 主界面本体：不再自己挂发射器入口，交给下面的 activity-alias（切换 App 图标用） -->
         <activity
             android:name=".MainActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 「软件图标样式」：每套样式一个 alias，运行时 enable/disable 切换。
+             默认样式（紫色 styleD）出厂即启用；其余默认关闭。 -->
+        <activity-alias
+            android:name=".IconStyleDefault"
+            android:enabled="true"
             android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name_launcher"
+            android:roundIcon="@mipmap/ic_launcher"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconStyleA"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_a"
+            android:label="@string/app_name_launcher"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconStyleB"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_b"
+            android:label="@string/app_name_launcher"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconStyleC"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_c"
+            android:label="@string/app_name_launcher"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".SettingsActivity"

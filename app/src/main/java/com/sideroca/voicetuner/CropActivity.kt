@@ -23,7 +23,7 @@ import java.io.FileOutputStream
 class CropActivity : AppCompatActivity() {
 
     companion object {
-        const val EXTRA_SLOT = "slot"       // "main" | "page"
+        const val EXTRA_SLOT = "slot"       // "main" | "page" | "icon"
         const val EXTRA_URI = "uri"
         const val EXTRA_PATH = "path"       // 结果：裁好的文件绝对路径
     }
@@ -77,15 +77,18 @@ class CropActivity : AppCompatActivity() {
             setResult(Activity.RESULT_CANCELED)
             finish()
         })
-        bar.addView(mkBtn("确定，用作壁纸") {
-            val out = crop.cropped()
-            if (out == null) {
+        val isIcon = slot == "icon"
+        bar.addView(mkBtn(if (isIcon) "确定，用作图标" else "确定，用作壁纸") {
+            val out0 = crop.cropped()
+            if (out0 == null) {
                 setResult(Activity.RESULT_CANCELED)
                 finish()
             } else {
-                val f = Wp.file(this, slot)     // 与原有壁纸同路径 → 「清除」能删掉，下游逻辑零改动
+                // 图标槽位：1:1 → 烘焙成 512×512；壁纸槽位：与原有壁纸同路径（「清除」能删掉）
+                val out = if (isIcon) Bitmap.createScaledBitmap(out0, 512, 512, true) else out0
+                val f = if (isIcon) File(filesDir, "icon_custom.png") else Wp.file(this, slot)
                 try {
-                    FileOutputStream(f).use { out.compress(Bitmap.CompressFormat.PNG, 95, it) }
+                    FileOutputStream(f).use { out.compress(Bitmap.CompressFormat.PNG, if (isIcon) 100 else 95, it) }
                 } catch (e: Exception) {
                     // ignore
                 }
@@ -102,8 +105,8 @@ class CropActivity : AppCompatActivity() {
 
         setContentView(root)
 
-        // 取景框比例 = 屏幕比例
+        // 取景框比例：图标 = 1:1；壁纸 = 屏幕比例
         val dm = resources.displayMetrics
-        crop.setImage(src, dm.widthPixels.toFloat() / dm.heightPixels.toFloat())
+        crop.setImage(src, if (isIcon) 1f else dm.widthPixels.toFloat() / dm.heightPixels.toFloat())
     }
 }

@@ -161,6 +161,8 @@ object Skin {
     )
 
     private fun repaintBg(v: View, c: Colors, d: Float) {
+        // 自绘/自带底色的按钮：打 tag「bg:keep」让换肤别碰它（文本仍按角色着色）
+        if (v.tag == "bg:keep") return
         val gd = v.background as? GradientDrawable ?: return
         // 按「圆角半径」识别角色（不依赖渐变方向——纯色形状的渐变方向字段也可能非空）
         val r = gd.cornerRadius
