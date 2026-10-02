@@ -434,18 +434,79 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onStartTrackingTouch(bar: SeekBar) {}
-            override fun onStopTrackingTouch(bar: SeekBar) {}
+            override fun onStopTrackingTouch(bar: SeekBar) {
+                // 松手吸附到最近档位（140ms 动画 = 一点点阻尼/咔哒感）
+                val snapped = ((bar.progress + step / 2) / step) * step
+                if (snapped != bar.progress) {
+                    android.animation.ObjectAnimator.ofInt(bar, "progress", snapped)
+                        .setDuration(140).start()
+                    bar.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                }
+                onParamChanged()
+            }
         })
     }
 
-    /** 参数变化后刷新数值显示（沿用原有刷新） */
+    /** 只刷新三根滑条的数字标签（不碰 progress、不换肤 → 不会和拖动打架） */
     private fun onParamChanged() {
-        try {
-            syncVoiceUi()
-        } catch (e: Exception) {
-            // ignore
-        }
+        tvRate.text = fmtNum(0.5 + sbRate.progress * 0.01)
+        tvPitch.text = fmtNum(0.5 + sbPitch.progress * 0.01)
+        tvVol.text = sbVol.progress.toString()
     }
+
+    /** 「自定义音色 ID…」→ 弹一张卡片：① 填厂商那边的音色 ID ② 给它起个中文名 */
+    private fun openCustomIdDialog() {
+        val c = Skin.colors(this)
+        val d = dp(16)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(d, dp(6), d, 0)
+        }
+        val etId = EditText(this).apply {
+            hint = "音色 ID（从厂商网站复制的那串数字/字母）"
+            setSingleLine(true)
+            setText(if (voiceIsCustom) etCustomVoice.text.toString().trim() else "")
+        }
+        val etName = EditText(this).apply {
+            hint = "给它起个名字（可以用中文，例如：我的声音）"
+            setSingleLine(true)
+            setText("")
+        }
+        box.addView(etId, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        box.addView(etName, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("自定义音色")
+            .setView(box)
+            .setPositiveButton("使用") { _, _ ->
+                val id = etId.text.toString().trim()
+                val nm = etName.text.toString().trim()
+                if (id.isEmpty()) {
+                    toast("音色 ID 不能为空")
+                    return@setPositiveButton
+                }
+                val name = nm.ifEmpty { "自定义音色" }
+                // 存进"自建音色"列表（这样它能出现在下拉里，也能在「管理音色」里改名/删除）
+                if (customVoices.none { it.id == id }) {
+                    customVoices.add(CustomVoice(id, name, "", System.currentTimeMillis()))
+                    store.saveCustomVoices(customVoices)
+                }
+                openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
+                etCustomVoice.setText(id)
+                setVoice(id)
+                syncVoiceUi()
+                toast("已使用：" + name)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        dlg.setOnShowListener {
+            dlg.window?.setDimAmount(0.28f)
+            dlg.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(c.acc)
+            dlg.getButton(DialogInterface.BUTTON_NEGATIVE)?.setTextColor(c.dim)
+        }
+        dlg.show()
+    }
+
     private fun syncVoiceUi() {
         // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
         val ok = TtsModels.supports(store.providerId, store.lastModel, "rate")
@@ -484,7 +545,7 @@ class MainActivity : AppCompatActivity() {
         tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
         if (voiceIsCustom) {
             etCustomVoice.visibility = View.VISIBLE
-            tvVoiceNote.text = "粘贴完整音色 ID（cosyvoice-v3.5-plus-…）"
+            tvVoiceNote.text = "粘贴完整音色 ID"
         } else {
             etCustomVoice.visibility = View.GONE
             tvVoiceNote.text = cur?.note ?: ""
@@ -1187,7 +1248,7 @@ class MainActivity : AppCompatActivity() {
         if (all.any { it.id == take.voiceId }) {
             setVoice(take.voiceId)
         } else {
-            voiceIsCustom = true
+            openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
             etCustomVoice.setText(take.voiceId)
             syncVoiceUi()
         }
@@ -1283,6 +1344,44 @@ class MainActivity : AppCompatActivity() {
             row.isClickable = true
             row.isFocusable = true
             row.setOnClickListener { onClick() }
+            // 长按 = 快速删除（自建真删 / 内置隐藏，二者都能在「管理音色」里找回）
+            row.setOnLongClickListener {
+                if (id == null) return@setOnLongClickListener false
+                val v = allVoices().firstOrNull { it.id == id }
+                    ?: return@setOnLongClickListener false
+                val cv = customVoices.firstOrNull { it.id == id }
+                val dlg = AlertDialog.Builder(this)
+                    .setTitle(if (cv != null) "删除这个音色？" else "隐藏这个音色？")
+                    .setMessage(
+                        if (cv != null) "「" + v.name + "」会从列表里移除（只影响本机）。"
+                        else "「" + v.name + "」是内置音色，会从列表里隐藏，随时可在「管理音色…」里恢复。"
+                    )
+                    .setPositiveButton(if (cv != null) "删除" else "隐藏") { _, _ ->
+                        if (cv != null) {
+                            customVoices.removeAll { it.id == cv.id }
+                            store.saveCustomVoices(customVoices)
+                            if (voiceIsCustom && currentVoiceId == cv.id) {
+                                voiceIsCustom = false
+                                allVoices().firstOrNull()?.let { setVoice(it.id) }
+                            }
+                        } else {
+                            val h = store.hiddenVoices
+                            h.add(v.id)
+                            store.hiddenVoices = h
+                            if (currentVoiceId == v.id) {
+                                allVoices().firstOrNull { it.id != v.id }?.let { setVoice(it.id) }
+                            }
+                        }
+                        pop?.dismiss()
+                        syncVoiceUi()
+                        toast(if (cv != null) "已删除" else "已隐藏（可在「管理音色…」恢复）")
+                    }
+                    .setNegativeButton("取消", null)
+                    .create()
+                dlg.setOnShowListener { dlg.window?.setDimAmount(0.28f) }
+                dlg.show()
+                true
+            }
             listBox.addView(row)
         }
 
@@ -1300,7 +1399,7 @@ class MainActivity : AppCompatActivity() {
 
         for (v in all) addRow(v.name, v.id, c.txt) { switchTo(v.id) }
         addRow(customLabel, null, c.dim) {
-            voiceIsCustom = true
+            openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
             syncVoiceUi()
             pop?.dismiss()
         }

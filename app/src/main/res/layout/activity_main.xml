@@ -121,7 +121,7 @@
             <EditText
                 android:id="@+id/etCustomVoice"
                 style="@style/VtInput"
-                android:hint="粘贴完整音色 ID（cosyvoice-v3.5-plus-…）"
+                android:hint="粘贴完整音色 ID"
                 android:importantForAutofill="no"
                 android:inputType="text"
                 android:singleLine="true"
@@ -347,7 +347,7 @@
                 <EditText
                     android:id="@+id/etModel"
                     style="@style/VtInput"
-                    android:hint="cosyvoice-v3.5-plus"
+                    android:hint="模型 ID（如 cosyvoice-v3.5-plus）"
                     android:importantForAutofill="no"
                     android:inputType="text"
                     android:singleLine="true" />
@@ -552,7 +552,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.5.5 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v0.5.6 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

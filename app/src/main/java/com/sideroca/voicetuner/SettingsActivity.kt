@@ -338,6 +338,8 @@ class SettingsActivity : AppCompatActivity() {
             val tv = TextView(this)
             tv.text = p.name
             tv.textSize = 12.5f
+            tv.isSingleLine = true          // 关键：chip 内部不许换行（"自定义渠道"原来被折成两行）
+            tv.maxLines = 1
             tv.setPadding(dp(12), dp(7), dp(12), dp(7))
             tv.background = Skin.shapeDp(this, c.card2, c.line, 96f, 100, 1f)
             tv.setTextColor(c.dim)
@@ -944,7 +946,7 @@ class SettingsActivity : AppCompatActivity() {
         if (model.isNotEmpty() || p.models.isEmpty()) {
             if (p.models.isNotEmpty() || saved.isBlank()) etModel.setText(model)
         }
-        etModel.hint = if (p.models.isEmpty()) "填服务商文档里的模型名" else "cosyvoice-v3.5-plus"
+        etModel.hint = if (p.models.isEmpty()) "填服务商文档里的模型名" else "该厂商的模型 ID"
 
         // 业务空间那栏：百炼 = workspace；MiniMax = GroupId（同一栏复用）
         val needGroup = isBailian || p.shape == "minimax"
