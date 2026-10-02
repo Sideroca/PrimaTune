@@ -574,7 +574,7 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="提示" />
+                        <TextView style="@style/VtLabel" android:text="关于" />
 
                         <TextView
                             android:id="@+id/btnCheckUpdate"

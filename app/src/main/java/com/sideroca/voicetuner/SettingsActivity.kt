@@ -1380,7 +1380,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
         renderIconStyleChips()
         updateIconPreview()
-        if (tell) toast("已切换 App 图标：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key))
+        if (tell) {
+            toast("已切换 App 图标：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key))
+            // 关掉旧 alias 会让系统结束当前任务（看起来像"闪退回桌面"）→ 立刻用新别名把 App 拉回前台
+            try {
+                val cn = android.content.ComponentName(packageName, packageName + (aliases[key] ?: ".IconStyleDefault"))
+                startActivity(
+                    Intent().setComponent(cn)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                )
+            } catch (e: Exception) {
+                // 拉不回来也不致命，图标已经切好了
+            }
+        }
     }
 
     /** 钉一个桌面入口（用当前样式的图标） */

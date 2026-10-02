@@ -60,13 +60,22 @@ object ExtraTts {
     // ------------------------------------------------------------------ Fish Audio
     fun fish(
         baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback,
-        model: String = ""
+        model: String = "", rate: Double = 1.0, volume: Int = 50
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/v1/tts"
+        // 官方 prosody：speed 0.5~2.0（正好对上我们的语速 0.5~2.0）、volume -20~20（我们的 0~100 线性映射）
+        val sp = rate.coerceIn(0.5, 2.0)
+        val vol = (volume.coerceIn(0, 100) / 100.0) * 40.0 - 20.0
         val body = JSONObject().apply {
             put("text", text)
             put("format", "wav")     // 官方支持 wav，无损
             if (voice.isNotBlank()) put("reference_id", voice)
+            if (kotlin.math.abs(sp - 1.0) > 0.001 || kotlin.math.abs(vol) > 0.001) {
+                put("prosody", JSONObject().apply {
+                    put("speed", sp)
+                    put("volume", vol)
+                })
+            }
         }
         // 【实测】不带 model header 会走付费模型并返回 402；免费档必须显式带这个 header
         val m = model.ifBlank { "s2.1-pro-free" }

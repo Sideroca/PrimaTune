@@ -62,6 +62,7 @@ object TtsModels {
             return when (prov?.shape) {
                 "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
                 "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
+                "fish" -> param == "rate" || param == "volume"                           // prosody.speed / prosody.volume
                 "openai", "xai" -> param == "instruction" || param == "rate"             // instructions + speed
                 else -> false
             }
@@ -81,8 +82,11 @@ object TtsModels {
         if (!viaBailian) {
             val mini = prov?.shape == "minimax"
             val oai = prov?.shape == "openai" || prov?.shape == "xai"
+            val fish = prov?.shape == "fish"
             return when {
                 mini -> "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
+                fish -> "「Fish Audio」支持 文本 / 音色 / 模型 + 语速 / 音量（prosody.speed / prosody.volume）；" +
+                    "音调该端点没有对应字段（不适用）；种子、SSML 已置灰"
                 oai -> "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
                     "音调、音量该端点不保证生效（要传就写进「额外参数」）；种子、SSML 不适用"
                 else -> "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +

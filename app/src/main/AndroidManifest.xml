@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 钉桌面快捷方式（部分 ROM 会单列一条「桌面快捷方式」权限） -->
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <!-- 后台保活：复刻/合成可能要等几十秒，切后台别被冻结 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -79,6 +83,11 @@
             android:name=".CropActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <service
+            android:name=".KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

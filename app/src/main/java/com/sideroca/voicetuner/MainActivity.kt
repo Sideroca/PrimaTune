@@ -231,6 +231,13 @@ class MainActivity : AppCompatActivity() {
         }
         installCrashGuard()
         showCrashIfAny()
+        // Android 13+ 前台服务的通知需要这个权限（不给也不影响服务运行）
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            runCatching { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 77) }
+        }
         applyLook()
     }
 
@@ -845,6 +852,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         busy = true
+        KeepAliveService.start(this, "正在合成语音…（可以切到后台等）")
         btnGenerate.isEnabled = false
         btnGenerate.alpha = 0.55f
         btnCancel.visibility = View.VISIBLE
@@ -871,7 +879,10 @@ class MainActivity : AppCompatActivity() {
                     req.text, req.rate, req.pitch, req.volume, cb
                 )
             } else if (prov.shape == "fish") {
-                ExtraTts.fish(store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model)
+                ExtraTts.fish(
+                    store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model,
+                    req.rate, req.volume
+                )
             } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
                 val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
@@ -995,6 +1006,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun finishBusy() {
         busy = false
+        KeepAliveService.stop(this)
         btnGenerate.isEnabled = true
         btnGenerate.alpha = 1f
         btnCancel.visibility = View.GONE
@@ -2096,6 +2108,9 @@ class MainActivity : AppCompatActivity() {
         posBtn?.isEnabled = false
         createStatus?.text = "编码样本…"
 
+        // 复刻可能要好几十秒：前台服务把进程钉住，切后台也不断
+        KeepAliveService.start(this, "正在克隆音色…（可以切到后台等）")
+
         Thread {
             try {
                 // 非百炼：目前只有 Fish Audio 支持复刻（multipart 上传参考音频；不用前缀）
@@ -2113,6 +2128,7 @@ class MainActivity : AppCompatActivity() {
                         setVoice(vid)
                         syncVoiceUi()
                         if (createDlg?.isShowing == true) createDlg?.dismiss()
+                        KeepAliveService.stop(this)
                         toast("音色已创建（Fish Audio）")
                     }
                     return@Thread
@@ -2128,17 +2144,20 @@ class MainActivity : AppCompatActivity() {
                         setVoice(vid)
                         syncVoiceUi()
                         if (createDlg?.isShowing == true) createDlg?.dismiss()
+                        KeepAliveService.stop(this)
                         toast("✅ 音色已创建：" + name)
                         tvStatus.text = "✅ 音色已创建并选中：" + name
                     }
                 }, onError = { msg ->
                     ui {
+                        KeepAliveService.stop(this)
                         createStatus?.text = "❌ " + msg
                         posBtn?.isEnabled = true
                     }
                 })
             } catch (e: Exception) {
                 ui {
+                    KeepAliveService.stop(this)
                     createStatus?.text = "❌ " + (e.message ?: "创建失败")
                     posBtn?.isEnabled = true
                 }
