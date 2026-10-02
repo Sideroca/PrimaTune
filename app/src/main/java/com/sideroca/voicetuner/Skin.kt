@@ -109,8 +109,15 @@ object Skin {
         when (v) {
             is SeekBar -> {
                 v.progressTintList = ColorStateList.valueOf(c.acc)
-                v.thumbTintList = ColorStateList.valueOf(c.acc)
                 v.progressBackgroundTintList = ColorStateList.valueOf(c.line)
+                // 自绘实心圆滑块：默认 thumb 在部分 ROM/新系统上会渲染成中空环
+                val dd = v.resources.displayMetrics.density
+                v.thumb = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(c.acc)
+                    setSize((16f * dd).toInt(), (16f * dd).toInt())
+                }
+                v.thumbTintList = null
             }
             is EditText -> {
                 textRole(v)?.let { paintText(v, it, c) }

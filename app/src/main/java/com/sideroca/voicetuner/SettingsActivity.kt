@@ -149,8 +149,8 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 分页 + 坞
 
-    private val pageTitles = listOf("模型", "音色", "主题", "记录", "关于")
-    private val dockDefs = listOf("模型", "音色", "主题", "记录", "关于")
+    private val pageTitles = listOf("模型", "音色", "主题", "记录", "提示")
+    private val dockDefs = listOf("模型", "音色", "主题", "记录", "提示")
     /** 坞图标：手绘矢量（统一 24dp 画布/线宽），跨机型一致、跟主题变色 */
     private val dockIconRes = intArrayOf(
         R.drawable.ic_tab_model, R.drawable.ic_tab_voice, R.drawable.ic_tab_theme,
@@ -299,57 +299,65 @@ class SettingsActivity : AppCompatActivity() {
     private fun buildProviders() {
         llProviders.removeAllViews()
         val c = Skin.colors(this)
-        // 不规则排列：每行个数 3/2/3/2/3…，并给每行一点左偏移，避免"整整齐齐一排排"
-        val perRow = intArrayOf(3, 2, 3, 2, 3, 2)
-        val leftShift = intArrayOf(0, 22, 8, 30, 12, 26)
-        val rowStart = ArrayList<Int>()
-        var acc = 0
-        for (n in perRow) {
-            if (acc >= TtsProviders.all.size) break
-            rowStart.add(acc)
-            acc += n
+        // 自适应换行：按 chip 实测宽度装箱，保证每行都放得下（原来固定 3/2/3 会顶出卡片、最后一个被切）
+        val dm = resources.displayMetrics
+        val avail = dm.widthPixels - dp(14f) * 2 - dp(14f) * 2 - dp(6f)   // 屏幕 - 页面边距 - 卡片内边距
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 12.5f * dm.scaledDensity
         }
-        var row: LinearLayout? = null
-        TtsProviders.all.forEachIndexed { i, p ->
-            if (rowStart.contains(i)) {
-                val ri = rowStart.indexOf(i)
-                row = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin = dp(8)
-                        leftMargin = dp(leftShift.getOrElse(ri) { 0 })
-                    }
-                }
+        val gap = dp(8f)
+        var rowNo = 0
+        var row: LinearLayout = newProvRow(rowNo)
+        var used = 0
+        llProviders.addView(row)
+        for (p in TtsProviders.all) {
+            val w = paint.measureText(p.name).toInt() + dp(12f) * 2
+            if (used > 0 && used + gap + w > avail - dp(provShift(rowNo))) {
+                rowNo++
+                row = newProvRow(rowNo)
                 llProviders.addView(row)
+                used = 0
             }
             val sel = p.id == store.providerId
             val tv = TextView(this)
             tv.text = p.name
             tv.textSize = 12.5f
-            tv.isSingleLine = true          // 关键：chip 内部不许换行（"自定义渠道"原来被折成两行）
+            tv.isSingleLine = true          // 关键：chip 内部不许换行
             tv.maxLines = 1
             tv.isSelected = sel
-            tv.setPadding(dp(12), dp(7), dp(12), dp(7))
+            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
             tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) c.acc else c.line, 96f, 100, 1f)
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener {
-                // 点厂商 chip = 选这家（原来 chips 只是摆设、点了没反应）
+                // 点厂商 chip = 选这家
                 store.providerId = p.id
                 etProvider.setText(TtsProviders.display(p), false)
                 applyProvider(p.id)
                 buildProviders()
             }
-            row?.addView(
+            row.addView(
                 tv,
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { rightMargin = dp(8) }
+                ).apply { rightMargin = gap }
             )
+            used += w + gap
+        }
+    }
+
+    /** 厂商 chip 每行的左偏移（保留"不规则排列"的味道，但不再溢出） */
+    private fun provShift(i: Int): Float = floatArrayOf(0f, 22f, 8f, 30f, 12f, 26f)[i % 6]
+
+    private fun newProvRow(i: Int): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = dp(8f)
+            leftMargin = dp(provShift(i))
         }
     }
 
@@ -523,7 +531,15 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-        takes.forEach { t ->
+        takes.forEachIndexed { idx, t ->
+            if (idx > 0) {
+                val dv = View(this)
+                dv.setBackgroundColor((c.line and 0x00FFFFFF) or (0x66 shl 24))
+                dv.layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(1f)
+                ).apply { topMargin = dp(4f); bottomMargin = dp(2f) }
+                llRecords.addView(dv)
+            }
             val box = LinearLayout(this)
             box.orientation = LinearLayout.VERTICAL
             box.setPadding(0, dp(10f), 0, dp(10f))
@@ -901,7 +917,9 @@ class SettingsActivity : AppCompatActivity() {
         )
         etProvider.threshold = 1
         val cur = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
-        etProvider.setText(TtsProviders.display(cur), false)
+        // 当前厂商放在 hint 里（灰色提示），正文留空 —— 免得每次想输入都要先删掉
+        etProvider.hint = TtsProviders.display(cur)
+        etProvider.setText("", false)
         applyProvider(cur.id)
         // 关键：在厂商框里"直接打字"也要立刻切换（否则模型清单还是上一家的，输入 s 出来的是千问的模型）
         etProvider.addTextChangedListener(object : android.text.TextWatcher {
@@ -1089,7 +1107,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val typed = etProvider.text.toString().trim()
         val typedId = TtsProviders.idOf(typed)
         val normTyped = typed.lowercase().filter { !it.isWhitespace() }
-        val resolved = TtsProviders.byId(typedId)
+        // 厂商栏留空 = 不改动当前厂商（否则空串会"包含匹配"到第一家）
+        val resolved = if (typedId.isEmpty() && normTyped.isEmpty()) null
+        else TtsProviders.byId(typedId)
             ?: TtsProviders.all.firstOrNull {
                 TtsProviders.display(it).lowercase().filter { c -> !c.isWhitespace() }.contains(normTyped) ||
                     it.id.lowercase().contains(normTyped)
@@ -1447,10 +1467,10 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             llTips.addView(v)
         }
         label("使用提示")
-        line("① 「模型」页选厂商、填 API Key（本机「系统 TTS」免 Key）", c.dim)
-        line("② 选音色；没有合适的就「＋ 建音色」上传样本做声音复刻", c.dim)
-        line("③ 输入文本 → 生成；记录卡支持「播放 / 回填 / 重抽 / 分享 / 下载」", c.dim)
-        line("④ 外观：主题页 64 套配色 + 壁纸二次截取；「App 图标与桌面入口」可换图标、钉桌面入口", c.dim)
+        line("1. 到模型页选厂商、填 API Key，本机系统 TTS 免 Key", c.dim)
+        line("2. 选音色；没有合适的就点 ＋ 建音色，上传样本做声音复刻", c.dim)
+        line("3. 输入文本 → 生成；记录卡可播放、回填、分享、下载", c.dim)
+        line("4. 外观在主题页：64 套配色、壁纸二次截取；App 图标与桌面入口可换图标、钉桌面入口", c.dim)
         divider()
         label("关于")
         val ver = try {
@@ -1460,10 +1480,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         line("· 语音合成：10 家厂商 + 本机系统 TTS + 自定义渠道", c.dim)
         line("· 音色：预制音色（默认隐藏）+ 自建（声音复刻）", c.dim)
         line("· 数据：全部只保存在本机，不上传", c.dim)
-        divider()
-        label("许可与致谢")
-        line("· 界面设计参照《夕汀前端规范》", c.dim)
-        line("· 各第三方模型与名称归各自厂商所有", c.dim)
     }
 
     /** 危险色（删除）：不写死一个红 —— 浅色主题用更深、深色主题提亮，保证对比 */

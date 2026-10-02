@@ -22,7 +22,8 @@ object OpenAiCompatTts {
         text: String,
         instruction: String?,
         cb: SynthCallback,
-        cfg: TtsProviders.Cfg = TtsProviders.Cfg()
+        cfg: TtsProviders.Cfg = TtsProviders.Cfg(),
+        rate: Double = 1.0                       // 语速：OpenAI 兼容端点是 speed
     ): Cancellable {
         var cancelled = false
         val th = Thread {
@@ -47,6 +48,7 @@ object OpenAiCompatTts {
                         put("voice", voice.ifBlank { "alloy" })
                         put("response_format", "wav")     // 优先 wav；不支持的家会报错，届时再按需改 mp3
                         if (!instruction.isNullOrBlank()) put("instructions", instruction)
+                        if (kotlin.math.abs(rate - 1.0) > 0.001) put("speed", rate)
                     }
                 }
 

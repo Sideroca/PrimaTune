@@ -881,7 +881,8 @@ class MainActivity : AppCompatActivity() {
                         path = store.providerPath(prov.id),
                         auth = store.providerAuth(prov.id),
                         resp = store.providerResp(prov.id)
-                    )
+                    ),
+                    rate = req.rate
                 )
             }
             else
@@ -1264,7 +1265,6 @@ class MainActivity : AppCompatActivity() {
         row.addView(hs)
 
         val bPlay = smallBtn("▶ 播放")
-        val bRe = smallBtn("↻ 重抽")
         val bFill = smallBtn("回填")
         val bDown = smallBtn("下载")
         // 收藏星：手绘矢量（不再用 ☆/★ 字形——字形太小、且会被系统字体染成杂色）
@@ -1279,7 +1279,7 @@ class MainActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { rightMargin = dp(8) }
         val starIcon = StarView(this)          // 自绘：绕开 tint/ColorFilter 不生效的问题
-        starIcon.layoutParams = LinearLayout.LayoutParams(dp(17), dp(17))
+        starIcon.layoutParams = LinearLayout.LayoutParams(dp(15), dp(15))   // 比原来小 10%
         bStar.addView(starIcon)
         val starLabel = TextView(this)
         starLabel.textSize = 13f                       // 与旁边按钮同字号
@@ -1290,13 +1290,6 @@ class MainActivity : AppCompatActivity() {
         val bShare = smallBtn("分享")
 
         bPlay.setOnClickListener { toggleTake(take) }
-        // 重抽 = 回填参数 + 换新种子 + 立刻生成（原来要 回填→🎲→生成 三步）
-        bRe.setOnClickListener {
-            fillFrom(take)
-            etSeed.setText((0..65535).random().toString())
-            toast("已换新种子重抽")
-            generate(null)
-        }
         bFill.setOnClickListener {
             fillFrom(take)
             toast("已回填参数")
@@ -1351,7 +1344,6 @@ class MainActivity : AppCompatActivity() {
         bShare.setOnClickListener { shareTake(take) }
 
         btnRow.addView(bPlay)
-        btnRow.addView(bRe)
         btnRow.addView(bFill)
         btnRow.addView(bDown)
         btnRow.addView(bStar)
@@ -1367,7 +1359,7 @@ class MainActivity : AppCompatActivity() {
         row.addView(prog)
 
         // 点按反馈：这些小按钮都在卡片里 → 带"留痕"
-        listOf(bPlay, bRe, bFill, bDown, bStar, bShare).forEach { fx(it, row) }
+        listOf(bPlay, bFill, bDown, bStar, bShare).forEach { fx(it, row) }
         fx(x)
 
         rowRefs.add(RowRef(take, bPlay, prog))

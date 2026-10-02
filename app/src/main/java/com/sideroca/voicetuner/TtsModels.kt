@@ -62,7 +62,7 @@ object TtsModels {
             return when (prov?.shape) {
                 "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
                 "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
-                "openai", "xai" -> param == "instruction"                                // 仅 OpenAI 系有 instructions
+                "openai", "xai" -> param == "instruction" || param == "rate"             // instructions + speed
                 else -> false
             }
         }
