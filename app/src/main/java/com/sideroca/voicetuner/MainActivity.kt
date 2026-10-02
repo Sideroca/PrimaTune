@@ -468,7 +468,7 @@ class MainActivity : AppCompatActivity() {
             setText(if (voiceIsCustom) etCustomVoice.text.toString().trim() else "")
         }
         val etName = EditText(this).apply {
-            hint = "给它起个名字（可以用中文，例如：我的声音）"
+            hint = "自定义名字"
             setSingleLine(true)
             setText("")
         }
@@ -478,7 +478,7 @@ class MainActivity : AppCompatActivity() {
         val dlg = AlertDialog.Builder(this)
             .setTitle("自定义音色")
             .setView(box)
-            .setPositiveButton("使用") { _, _ ->
+            .setPositiveButton("导入") { _, _ ->
                 val id = etId.text.toString().trim()
                 val nm = etName.text.toString().trim()
                 if (id.isEmpty()) {
@@ -499,11 +499,7 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
-        dlg.setOnShowListener {
-            dlg.window?.setDimAmount(0.28f)
-            dlg.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(c.acc)
-            dlg.getButton(DialogInterface.BUTTON_NEGATIVE)?.setTextColor(c.dim)
-        }
+        dlg.setOnShowListener { skinDialog(dlg) }   // 跟随主题（原来没接换肤，弹窗是默认深灰）
         dlg.show()
     }
 
@@ -1127,7 +1123,7 @@ class MainActivity : AppCompatActivity() {
 
         // ✕ 的判定范围：宽度保持 48dp，高度向下延伸到"卡片高度的一半"（长方形、随卡片变化）
         row.post {
-            val half = row.height / 2
+            val half = maxOf(dp(48), title.height)   // 用正文高度（不依赖 row，避免循环撑高）
             if (half > dp(48)) {
                 (x.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { lp ->
                     lp.height = half
@@ -1351,12 +1347,9 @@ class MainActivity : AppCompatActivity() {
                     ?: return@setOnLongClickListener false
                 val cv = customVoices.firstOrNull { it.id == id }
                 val dlg = AlertDialog.Builder(this)
-                    .setTitle(if (cv != null) "删除这个音色？" else "隐藏这个音色？")
-                    .setMessage(
-                        if (cv != null) "「" + v.name + "」会从列表里移除（只影响本机）。"
-                        else "「" + v.name + "」是内置音色，会从列表里隐藏，随时可在「管理音色…」里恢复。"
-                    )
-                    .setPositiveButton(if (cv != null) "删除" else "隐藏") { _, _ ->
+                    .setTitle("删除这个音色？")
+                    .setMessage("「" + v.name + "」将从列表里移除。")   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
+                    .setPositiveButton("删除") { _, _ ->
                         if (cv != null) {
                             customVoices.removeAll { it.id == cv.id }
                             store.saveCustomVoices(customVoices)
@@ -1378,7 +1371,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     .setNegativeButton("取消", null)
                     .create()
-                dlg.setOnShowListener { dlg.window?.setDimAmount(0.28f) }
+                dlg.setOnShowListener { skinDialog(dlg) }   // 跟随主题
                 dlg.show()
                 true
             }
