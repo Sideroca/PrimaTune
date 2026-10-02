@@ -70,8 +70,10 @@ object TtsModels {
         }
         val m = byId(modelId) ?: return true          // 未知模型（复刻 id 等）不误伤
         return when (param) {
-            // 语速/音调/音量/种子/SSML 只有 ws 系（CosyVoice / Qwen-Audio-TTS）吃
+            // 数值参数只有 ws 系（CosyVoice / Qwen-Audio-TTS）吃
             "rate", "pitch", "volume", "seed", "hotfix", "extra", "ssml" -> m.transport == "ws"
+            // 风格指令：ws 系都支持；http 系只有 Instruct 版模型支持（别给普通 Qwen-TTS 放行，会被拒）
+            "instruction" -> m.transport == "ws" || m.family.contains("Instruct", ignoreCase = true)
             // 其余（含 langhints）：http 系的 Qwen-TTS 也支持 language_type，别误伤
             else -> true
         }
@@ -101,9 +103,10 @@ object TtsModels {
             }
         }
         val m = byId(modelId) ?: return ""
-        return if (m.transport == "http")
-            "当前模型（" + m.family + "）不吃 语速 / 音调 / 音量 / 种子；" +
-                "可调「语言提示」（对应 language_type）与「风格指令」（instructions）"
-        else ""
+        return if (m.transport == "http") {
+            val instr = m.family.contains("Instruct", ignoreCase = true)
+            "当前模型（" + m.family + "）不吃 语速 / 音调 / 音量 / 种子；可调「语言提示」（language_type）" +
+                if (instr) "与「风格指令」（instructions）" else "；「风格指令」只有 Instruct 版支持（已置灰）"
+        } else ""
     }
 }

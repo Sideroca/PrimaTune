@@ -4,6 +4,8 @@
 直连阿里云百炼 CosyVoice v3.5-plus 复刻音色，无任何中转服务器。
 
 ## 当前版本
+**v0.5.16**：把「不支持就置灰」这件事**彻底自动化** —— 新增**控件 → 参数声明表**（`gatedControls`）：每个输入控件写明自己对应哪个参数，亮/灰**只由 `TtsModels.supports(厂商, 模型, 参数)` 那一张表决定**。以后接新厂商 / 新模型，**只改 TtsModels 一处，界面零改动**。顺带修掉「三个滑条共用同一个判断」的粗粒度（Fish 支持语速/音量、不支持音调 → 现在**分别**置灰），并补上精确判定：种子只有 ws 系吃；「风格指令」在百炼 http 系里**只有 Instruct 版模型**才放行（普通 Qwen-TTS 填了会被拒）。
+
 **v0.5.15**：把上一轮"没接"的三处补齐 —— ① **MiMo 小米**：官方要求**待合成文本必须放在 `assistant` 消息**里（之前放在 `user`，所以它一直是"待真机验证"状态），风格/语速等自然语言指令放 `user`；现在「情绪 / 风格指令」真的传过去了，并按官方补上 `audio.format / audio.voice`；② **阶跃 StepFun**：新增 `volume`（扩展参数，1.0 = 正常，音量滑条 50 对应 1.0）＋ 它家风格指令字段名是 **`instruction`**（不是 `instructions`，之前发错名字 → 等于没生效）；③ **Fish Audio** 与 **OpenAI 系 / 自定义渠道**：把「额外参数（JSON）」**按厂商合并进请求体**（不覆盖已有字段）—— Fish 的 `temperature / top_p / repetition_penalty / normalize`、阶跃的 `text_normalization / voice_label / pronunciation_map` 都能这样传；输入框标签同步改为「按厂商合并进请求体」。
 
 **v0.5.14**：逐家核对官方文档，又修两处「被误判」——① **ElevenLabs 支持语速**（官方 `voice_settings.speed` 0.7~1.2，超出自动夹边界），之前被置灰；② **百炼 Qwen-TTS（http 系）的语言提示**：官方支持 `language_type`，`QwenTtsClient` 也一直在发，但界面把「语言提示」跟其它「高级参数」一起置灰了 —— 现在单独判定。顺带核实：**Groq `speed`(0.5~5)**、**阶跃 StepFun 语速 0.5~2** 都支持（v0.5.13 放开语速是对的）；**MiMo / Gemini 确实没有**数值化的语速/音调/音量（MiMo 靠自然语言指令控风格）→ 保持置灰。

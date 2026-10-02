@@ -155,6 +155,22 @@ class MainActivity : AppCompatActivity() {
     private var modelTouched = false
     private var suppressModelWatch = false
 
+    /**
+     * **控件 → 参数名** 的声明表：某个输入控件该不该置灰，完全由这张表 + [TtsModels.supports] 决定。
+     * 以后接新厂商 / 新模型，只改 TtsModels 里那张表即可 —— 界面代码零改动。
+     */
+    private val gatedControls: List<Pair<Int, String>> = listOf(
+        R.id.sbRate to "rate", R.id.tvRate to "rate",
+        R.id.sbPitch to "pitch", R.id.tvPitch to "pitch",
+        R.id.sbVol to "volume", R.id.tvVol to "volume",
+        R.id.etSeed to "seed", R.id.btnDice to "seed",
+        R.id.etInstr to "instruction",
+        R.id.etLangHints to "langhints",
+        R.id.etHotfix to "hotfix",
+        R.id.etExtra to "extra",
+        R.id.cbSsml to "ssml"
+    )
+
     /** 本地记录的音色筛选（null = 全部）；仅本次运行有效 */
     private var filterVoiceId: String? = null
 
@@ -589,16 +605,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun syncVoiceUi() {
         // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
-        val ok = TtsModels.supports(store.providerId, store.lastModel, "rate")
         val note = TtsModels.unsupportedNote(store.providerId, store.lastModel)
-        val a = if (ok) 1f else 0.4f
         // 一律按 View 取（View 本身就有 isEnabled/alpha）—— 之前按具体类型强取，
         // 遇到 id 实际是别的控件（如语言提示栏其实是 TextView）会 ClassCastException 崩在启动路径上
-        listOf(R.id.sbRate, R.id.sbPitch, R.id.sbVol).forEach { id ->
-            findViewById<View>(id)?.apply { isEnabled = ok; alpha = a }
-        }
-        listOf(R.id.tvRate, R.id.tvPitch, R.id.tvVol).forEach { id ->
-            findViewById<View>(id)?.alpha = a
+        gatedControls.forEach { (id, param) ->
+            val ok = TtsModels.supports(store.providerId, store.lastModel, param)
+            findViewById<View>(id)?.apply { isEnabled = ok; alpha = if (ok) 1f else 0.4f }
         }
         // 「+ 建音色」：当前厂商不支持复刻就置灰（避免点了白等）
         val canClone = TtsProviders.byId(store.providerId)?.canClone == true
@@ -614,21 +626,6 @@ class MainActivity : AppCompatActivity() {
             }
             text = if (noKey) "还没配置任何厂商：进「设置 → 模型」选厂商、填 Key 就能用。\n本机「系统 TTS」不需要 Key，也可以直接选它先试一句。" else note
             visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
-        }
-        // 高级参数里同样按"厂商/模型"置灰：语言提示 / hotfix / 额外参数 / SSML
-        val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
-        // 「语言提示」单独判：http 系的 Qwen-TTS 也支持 language_type（别跟着其它高级参数一起置灰）
-        val langOk = TtsModels.supports(store.providerId, store.lastModel, "langhints")
-        listOf(R.id.etHotfix, R.id.cbSsml).forEach { id ->
-            findViewById<View>(id)?.apply { isEnabled = advOk; alpha = a }
-        }
-        // 「额外参数」是给各家传"文档里有、界面没做控件"的字段用的 → 单独判（Fish / OpenAI 系 / 自定义渠道都能用）
-        val extraOk = TtsModels.supports(store.providerId, store.lastModel, "extra")
-        findViewById<View>(R.id.etExtra)?.apply {
-            isEnabled = extraOk; alpha = if (extraOk) 1f else 0.4f
-        }
-        findViewById<View>(R.id.etLangHints)?.apply {
-            isEnabled = langOk; alpha = if (langOk) 1f else 0.4f
         }
         val all = allVoices()
         val cur = all.firstOrNull { it.id == currentVoiceId }
