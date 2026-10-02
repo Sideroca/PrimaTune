@@ -258,10 +258,13 @@ class MainActivity : AppCompatActivity() {
         etSeed = findViewById(R.id.etSeed)
         btnDice = findViewById(R.id.btnDice)
         sbRate = findViewById(R.id.sbRate)
+        ratchet(sbRate, 5)        // 语速：0.05 一档
         tvRate = findViewById(R.id.tvRate)
         sbPitch = findViewById(R.id.sbPitch)
+        ratchet(sbPitch, 5)       // 音调：0.05 一档
         tvPitch = findViewById(R.id.tvPitch)
         sbVol = findViewById(R.id.sbVol)
+        ratchet(sbVol, 2)        // 音量：2% 一档
         tvVol = findViewById(R.id.tvVol)
         spFormat = findViewById(R.id.spFormat)
         tvAdvanced = findViewById(R.id.tvAdvanced)
@@ -412,6 +415,37 @@ class MainActivity : AppCompatActivity() {
         etLangHints.setOnClickListener { openLangPicker() }
     }
 
+    /**
+     * 给滑条装"棘轮卡位"：拖动时吸附到 step 的整数倍 + 每过一档给一次轻震。
+     * 语速/音调：progress 0~100 → 值 0.5~1.5，step=5 即 0.05 一档（21 档）；
+     * 音量：0~100，step=2 即 2% 一档（51 档）。
+     */
+    private fun ratchet(sb: SeekBar, step: Int) {
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                val snapped = ((progress + step / 2) / step) * step
+                if (snapped != progress) {
+                    bar.progress = snapped
+                    return
+                }
+                bar.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                onParamChanged()
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar) {}
+            override fun onStopTrackingTouch(bar: SeekBar) {}
+        })
+    }
+
+    /** 参数变化后刷新数值显示（沿用原有刷新） */
+    private fun onParamChanged() {
+        try {
+            syncVoiceUi()
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
     private fun syncVoiceUi() {
         // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
         val ok = TtsModels.supports(store.providerId, store.lastModel, "rate")
