@@ -617,8 +617,13 @@ class MainActivity : AppCompatActivity() {
         }
         // 高级参数里同样按"厂商/模型"置灰：语言提示 / hotfix / 额外参数 / SSML
         val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
-        listOf(R.id.etLangHints, R.id.etHotfix, R.id.etExtra, R.id.cbSsml).forEach { id ->
+        // 「语言提示」单独判：http 系的 Qwen-TTS 也支持 language_type（别跟着其它高级参数一起置灰）
+        val langOk = TtsModels.supports(store.providerId, store.lastModel, "langhints")
+        listOf(R.id.etHotfix, R.id.etExtra, R.id.cbSsml).forEach { id ->
             findViewById<View>(id)?.apply { isEnabled = advOk; alpha = a }
+        }
+        findViewById<View>(R.id.etLangHints)?.apply {
+            isEnabled = langOk; alpha = if (langOk) 1f else 0.4f
         }
         val all = allVoices()
         val cur = all.firstOrNull { it.id == currentVoiceId }
@@ -872,7 +877,10 @@ class MainActivity : AppCompatActivity() {
             } else if (prov.shape == "mimo") {
                 ExtraTts2.mimo(store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb)
             } else if (prov.shape == "elevenlabs") {
-                ExtraTts.eleven(store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb)
+                ExtraTts.eleven(
+                    store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb,
+                    req.rate
+                )
             } else if (prov.shape == "minimax") {
                 ExtraTts.minimax(
                     store.providerBaseUrl(prov.id), provKey, store.workspace, req.model, req.voice,

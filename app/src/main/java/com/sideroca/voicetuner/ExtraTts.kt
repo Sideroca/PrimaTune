@@ -16,7 +16,8 @@ object ExtraTts {
     // ------------------------------------------------------------------ ElevenLabs
     fun eleven(
         baseUrl: String, apiKey: String, voice: String, model: String,
-        text: String, stability: Double, similarity: Double, cb: SynthCallback
+        text: String, stability: Double, similarity: Double, cb: SynthCallback,
+        rate: Double = 1.0
     ): Cancellable {
         val v = voice.ifBlank { "21m00Tcm4TlvDq8ikWAM" }        // 官方公开示例音色 Rachel
         val url = baseUrl.trimEnd('/') + "/v1/text-to-speech/" + v + "?output_format=pcm_24000"   // 它没有 wav 容器 → 要裸 PCM，本地套头（无损）"
@@ -26,6 +27,8 @@ object ExtraTts {
             put("voice_settings", JSONObject().apply {
                 put("stability", stability)
                 put("similarity_boost", similarity)
+                // 官方 speed 只认 0.7~1.2，超出会自动夹到边界
+                if (kotlin.math.abs(rate - 1.0) > 0.001) put("speed", rate.coerceIn(0.7, 1.2))
             })
         }
         // 返回的是 24k 裸 PCM → 本地套 44 字节 WAV 头

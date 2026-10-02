@@ -63,14 +63,16 @@ object TtsModels {
                 "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
                 "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
                 "fish" -> param == "rate" || param == "volume"                           // prosody.speed / prosody.volume
+                "elevenlabs" -> param == "rate"                                          // voice_settings.speed (0.7~1.2)
                 "openai", "xai" -> param == "instruction" || param == "rate"             // instructions + speed
                 else -> false
             }
         }
         val m = byId(modelId) ?: return true          // 未知模型（复刻 id 等）不误伤
         return when (param) {
-            "rate", "pitch", "volume", "seed", "hotfix", "extra", "ssml", "langhints" ->
-                m.transport == "ws"
+            // 语速/音调/音量/种子/SSML 只有 ws 系（CosyVoice / Qwen-Audio-TTS）吃
+            "rate", "pitch", "volume", "seed", "hotfix", "extra", "ssml" -> m.transport == "ws"
+            // 其余（含 langhints）：http 系的 Qwen-TTS 也支持 language_type，别误伤
             else -> true
         }
     }
@@ -87,6 +89,8 @@ object TtsModels {
                 mini -> "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
                 fish -> "「Fish Audio」支持 文本 / 音色 / 模型 + 语速 / 音量（prosody.speed / prosody.volume）；" +
                     "音调该端点没有对应字段（不适用）；种子、SSML 已置灰"
+                prov?.shape == "elevenlabs" -> "「ElevenLabs」支持 文本 / 音色 / 模型 + 语速（voice_settings.speed，官方 0.7~1.2，超出自动夹边界）；" +
+                    "音调、音量不适用"
                 oai -> "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
                     "音调、音量该端点不保证生效（要传就写进「额外参数」）；种子、SSML 不适用"
                 else -> "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
@@ -95,7 +99,8 @@ object TtsModels {
         }
         val m = byId(modelId) ?: return ""
         return if (m.transport == "http")
-            "当前模型（" + m.family + "）不支持 语速 / 音调 / 音量 / 种子 —— 想调风格请用「风格指令」（instructions）"
+            "当前模型（" + m.family + "）不吃 语速 / 音调 / 音量 / 种子；" +
+                "可调「语言提示」（对应 language_type）与「风格指令」（instructions）"
         else ""
     }
 }
