@@ -104,11 +104,11 @@ class SettingsActivity : AppCompatActivity() {
         cardPalette = findViewById(R.id.cardPalette)
         cardIndicator = findViewById(R.id.cardIndicator)
         cardWallpaper = findViewById(R.id.cardWallpaper)
-        setupIconWorkshop()
         ivIconPreview = findViewById(R.id.ivIconPreview)
         llIconStyles = findViewById(R.id.llIconStyles)
         etEntryName = findViewById(R.id.etEntryName)
         llTips = findViewById(R.id.llTips)
+        setupIconWorkshop()      // 必须放在上面几个 findViewById 之后（否则 lateinit 未初始化 → 崩）
 
         buildCatChips()
         renderPalettes()
