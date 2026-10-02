@@ -10,6 +10,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -70,6 +71,55 @@ class CropActivity : AppCompatActivity() {
             return tv
         }
 
+        // 缩放滑条（100–400%）＋「重置适配」——《夕汀前端规范》§2.2 要求，之前漏了
+        val zoomBar = LinearLayout(this)
+        zoomBar.orientation = LinearLayout.HORIZONTAL
+        zoomBar.gravity = Gravity.CENTER_VERTICAL
+        zoomBar.setPadding((20 * d).toInt(), 0, (20 * d).toInt(), 0)
+
+        val zLabel = TextView(this)
+        zLabel.text = "缩放"
+        zLabel.textSize = 13f
+        zLabel.setTextColor(0xFFCCCCCC.toInt())
+        zoomBar.addView(zLabel)
+
+        val zSeek = SeekBar(this)
+        zSeek.max = 300                       // 0..300 → 100%..400%
+        zSeek.progress = 0
+        zoomBar.addView(
+            zSeek,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = (10 * d).toInt(); marginEnd = (10 * d).toInt() }
+        )
+
+        val zVal = TextView(this)
+        zVal.text = "100%"
+        zVal.textSize = 13f
+        zVal.setTextColor(0xFFFFFFFF.toInt())
+        zoomBar.addView(zVal)
+
+        val btnReset = mkBtn("重置适配") { crop.resetFit() }
+        btnReset.textSize = 13f
+        zoomBar.addView(btnReset)
+
+        var syncing = false
+        crop.onZoom = { k ->
+            syncing = true
+            zSeek.progress = (((k - 1f) * 100f).toInt()).coerceIn(0, 300)
+            zVal.text = Math.round(k * 100).toString() + "%"
+            syncing = false
+        }
+        zSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (syncing) return
+                val k = 1f + progress / 100f
+                zVal.text = Math.round(k * 100).toString() + "%"
+                crop.setZoom(k)
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
         val bar = LinearLayout(this)
         bar.orientation = LinearLayout.HORIZONTAL
         bar.gravity = Gravity.CENTER
@@ -96,6 +146,13 @@ class CropActivity : AppCompatActivity() {
                 finish()
             }
         })
+        val zlp = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        zlp.gravity = Gravity.BOTTOM
+        zlp.bottomMargin = (84 * d).toInt()
+        root.addView(zoomBar, zlp)
+
         val blp = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )

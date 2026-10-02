@@ -58,6 +58,11 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llIconStyles: LinearLayout
     private lateinit var etEntryName: EditText
     private lateinit var llTips: LinearLayout
+    private lateinit var etRecSearch: EditText
+    private lateinit var llRecTop: LinearLayout
+    /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
+    private var recVoiceId: String? = null
+    private var recQuery: String = ""
 
     private var cat = "modern"
     /** 配色列表是否展开全部（懒建：默认只建前 20 套） */
@@ -108,6 +113,17 @@ class SettingsActivity : AppCompatActivity() {
         llIconStyles = findViewById(R.id.llIconStyles)
         etEntryName = findViewById(R.id.etEntryName)
         llTips = findViewById(R.id.llTips)
+        etRecSearch = findViewById(R.id.etRecSearch)
+        llRecTop = findViewById(R.id.llRecTop)
+        // 搜索：只重建列表，不重建顶部（否则输入框会被顶掉、光标丢失）
+        etRecSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                recQuery = s?.toString().orEmpty()
+                renderRecList()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
         setupIconWorkshop()      // 必须放在上面几个 findViewById 之后（否则 lateinit 未初始化 → 崩）
 
         buildCatChips()
@@ -488,41 +504,103 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页：是否只看收藏 */
     private var recOnlyFav = false
 
+    /** 记录页 = 顶部筛选（搜索框在布局里，这里只建 chip）＋ 列表；两者分开建，搜索时不重建顶部 */
     private fun buildRecords() {
-        llRecords.removeAllViews()
+        buildRecTop()
+        renderRecList()
+    }
+
+    private fun recVoiceName(id: String): String =
+        VoiceCatalog.builtIn.firstOrNull { it.second == id }?.first
+            ?: store.loadCustomVoices().firstOrNull { it.id == id }?.name
+            ?: store.loadTakes().firstOrNull { it.voiceId == id }?.voiceName
+            ?: "自定义音色"
+
+    private fun buildRecTop() {
+        llRecTop.removeAllViews()
         val c = Skin.colors(this)
-        val all = store.loadTakes()
+        val takesAll = store.loadTakes()
         val favs = store.favTakes
 
-        // 顶部筛选：全部 / ★ 收藏
-        val bar = LinearLayout(this)
-        bar.orientation = LinearLayout.HORIZONTAL
-        bar.setPadding(0, 0, 0, dp(2f))
-        fun chip(label: String, on: Boolean, tap: () -> Unit) {
+        fun chipRow(): LinearLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(2f), 0, dp(2f))
+        }
+        fun addChip(row: LinearLayout, label: String, on: Boolean, tap: () -> Unit) {
             val tv = TextView(this)
             tv.text = label
             tv.textSize = 12.5f
+            tv.isSingleLine = true
+            tv.maxLines = 1
+            tv.isSelected = on
             tv.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
-            tv.background = Skin.shapeDp(
-                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f
-            )
+            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener { tap() }
-            bar.addView(tv, LinearLayout.LayoutParams(
+            row.addView(tv, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { rightMargin = dp(8f) })
         }
-        chip("全部", !recOnlyFav) { recOnlyFav = false; buildRecords() }
-        chip("★ 收藏（" + favs.size + "）", recOnlyFav) { recOnlyFav = true; buildRecords() }
-        llRecords.addView(bar)
 
-        val takes = if (recOnlyFav) all.filter { it.id in favs } else all
+        val r1 = chipRow()
+        addChip(r1, "全部", !recOnlyFav && recVoiceId == null) {
+            recOnlyFav = false; recVoiceId = null; buildRecords()
+        }
+        addChip(r1, "★ 收藏（" + favs.size + "）", recOnlyFav) {
+            recOnlyFav = true; recVoiceId = null; buildRecords()
+        }
+        llRecTop.addView(r1)
+
+        // 角色筛选：列出记录里出现过的音色（横向可滚，避免 chip 太多撑破卡片）
+        val ids = LinkedHashSet<String>()
+        for (tk in takesAll) if (tk.voiceId.isNotBlank()) ids.add(tk.voiceId)
+        if (ids.isNotEmpty()) {
+            val hs = android.widget.HorizontalScrollView(this)
+            hs.isHorizontalScrollBarEnabled = false
+            val r2 = chipRow()
+            for (id in ids) {
+                addChip(r2, recVoiceName(id), recVoiceId == id) {
+                    recVoiceId = if (recVoiceId == id) null else id
+                    recOnlyFav = false
+                    buildRecords()
+                }
+            }
+            hs.addView(r2)
+            llRecTop.addView(hs)
+        }
+    }
+
+    /** 列表：按 收藏 / 角色 / 搜索词（关键词·角色·日期）过滤后渲染 */
+    private fun renderRecList() {
+        llRecords.removeAllViews()
+        val c = Skin.colors(this)
+        val favs = store.favTakes
+        var takes: List<Take> = store.loadTakes()
+        if (recOnlyFav) takes = takes.filter { it.id in favs }
+        recVoiceId?.let { vid -> takes = takes.filter { it.voiceId == vid } }
+        val q = recQuery.trim().lowercase()
+        if (q.isNotEmpty()) {
+            val long = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+            val short = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+            takes = takes.filter { tk ->
+                tk.text.lowercase().contains(q) ||
+                    tk.voiceName.lowercase().contains(q) ||
+                    tk.instruction.lowercase().contains(q) ||
+                    long.format(java.util.Date(tk.createdAt)).contains(q) ||
+                    short.format(java.util.Date(tk.createdAt)).contains(q)
+            }
+        }
         if (takes.isEmpty()) {
             val tv = TextView(this)
-            tv.text = if (recOnlyFav) "还没有收藏的记录（点记录右边的星星即可收藏）" else "暂无记录"
+            tv.text = when {
+                q.isNotEmpty() -> "没有匹配的记录（换个关键词或日期试试）"
+                recOnlyFav -> "还没有收藏的记录（点记录右边的星星即可收藏）"
+                recVoiceId != null -> "该音色暂无记录"
+                else -> "暂无记录"
+            }
             tv.setTextColor(c.dim)
             tv.textSize = 13f
             tv.setPadding(0, dp(10f), 0, 0)

@@ -549,6 +549,18 @@
 
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="本地记录（主页那份也保留）" />
+                        <EditText
+                            android:id="@+id/etRecSearch"
+                            style="@style/VtInput"
+                            android:hint="搜索：关键词 / 角色 / 日期（如 10-02）"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true" />
+                        <LinearLayout
+                            android:id="@+id/llRecTop"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
                         <LinearLayout
                             android:id="@+id/llRecords"
                             android:layout_width="match_parent"

@@ -40,6 +40,33 @@ class CropView @JvmOverloads constructor(
     }
     private val frame = RectF()
 
+    /** 缩放变化回调（供外面的滑条同步；pinch 也会触发） */
+    var onZoom: ((Float) -> Unit)? = null
+
+    /** 当前缩放（1.0 = "适配填满"的 100%） */
+    fun zoomRatio(): Float = if (minSc <= 0f) 1f else sc / minSc
+
+    /** 设置缩放：1.0 = 100%，上限 400%（规范 §2.2 缩放滑条 100–400%） */
+    fun setZoom(k: Float) {
+        if (bmp == null || frame.width() <= 0f) return
+        val old = sc
+        sc = minSc * k.coerceIn(1f, 4f)
+        val f = if (old > 0f) sc / old else 1f
+        val cx = frame.centerX()
+        val cy = frame.centerY()
+        tx = cx - (cx - tx) * f
+        ty = cy - (cy - ty) * f
+        clamp()
+        invalidate()
+        onZoom?.invoke(zoomRatio())
+    }
+
+    /** 重置适配：回到"填满取景框 + 居中" */
+    fun resetFit() {
+        fit()
+        onZoom?.invoke(zoomRatio())
+    }
+
     fun setImage(b: Bitmap, frameAspect: Float) {
         bmp = b
         aspect = if (frameAspect > 0.1f) frameAspect else 0.474f
@@ -120,6 +147,7 @@ class CropView @JvmOverloads constructor(
                     lastX = e.x; lastY = e.y
                 }
                 clamp(); invalidate()
+                onZoom?.invoke(zoomRatio())
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
