@@ -80,11 +80,14 @@ object TtsModels {
         val viaBailian = prov == null || prov.shape == "dashscope"
         if (!viaBailian) {
             val mini = prov?.shape == "minimax"
-            return if (mini)
-                "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
-            else
-                "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
+            val oai = prov?.shape == "openai" || prov?.shape == "xai"
+            return when {
+                mini -> "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
+                oai -> "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
+                    "音调、音量该端点不保证生效（要传就写进「额外参数」）；种子、SSML 不适用"
+                else -> "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
                     "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
+            }
         }
         val m = byId(modelId) ?: return ""
         return if (m.transport == "http")
