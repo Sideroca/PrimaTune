@@ -619,8 +619,13 @@ class MainActivity : AppCompatActivity() {
         val advOk = TtsModels.supports(store.providerId, store.lastModel, "hotfix")
         // 「语言提示」单独判：http 系的 Qwen-TTS 也支持 language_type（别跟着其它高级参数一起置灰）
         val langOk = TtsModels.supports(store.providerId, store.lastModel, "langhints")
-        listOf(R.id.etHotfix, R.id.etExtra, R.id.cbSsml).forEach { id ->
+        listOf(R.id.etHotfix, R.id.cbSsml).forEach { id ->
             findViewById<View>(id)?.apply { isEnabled = advOk; alpha = a }
+        }
+        // 「额外参数」是给各家传"文档里有、界面没做控件"的字段用的 → 单独判（Fish / OpenAI 系 / 自定义渠道都能用）
+        val extraOk = TtsModels.supports(store.providerId, store.lastModel, "extra")
+        findViewById<View>(R.id.etExtra)?.apply {
+            isEnabled = extraOk; alpha = if (extraOk) 1f else 0.4f
         }
         findViewById<View>(R.id.etLangHints)?.apply {
             isEnabled = langOk; alpha = if (langOk) 1f else 0.4f
@@ -875,7 +880,10 @@ class MainActivity : AppCompatActivity() {
             } else if (prov.shape == "gemini") {
                 ExtraTts2.gemini(provKey, req.model, req.voice, req.text, cb)
             } else if (prov.shape == "mimo") {
-                ExtraTts2.mimo(store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb)
+                ExtraTts2.mimo(
+                    store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb,
+                    req.instruction, req.voice
+                )
             } else if (prov.shape == "elevenlabs") {
                 ExtraTts.eleven(
                     store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb,
@@ -889,7 +897,7 @@ class MainActivity : AppCompatActivity() {
             } else if (prov.shape == "fish") {
                 ExtraTts.fish(
                     store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model,
-                    req.rate, req.volume
+                    req.rate, req.volume, extra
                 )
             } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
@@ -899,9 +907,11 @@ class MainActivity : AppCompatActivity() {
                     TtsProviders.Cfg(
                         path = store.providerPath(prov.id),
                         auth = store.providerAuth(prov.id),
-                        resp = store.providerResp(prov.id)
+                        resp = store.providerResp(prov.id),
+                        extra = extra
                     ),
-                    rate = req.rate
+                    rate = req.rate,
+                    volume = req.volume
                 )
             }
             else

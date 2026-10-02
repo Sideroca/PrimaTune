@@ -23,7 +23,8 @@ object OpenAiCompatTts {
         instruction: String?,
         cb: SynthCallback,
         cfg: TtsProviders.Cfg = TtsProviders.Cfg(),
-        rate: Double = 1.0                       // 语速：OpenAI 兼容端点是 speed
+        rate: Double = 1.0,                      // 语速：OpenAI 兼容端点是 speed
+        volume: Int = 50                         // 音量：目前只有阶跃用（扩展参数 volume）
     ): Cancellable {
         var cancelled = false
         val th = Thread {
@@ -47,8 +48,17 @@ object OpenAiCompatTts {
                         put("input", text)
                         put("voice", voice.ifBlank { "alloy" })
                         put("response_format", "wav")     // 优先 wav；不支持的家会报错，届时再按需改 mp3
-                        if (!instruction.isNullOrBlank()) put("instructions", instruction)
+                        // 风格指令：OpenAI 系叫 instructions；阶跃（StepFun）叫 instruction
+                        if (!instruction.isNullOrBlank()) {
+                            if (provider.id == "step") put("instruction", instruction)
+                            else put("instructions", instruction)
+                        }
                         if (kotlin.math.abs(rate - 1.0) > 0.001) put("speed", rate)
+                        // 阶跃的音量在扩展参数里（1.0 = 正常）；50 是默认值，没动就不发
+                        if (provider.id == "step" && volume != 50) {
+                            put("volume", (volume.coerceIn(0, 100) / 50.0).coerceIn(0.1, 3.0))
+                        }
+                        ExtraTts.mergeInto(this, cfg.extra)
                     }
                 }
 

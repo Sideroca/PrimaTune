@@ -374,7 +374,7 @@
                     android:inputType="textMultiLine"
                     android:minLines="2" />
 
-                <TextView style="@style/VtLabel" android:text="额外参数（JSON，合并进 parameters）" />
+                <TextView style="@style/VtLabel" android:text="额外参数（JSON，按厂商合并进请求体）" />
 
                 <EditText
                     android:id="@+id/etExtra"
@@ -552,7 +552,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.5.14 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v0.5.15 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

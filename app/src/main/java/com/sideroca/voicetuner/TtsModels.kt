@@ -62,9 +62,9 @@ object TtsModels {
             return when (prov?.shape) {
                 "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
                 "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
-                "fish" -> param == "rate" || param == "volume"                           // prosody.speed / prosody.volume
+                "fish" -> param == "rate" || param == "volume" || param == "extra"       // prosody + 高级参数
                 "elevenlabs" -> param == "rate"                                          // voice_settings.speed (0.7~1.2)
-                "openai", "xai" -> param == "instruction" || param == "rate"             // instructions + speed
+                "openai", "xai" -> param == "instruction" || param == "rate" || param == "extra"  // instructions/speed（阶跃另有 instruction/volume）
                 else -> false
             }
         }
@@ -87,12 +87,15 @@ object TtsModels {
             val fish = prov?.shape == "fish"
             return when {
                 mini -> "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
-                fish -> "「Fish Audio」支持 文本 / 音色 / 模型 + 语速 / 音量（prosody.speed / prosody.volume）；" +
-                    "音调该端点没有对应字段（不适用）；种子、SSML 已置灰"
+                fish -> "「Fish Audio」支持 文本 / 音色 / 模型 + 语速 / 音量（prosody）；" +
+                    "temperature / top_p / repetition_penalty / normalize 等写进「额外参数」；音调不适用"
                 prov?.shape == "elevenlabs" -> "「ElevenLabs」支持 文本 / 音色 / 模型 + 语速（voice_settings.speed，官方 0.7~1.2，超出自动夹边界）；" +
                     "音调、音量不适用"
-                oai -> "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
-                    "音调、音量该端点不保证生效（要传就写进「额外参数」）；种子、SSML 不适用"
+                oai -> if (prov?.id == "step")
+                    "「Step 阶跃」支持 文本 / 音色 / 模型 + 语速 / 音量 / 风格指令；" +
+                        "text_normalization、voice_label、pronunciation_map 等写进「额外参数」"
+                else "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
+                    "音调、音量该端点不保证生效（其它字段可写进「额外参数」）；种子、SSML 不适用"
                 else -> "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
                     "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
             }

@@ -91,7 +91,8 @@ object TtsProviders {
     data class Cfg(
         val path: String = "",                 // 端点路径，空 = openai→/audio/speech，xai→/tts
         val auth: String = "",                 // 鉴权头模板，空 = "Authorization: Bearer {key}"
-        val resp: String = "binary"            // binary | base64:<json路径> | url
+        val resp: String = "binary",           // binary | base64:<json路径> | url
+        val extra: org.json.JSONObject? = null // 「额外参数」按厂商合并进请求体
     )
 
     fun byId(id: String?): P? = if (id.isNullOrBlank()) null else all.firstOrNull { it.id == id }

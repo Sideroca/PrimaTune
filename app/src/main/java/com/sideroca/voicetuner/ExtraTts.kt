@@ -13,6 +13,16 @@ import java.net.URL
  */
 object ExtraTts {
 
+    /** 把「额外参数（JSON）」合并进请求体；**不覆盖**已存在字段（避免把 text/model 之类冲掉） */
+    fun mergeInto(target: JSONObject, extra: JSONObject?) {
+        extra ?: return
+        val it = extra.keys()
+        while (it.hasNext()) {
+            val k = it.next()
+            if (!target.has(k)) target.put(k, extra.get(k))
+        }
+    }
+
     // ------------------------------------------------------------------ ElevenLabs
     fun eleven(
         baseUrl: String, apiKey: String, voice: String, model: String,
@@ -63,7 +73,7 @@ object ExtraTts {
     // ------------------------------------------------------------------ Fish Audio
     fun fish(
         baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback,
-        model: String = "", rate: Double = 1.0, volume: Int = 50
+        model: String = "", rate: Double = 1.0, volume: Int = 50, extra: JSONObject? = null
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/v1/tts"
         // 官方 prosody：speed 0.5~2.0（正好对上我们的语速 0.5~2.0）、volume -20~20（我们的 0~100 线性映射）
@@ -79,6 +89,8 @@ object ExtraTts {
                     put("volume", vol)
                 })
             }
+            // temperature / top_p / repetition_penalty / normalize 等高级参数：写进「额外参数」即可
+            mergeInto(this, extra)
         }
         // 【实测】不带 model header 会走付费模型并返回 402；免费档必须显式带这个 header
         val m = model.ifBlank { "s2.1-pro-free" }

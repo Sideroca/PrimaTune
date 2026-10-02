@@ -129,18 +129,24 @@ object ExtraTts2 {
     }
 
     // ------------------------------------------------------------ MiMo（messages 形状）
-    fun mimo(baseUrl: String, apiKey: String, model: String, text: String, cb: SynthCallback): Cancellable {
+    fun mimo(
+        baseUrl: String, apiKey: String, model: String, text: String, cb: SynthCallback,
+        instruction: String? = null, voice: String = ""
+    ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/chat/completions"
         val body = JSONObject().apply {
             put("model", model.ifBlank { "MiMo-V2.5-TTS" })
-            put(
-                "messages", JSONArray().put(
-                    JSONObject().apply {
-                        put("role", "user")
-                        put("content", text)
-                    }
-                )
-            )
+            val msgs = JSONArray()
+            // 官方：**待合成文本必须放在 assistant**；风格/语速等自然语言指令放在 user（可选）
+            if (!instruction.isNullOrBlank()) {
+                msgs.put(JSONObject().apply { put("role", "user"); put("content", instruction) })
+            }
+            msgs.put(JSONObject().apply { put("role", "assistant"); put("content", text) })
+            put("messages", msgs)
+            put("audio", JSONObject().apply {
+                put("format", "wav")
+                if (voice.isNotBlank()) put("voice", voice)
+            })
         }
         // 官方文档只说明"返回 base64"，具体字段名待验证 → 用"全 JSON 找最长 base64"兜底
         return postJson(url, mapOf("Authorization" to "Bearer " + apiKey), body, cb, null, wrapPcm = false)
