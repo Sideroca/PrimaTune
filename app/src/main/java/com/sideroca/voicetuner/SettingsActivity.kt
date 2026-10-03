@@ -504,6 +504,26 @@ class SettingsActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 记录页
 
     /** 记录页：分享这条记录（FileProvider，别的 App 可直接收） */
+    private var pendingSaveFile2: java.io.File? = null
+    private val REQ_SAVE2 = 2010
+
+    /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
+    private fun exportHistory(t: Take) {
+        val f = store.fileOf(t)
+        if (!f.exists()) { Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show(); return }
+        pendingSaveFile2 = f
+        val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = if (f.name.endsWith("mp3")) "audio/mpeg" else "audio/wav"
+            putExtra(Intent.EXTRA_TITLE, niceFileName(t))
+        }
+        try {
+            startActivityForResult(i, REQ_SAVE2)
+        } catch (e: Exception) {
+            Toast.makeText(this, "无法打开保存对话框：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun shareHistory(t: Take) {
         try {
             val f = store.fileOf(t)
@@ -820,18 +840,7 @@ class SettingsActivity : AppCompatActivity() {
             val bar2 = LinearLayout(this)
             bar2.orientation = LinearLayout.HORIZONTAL
 
-            val share = TextView(this)
-            share.text = "分享"
-            share.setTextColor(c.dim)
-            share.textSize = 11.5f
-            share.setPadding(0, dp(6f), dp(16f), dp(2f))
-            share.isClickable = true
-            share.isFocusable = true
-            fx(share)
-            share.setOnClickListener { shareHistory(t) }
-            bar2.addView(share)
-
-            // 试听（记录页也要有）
+            // 顺序按用户要求：▶播放 · 下载 · 分享 · ★收藏 · 回填（最右）
             val play = TextView(this)
             play.text = "▶ 播放"
             play.setTextColor(c.dim)
@@ -842,6 +851,28 @@ class SettingsActivity : AppCompatActivity() {
             fx(play)
             play.setOnClickListener { playHistory(t) }
             bar2.addView(play)
+
+            val down = TextView(this)
+            down.text = "下载"
+            down.setTextColor(c.dim)
+            down.textSize = 11.5f
+            down.setPadding(0, dp(6f), dp(16f), dp(2f))
+            down.isClickable = true
+            down.isFocusable = true
+            fx(down)
+            down.setOnClickListener { exportHistory(t) }
+            bar2.addView(down)
+
+            val share = TextView(this)
+            share.text = "分享"
+            share.setTextColor(c.dim)
+            share.textSize = 11.5f
+            share.setPadding(0, dp(6f), dp(16f), dp(2f))
+            share.isClickable = true
+            share.isFocusable = true
+            fx(share)
+            share.setOnClickListener { shareHistory(t) }
+            bar2.addView(share)
 
             val star = LinearLayout(this)
             star.orientation = LinearLayout.HORIZONTAL
@@ -862,7 +893,7 @@ class SettingsActivity : AppCompatActivity() {
                 val fav = t.id in store.favTakes
                 starIcon.colorSolid = c.dim
                 starIcon.filled = fav
-                starLabel.text = "收藏"                 // 文字恒定，只有星星上色/变实心
+                starLabel.text = "收藏"
                 starLabel.setTextColor(c.dim)
             }
             refreshStar()
@@ -874,6 +905,22 @@ class SettingsActivity : AppCompatActivity() {
                 refreshStar()
             }
             bar2.addView(star)
+
+            // 回填（最右）：把这条记录回填到**主页**的表单（跨页交接，回去即生效）
+            val fill = TextView(this)
+            fill.text = "回填"
+            fill.setTextColor(c.dim)
+            fill.textSize = 11.5f
+            fill.setPadding(0, dp(6f), 0, dp(2f))
+            fill.isClickable = true
+            fill.isFocusable = true
+            fx(fill)
+            fill.setOnClickListener {
+                store.pendingFillId = t.id
+                toast("已回填到主页")
+                finish()          // 回主页 → onResume 里自动应用
+            }
+            bar2.addView(fill)
 
             box.addView(bar2)
 
@@ -1423,6 +1470,24 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
+
+        // 记录页「下载」：写进用户选的位置
+        if (requestCode == REQ_SAVE2) {
+            val uri = data?.data
+            val f = pendingSaveFile2
+            if (uri != null && f != null) {
+                try {
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        f.inputStream().use { it.copyTo(out) }
+                    }
+                    Toast.makeText(this, "已保存：" + f.name, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this, "保存失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+                }
+            }
+            pendingSaveFile2 = null
+            return
+        }
 
         // ① 系统选图回来 → 先进「二次截取」页，让你决定要哪一块
         if (requestCode == REQ_ICON_PICK) {

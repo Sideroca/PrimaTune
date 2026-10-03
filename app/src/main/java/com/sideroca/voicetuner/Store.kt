@@ -285,6 +285,11 @@ class Store(context: Context) {
         get() = prefs.getString("llmExtra", "") ?: ""
         set(v) { prefs.edit().putString("llmExtra", v).apply() }
 
+    /** 跨页回填：设置页点了「回填」→ 记下这条记录 id，主页 onResume 时取走并应用 */
+    var pendingFillId: String
+        get() = prefs.getString("pendingFillId", "") ?: ""
+        set(v) { prefs.edit().putString("pendingFillId", v).apply() }
+
     /** 上次翻译成功的免费源（google / mm），下次优先用它 */
     var trLastSource: String
         get() = prefs.getString("trLastSource", "") ?: ""

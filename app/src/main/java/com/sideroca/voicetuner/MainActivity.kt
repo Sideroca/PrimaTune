@@ -268,6 +268,16 @@ class MainActivity : AppCompatActivity() {
         applyLook()
         // 设置页可能删/改过记录、音色、隐藏列表 → 以 Store 为准整表重载（Store = 唯一数据源）
         reloadFromStore()
+        // 设置页点了「回填」→ 在这里应用（跨页交接）
+        val pendingFill = store.pendingFillId
+        if (pendingFill.isNotBlank()) {
+            store.pendingFillId = ""
+            takes.firstOrNull { it.id == pendingFill }?.let {
+                fillFrom(it)
+                svRoot.smoothScrollTo(0, 0)
+                toast("已回填参数")
+            }
+        }
         // 设置页改过「默认 model」且用户没在高级参数里手改过 → 同步过来（不覆盖用户输入）
         if (!modelTouched) setModelField(store.lastModel)
         val ek = effectiveKey()
