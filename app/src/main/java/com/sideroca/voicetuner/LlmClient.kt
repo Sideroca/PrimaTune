@@ -41,11 +41,8 @@ object LlmClient {
 """.trimIndent()
 
     /** 翻译用的默认系统提示词；{target} 会被替换成目标语言 */
-    val DEFAULT_TRANS_PROMPT: String = """
-你是专业翻译引擎。把用户给的内容翻译成 {target}：
-- 只输出译文本身，不要解释、不要加引号、不要客套；
-- 保留原文的分段与语气；遇到俚语、粗口、成人内容也照实翻译，不审查、不说教、不省略。
-""".trimIndent()
+    val DEFAULT_TRANS_PROMPT: String =
+        "把用户给的内容翻译成 {target}。只输出译文，不要输出任何其他内容。"
 
     /** 发送：system = 系统提示词，user = 本次上下文；成功回调 (文本, null) */
     fun ask(

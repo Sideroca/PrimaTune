@@ -69,7 +69,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llPolishCfg: LinearLayout
     private lateinit var btnTabVoice: TextView
     private lateinit var btnTabPolish: TextView
-    private lateinit var llLlmProviders: LinearLayout
+    private lateinit var etLlmProvider: android.widget.AutoCompleteTextView
     private lateinit var llLlmLevels: LinearLayout
     private lateinit var etLlmMaxTokens: EditText
     private lateinit var etLlmTemp: EditText
@@ -77,6 +77,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnLlmTest: TextView
     private lateinit var tvLlmTest: TextView
     /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
+    /** 当前在语音页还是润色页（换主题时需要按它重新上色） */
+    private var cfgTabVoice = true
     private var recVoiceId: String? = null
     private var recQuery: String = ""
 
@@ -145,7 +147,8 @@ class SettingsActivity : AppCompatActivity() {
         llPolishCfg = findViewById(R.id.llPolishCfg)
         btnTabVoice = findViewById(R.id.btnTabVoice)
         btnTabPolish = findViewById(R.id.btnTabPolish)
-        llLlmProviders = findViewById(R.id.llLlmProviders)
+        etLlmProvider = findViewById(R.id.etLlmProvider)
+        setupLlmProviderPicker()
         llLlmLevels = findViewById(R.id.llLlmLevels)
         etLlmMaxTokens = findViewById(R.id.etLlmMaxTokens)
         etLlmTemp = findViewById(R.id.etLlmTemp)
@@ -158,7 +161,6 @@ class SettingsActivity : AppCompatActivity() {
         btnTabVoice.setOnClickListener { selectCfgTab(true) }
         btnTabPolish.setOnClickListener { selectCfgTab(false) }
         btnLlmTest.setOnClickListener { testLlm() }
-        buildLlmPresets()
         buildLlmLevels()
         selectCfgTab(true)
         // 搜索：只重建列表，不重建顶部（否则输入框会被顶掉、光标丢失）
@@ -207,6 +209,7 @@ class SettingsActivity : AppCompatActivity() {
         styleDropdowns(c)
         renderIconStyleChips()
         buildTips()
+        selectCfgTab(cfgTabVoice)      // 换主题后页签配色也跟着重刷
     }
 
     // ---------------------------------------------------------------- 分页 + 坞
@@ -277,8 +280,8 @@ class SettingsActivity : AppCompatActivity() {
             val idx = i
             item.isClickable = true
             item.isFocusable = true
+            // 底部坞的 5 个按钮**不加点按特效**：它们本来就有"选中垫片"这层反馈，够了
             item.setOnClickListener { selectPage(idx) }
-            fx(item)
             llDock.addView(item)
             dockItems.add(item); dockPads.add(pad)
             dockIcons.add(pad.getChildAt(0) as? ImageView ?: ImageView(this))   // 音色那格不是 ImageView，占位以免索引错位
@@ -904,7 +907,7 @@ class SettingsActivity : AppCompatActivity() {
             val play = TextView(this)
             play.text = "▶ 播放"
             play.setTextColor(c.dim)
-            play.textSize = 12.5f
+            play.textSize = 11.5f
             play.setPadding(0, dp(6f), dp(12f), dp(2f))
             play.isClickable = true
             play.isFocusable = true
@@ -915,7 +918,7 @@ class SettingsActivity : AppCompatActivity() {
             val down = TextView(this)
             down.text = "下载"
             down.setTextColor(c.dim)
-            down.textSize = 12.5f
+            down.textSize = 11.5f
             down.setPadding(0, dp(6f), dp(12f), dp(2f))
             down.isClickable = true
             down.isFocusable = true
@@ -926,7 +929,7 @@ class SettingsActivity : AppCompatActivity() {
             val share = TextView(this)
             share.text = "分享"
             share.setTextColor(c.dim)
-            share.textSize = 12.5f
+            share.textSize = 11.5f
             share.setPadding(0, dp(6f), dp(12f), dp(2f))
             share.isClickable = true
             share.isFocusable = true
@@ -941,10 +944,10 @@ class SettingsActivity : AppCompatActivity() {
             star.isClickable = true
             star.isFocusable = true
             val starIcon = StarView(this)
-            starIcon.layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f))
+            starIcon.layoutParams = LinearLayout.LayoutParams(dp(13f), dp(13f))
             star.addView(starIcon)
             val starLabel = TextView(this)
-            starLabel.textSize = 12.5f
+            starLabel.textSize = 11.5f
             starLabel.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(2f) }
@@ -970,7 +973,7 @@ class SettingsActivity : AppCompatActivity() {
             val fill = TextView(this)
             fill.text = "回填"
             fill.setTextColor(c.dim)
-            fill.textSize = 12.5f
+            fill.textSize = 11.5f
             fill.setPadding(0, dp(6f), 0, dp(2f))
             fill.isClickable = true
             fill.isFocusable = true
@@ -986,7 +989,7 @@ class SettingsActivity : AppCompatActivity() {
             val tr = TextView(this)
             tr.text = "翻译"
             tr.setTextColor(c.dim)
-            tr.textSize = 12.5f
+            tr.textSize = 11.5f
             tr.setPadding(dp(12f), dp(6f), dp(4f), dp(2f))
             tr.isClickable = true
             tr.isFocusable = true
@@ -1768,6 +1771,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     /** 语音 / 润色 两个子页 */
     private fun selectCfgTab(voice: Boolean) {
+        cfgTabVoice = voice
         val c = Skin.colors(this)
         llVoiceCfg.visibility = if (voice) View.VISIBLE else View.GONE
         llPolishCfg.visibility = if (voice) View.GONE else View.VISIBLE
@@ -1776,47 +1780,52 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tv.background = Skin.shapeDp(
                 this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 12f, 100, 1f
             )
+            // ⚠️ 圆角 12dp 恰好命中 Skin 的 bg_btn_primary 角色 → 换肤会把**两个都**刷成实心主色
+            //（所以之前出现"两个都绿"）→ 打 tag 声明别动它；换主题时由 applyLook 重新上色
+            tv.tag = "bg:keep"
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
-            fx(tv)
         }
     }
 
-    /** 润色页：厂商预设芯片（点一下=自动填 Base URL + 模型 + 该家的思考档位） */
-    private fun buildLlmPresets() {
-        llLlmProviders.removeAllViews()
-        val c = Skin.colors(this)
+    /** 润色页：厂商用**下拉填空**（仿闪译，输入关键字即匹配）—— 原来一排芯片会溢出、点选也不刷新高亮 */
+    private fun setupLlmProviderPicker() {
+        etLlmProvider.setAdapter(ContainsAdapter(this, LlmPresets.all.map { it.label }))
+        etLlmProvider.threshold = 0
         val cur = LlmPresets.match(store.llmBaseUrl)
-        for (p in LlmPresets.all) {
-            val on = cur?.id == p.id
-            val tv = TextView(this)
-            tv.text = p.label
-            tv.textSize = 12.5f
-            tv.isSingleLine = true
-            tv.maxLines = 1
-            tv.isSelected = on
-            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
-            tv.setTextColor(if (on) c.onAcc else c.dim)
-            tv.isClickable = true
-            tv.isFocusable = true
-            fx(tv)
-            tv.setOnClickListener {
-                if (p.url.isNotBlank()) etLlmBase.setText(p.url)
-                p.models.firstOrNull()?.let { etLlmModel.setText(it) }
-                store.llmLevel = ""
-                buildLlmPresets()
-                buildLlmLevels()
-                toast("已填入：" + p.label)
+        etLlmProvider.setText(cur?.label ?: "", false)
+        etLlmProvider.setOnClickListener { etLlmProvider.showDropDown() }
+        etLlmProvider.setOnFocusChangeListener { _, has -> if (has) etLlmProvider.showDropDown() }
+        etLlmProvider.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val typed = s?.toString().orEmpty().trim()
+                if (typed.isEmpty()) return
+                val p = LlmPresets.all.firstOrNull { it.label.equals(typed, true) }
+                    ?: LlmPresets.all.firstOrNull { it.label.contains(typed, true) || it.id.contains(typed, true) }
+                if (p != null && p.id != "custom") applyLlmPreset(p)
             }
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.rightMargin = dp(8f)
-            tv.layoutParams = lp
-            llLlmProviders.addView(tv)
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+        etLlmProvider.setOnItemClickListener { _, _, _, _ ->
+            LlmPresets.all.firstOrNull { it.label == etLlmProvider.text.toString() }?.let { applyLlmPreset(it) }
         }
+    }
+
+    /** 应用一个厂商预设：**连状态一起写上**（旧实现在这里漏了，导致绿色高亮永远停在 DeepSeek） */
+    private fun applyLlmPreset(p: LlmPresets.P) {
+        if (p.url.isNotBlank()) {
+            etLlmBase.setText(p.url)
+            store.llmBaseUrl = p.url
+        }
+        p.models.firstOrNull()?.let {
+            etLlmModel.setText(it)
+            store.llmModel = it
+        }
+        store.llmLevel = ""
+        etLlmProvider.setText(p.label, false)
+        buildLlmLevels()
     }
 
     /** 润色页：思考档位芯片（按当前 Base URL 识别厂商，用它家的真实档位） */

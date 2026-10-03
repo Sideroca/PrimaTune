@@ -460,8 +460,8 @@ class MainActivity : AppCompatActivity() {
         syncTransUi()
 
         // 悬浮「译」：判定 48dp、字形小而浅；位置 = 文本框✕所在竖线 × 屏幕竖直中心
-        btnYi.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))   // 浅灰、微不足道
-        TapFx.press(btnYi, Skin.colors(this).acc, findViewById(R.id.llRoot))
+        // 这两个"微不足道"的小字**不做点按特效**（涟漪/星点会在字上闪一下，看着像文字变色）
+        btnYi.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
         // 智能填参：给 LLM 一条请求 → 自动挑厂商 / 写风格指令 / 生成纠错表
         btnSmartFill.background = glassBg()
         btnSmartFill.tag = "bg:keep"
@@ -470,7 +470,6 @@ class MainActivity : AppCompatActivity() {
 
         // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
         btnRun.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
-        TapFx.press(btnRun, Skin.colors(this).acc, findViewById(R.id.llRoot))
         btnRun.setOnClickListener { polishText() }
         btnYi.setOnClickListener {
             if (etText.text.toString().trim().isEmpty()) pickTransTarget() else translateText()
@@ -1612,17 +1611,17 @@ class MainActivity : AppCompatActivity() {
         // 与同排按钮用同一套"玻璃底"（原来这里还是旧的 bg_btn，会被换肤刷成更深的一档，显得突兀）
         bStar.background = glassBg()
         bStar.tag = "bg:keep"
-        bStar.setPadding(dp(13), dp(8), dp(13), dp(8))
+        bStar.setPadding(dp(12), dp(7), dp(12), dp(7))
         bStar.isClickable = true
         bStar.isFocusable = true
         bStar.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { rightMargin = dp(8) }
         val starIcon = StarView(this)          // 自绘：绕开 tint/ColorFilter 不生效的问题
-        starIcon.layoutParams = LinearLayout.LayoutParams(dp(15), dp(15))   // 比原来小 10%
+        starIcon.layoutParams = LinearLayout.LayoutParams(dp(13), dp(13))   // 同比缩到 ~90%
         bStar.addView(starIcon)
         val starLabel = TextView(this)
-        starLabel.textSize = 13f                       // 与旁边按钮同字号
+        starLabel.textSize = 12f                       // 与旁边按钮同字号（同比 -10%）
         starLabel.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { marginStart = dp(2) }              // 星与文字贴近 → 缩短整个按钮长度
@@ -1712,7 +1711,10 @@ class MainActivity : AppCompatActivity() {
         if (all.any { it.id == take.voiceId }) {
             setVoice(take.voiceId)
         } else {
-            openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
+            // 音色已从列表删掉了：直接把它的 ID 填进「自定义音色」并**设为当前选择** ——
+            // 这样"回填后立刻生成"能用同一条音色；而且**不会**把它加回音色管理列表（记录只是历史事实）。
+            // （旧实现漏了 voiceIsCustom=true，生成时用的还是上一个音色；而且还多弹了一个卡片，已去掉）
+            voiceIsCustom = true
             etCustomVoice.setText(take.voiceId)
             syncVoiceUi()
         }
@@ -1876,8 +1878,14 @@ class MainActivity : AppCompatActivity() {
         panel.setPadding(dp(6), dp(6), dp(6), dp(6))
         panel.addView(sc)
 
-        val h = minOf(dp(430), dp(12) + dp(48) * (all.size + 2))
         val w = minOf(dp(310), resources.displayMetrics.widthPixels - dp(32))
+        // 高度**贴合内容**：原来按"每行 48dp"估算，行矮时下方会留一大块空白
+        listBox.measure(
+            View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val h = minOf(listBox.measuredHeight + dp(12),
+            (resources.displayMetrics.heightPixels * 0.6f).toInt())
         // 获焦 = 返回键能关；INPUT_METHOD_NOT_NEEDED 防它把键盘带出来
         pop = PopupWindow(panel, w, h, true)
         pop.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
@@ -2499,10 +2507,10 @@ class MainActivity : AppCompatActivity() {
         val tv = TextView(this)
         tv.text = label
         tv.setTextColor(cTxt)
-        tv.textSize = 13f
+        tv.textSize = 12f                 // 等比缩小 10%（原 13sp）
         tv.background = glassBg()
         tv.tag = "bg:keep"          // 玻璃底的圆角 == 主题 btnRadius，会撞上 Skin 的魔法半径 → 明确声明别动
-        tv.setPadding(dp(13), dp(8), dp(13), dp(8))
+        tv.setPadding(dp(12), dp(7), dp(12), dp(7))
         tv.isClickable = true
         tv.isFocusable = true
         val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)

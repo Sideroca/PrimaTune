@@ -72,22 +72,22 @@
 
                         <TextView
                             android:id="@+id/btnTabVoice"
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:gravity="center"
-                            android:padding="10dp"
+                            android:paddingHorizontal="30dp"
+                            android:paddingVertical="9dp"
                             android:text="语音"
                             android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/btnTabPolish"
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:layout_weight="1"
                             android:gravity="center"
-                            android:padding="10dp"
+                            android:paddingHorizontal="30dp"
+                            android:paddingVertical="9dp"
                             android:text="润色"
                             android:textSize="14sp" />
                     </LinearLayout>
@@ -251,12 +251,13 @@
                                 android:layout_marginTop="0dp"
                                 android:text="润色 / 翻译用的 LLM（点厂商芯片即自动填好）" />
 
-                            <LinearLayout
-                                android:id="@+id/llLlmProviders"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
-                                android:orientation="horizontal" />
+                            <AutoCompleteTextView
+                                android:id="@+id/etLlmProvider"
+                                style="@style/VtInput"
+                                android:hint="厂商（输入关键字即匹配；点一下可选）"
+                                android:importantForAutofill="no"
+                                android:inputType="text"
+                                android:singleLine="true" />
 
                             <EditText
                                 android:id="@+id/etLlmBase"
@@ -351,7 +352,6 @@
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:paddingStart="6dp"
-                                    android:text="（未测试）"
                                     android:textColor="@color/dim"
                                     android:textSize="12.5sp" />
                             </LinearLayout>
