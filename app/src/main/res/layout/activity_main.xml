@@ -166,6 +166,18 @@
                     android:inputType="textMultiLine"
                     android:minLines="3" />
 
+                <!-- 「译」：普通按钮，放文本框右下角内侧（判定 44×30dp，字很小很浅）
+                     空文本框时点=选语言；有内容时点=直接翻译 -->
+                <TextView
+                    android:id="@+id/btnYi"
+                    android:layout_width="44dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="bottom|end"
+                    android:contentDescription="翻译文本框内容"
+                    android:gravity="center"
+                    android:text="译"
+                    android:textSize="11sp" />
+
                 <!-- 清空叉号：字形 = ＋号同尺寸(13sp)；判定方块 26dp，贴文本框上边+右边内沿 -->
                 <TextView
                     android:id="@+id/btnClearText"
@@ -182,31 +194,6 @@
                     android:textColor="@color/clear_x"
                     android:textSize="11sp" />
             </FrameLayout>
-
-            <!-- 翻译：内置免费接口，一键把文本框内容翻成目标语言（不跳转任何 App） -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/btnTranslate"
-                    style="@style/VtMiniBtn"
-                    android:text="翻译" />
-
-                <TextView
-                    android:id="@+id/tvTransTarget"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:paddingStart="4dp"
-                    android:textColor="@color/dim"
-                    android:textSize="12.5sp" />
-            </LinearLayout>
 
             <TextView style="@style/VtLabel" android:text="情绪 / 风格指令（≤128 字）" />
 
@@ -372,10 +359,11 @@
 
                 <TextView style="@style/VtLabel" android:text="API 密钥（sk-ws-…；仅存本机，改完即生效）" />
 
-                <EditText
+                <AutoCompleteTextView
                     android:id="@+id/etApiKey"
                     style="@style/VtInput"
-                    android:hint="sk-ws-…"
+                    android:completionThreshold="0"
+                    android:hint="sk-ws-…（点一下可看用过的密钥）"
                     android:importantForAutofill="no"
                     android:inputType="textVisiblePassword"
                     android:singleLine="true" />
@@ -432,8 +420,48 @@
                     android:text="SSML 模式（enable_ssml）"
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
+
+                <!-- 翻译（内置免费接口，不跳任何 App）：点右边选目标语言，点「翻译」原地替换文本框 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btnTranslate"
+                        style="@style/VtMiniBtn"
+                        android:text="翻译" />
+
+                    <TextView
+                        android:id="@+id/tvTransTarget"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:paddingStart="4dp"
+                        android:textColor="@color/dim"
+                        android:textSize="12.5sp" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+
+        <!-- 智能填参：给 LLM 一条请求 → 自动选厂商 + 写风格指令 + 生成纠错表 -->
+        <TextView
+            android:id="@+id/btnSmartFill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_btn"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:padding="11dp"
+            android:text="✨ 智能填参（自动选厂商 · 写风格指令 · 纠错表）"
+            android:textColor="@color/dim"
+            android:textSize="13.5sp" />
 
         <!-- 生成 -->
         <TextView
@@ -593,9 +621,10 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.5.18 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v0.5.19 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>
     </ScrollView>
+
 </FrameLayout>

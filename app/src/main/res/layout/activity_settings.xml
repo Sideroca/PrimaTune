@@ -197,6 +197,46 @@
                             android:orientation="vertical" />
 
                                             </LinearLayout>
+                    <LinearLayout style="@style/VtCard">
+                        <TextView style="@style/VtLabel" android:text="提示词助手（给 LLM 发请求，自动挑厂商 / 写风格指令 / 生成纠错表）" />
+                        <EditText
+                            android:id="@+id/etLlmBase"
+                            style="@style/VtInput"
+                            android:hint="Base URL（OpenAI 兼容，如 https://api.deepseek.com/v1）"
+                            android:importantForAutofill="no"
+                            android:inputType="textUri"
+                            android:singleLine="true" />
+                        <EditText
+                            android:id="@+id/etLlmKey"
+                            style="@style/VtInput"
+                            android:hint="API Key（只存本机）"
+                            android:importantForAutofill="no"
+                            android:inputType="textVisiblePassword"
+                            android:singleLine="true" />
+                        <EditText
+                            android:id="@+id/etLlmModel"
+                            style="@style/VtInput"
+                            android:hint="模型名（如 deepseek-chat）"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true" />
+                        <TextView style="@style/VtLabel" android:text="系统提示词（展示出来，可自行修改）" />
+                        <EditText
+                            android:id="@+id/etLlmPrompt"
+                            style="@style/VtInput"
+                            android:gravity="top|start"
+                            android:importantForAutofill="no"
+                            android:inputType="textMultiLine"
+                            android:minLines="6" />
+                        <TextView style="@style/VtLabel" android:text="补充说明（可选。例：这个音色是《明日方舟》的艾雅法拉，说话偏冷静）" />
+                        <EditText
+                            android:id="@+id/etLlmExtra"
+                            style="@style/VtInput"
+                            android:gravity="top|start"
+                            android:importantForAutofill="no"
+                            android:inputType="textMultiLine"
+                            android:minLines="2" />
+                    </LinearLayout>
                 </LinearLayout>
             </ScrollView>
 
@@ -548,7 +588,13 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="本地记录（主页那份也保留）" />
+                        <!-- 先筛选（一排），再搜索栏（一行）——三行堆一起太挤 -->
+                        <LinearLayout
+                            android:id="@+id/llRecTop"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical" />
                         <EditText
                             android:id="@+id/etRecSearch"
                             style="@style/VtInput"
@@ -556,11 +602,6 @@
                             android:importantForAutofill="no"
                             android:inputType="text"
                             android:singleLine="true" />
-                        <LinearLayout
-                            android:id="@+id/llRecTop"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
                         <LinearLayout
                             android:id="@+id/llRecords"
                             android:layout_width="match_parent"

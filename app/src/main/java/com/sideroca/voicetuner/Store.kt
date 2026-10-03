@@ -242,6 +242,29 @@ class Store(context: Context) {
         get() = prefs.getString("trTarget", "中文") ?: "中文"
         set(v) { prefs.edit().putString("trTarget", v).apply() }
 
+    // ---- 提示词助手（给 LLM 发请求 → 自动挑厂商 / 写风格指令 / 生成纠错表）----
+    var llmBaseUrl: String
+        get() = prefs.getString("llmBaseUrl", "https://api.deepseek.com/v1") ?: "https://api.deepseek.com/v1"
+        set(v) { prefs.edit().putString("llmBaseUrl", v.trim()).apply() }
+
+    var llmKey: String
+        get() = prefs.getString("llmKey", "") ?: ""
+        set(v) { prefs.edit().putString("llmKey", v).apply() }
+
+    var llmModel: String
+        get() = prefs.getString("llmModel", "deepseek-chat") ?: "deepseek-chat"
+        set(v) { prefs.edit().putString("llmModel", v.trim()).apply() }
+
+    /** 系统提示词（设置页里展示出来、可改） */
+    var llmPrompt: String
+        get() = prefs.getString("llmPrompt", "") ?: ""
+        set(v) { prefs.edit().putString("llmPrompt", v).apply() }
+
+    /** 用户补充说明（如"这个音色是《明日方舟》的艾雅法拉"） */
+    var llmExtra: String
+        get() = prefs.getString("llmExtra", "") ?: ""
+        set(v) { prefs.edit().putString("llmExtra", v).apply() }
+
     /** 上次翻译成功的免费源（google / mm），下次优先用它 */
     var trLastSource: String
         get() = prefs.getString("trLastSource", "") ?: ""

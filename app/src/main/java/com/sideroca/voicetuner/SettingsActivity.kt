@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llTips: LinearLayout
     private lateinit var etRecSearch: EditText
     private lateinit var llRecTop: LinearLayout
+    private lateinit var etLlmBase: EditText
+    private lateinit var etLlmKey: EditText
+    private lateinit var etLlmModel: EditText
+    private lateinit var etLlmPrompt: EditText
+    private lateinit var etLlmExtra: EditText
     /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
     private var recVoiceId: String? = null
     private var recQuery: String = ""
@@ -115,6 +120,16 @@ class SettingsActivity : AppCompatActivity() {
         llTips = findViewById(R.id.llTips)
         etRecSearch = findViewById(R.id.etRecSearch)
         llRecTop = findViewById(R.id.llRecTop)
+        etLlmBase = findViewById(R.id.etLlmBase)
+        etLlmKey = findViewById(R.id.etLlmKey)
+        etLlmModel = findViewById(R.id.etLlmModel)
+        etLlmPrompt = findViewById(R.id.etLlmPrompt)
+        etLlmExtra = findViewById(R.id.etLlmExtra)
+        etLlmBase.setText(store.llmBaseUrl)
+        etLlmKey.setText(store.llmKey)
+        etLlmModel.setText(store.llmModel)
+        etLlmPrompt.setText(store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT })
+        etLlmExtra.setText(store.llmExtra)
         // 搜索：只重建列表，不重建顶部（否则输入框会被顶掉、光标丢失）
         etRecSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
@@ -568,28 +583,77 @@ class SettingsActivity : AppCompatActivity() {
         addChip(r1, "全部", !recOnlyFav && recVoiceId == null) {
             recOnlyFav = false; recVoiceId = null; buildRecords()
         }
+        // 中间：一个「选择」按钮 → 下拉选音色（原来是把人名全摊成一行 chip，太挤）
+        val pick = TextView(this)
+        pick.text = if (recVoiceId == null) "选择 ▾" else recVoiceName(recVoiceId!!) + " ▾"
+        pick.textSize = 12.5f
+        pick.isSingleLine = true
+        pick.maxLines = 1
+        pick.isSelected = recVoiceId != null
+        pick.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
+        pick.background = Skin.shapeDp(
+            this, if (recVoiceId != null) c.acc else c.card2,
+            if (recVoiceId != null) c.acc else c.line, 96f, 100, 1f
+        )
+        pick.setTextColor(if (recVoiceId != null) c.onAcc else c.dim)
+        pick.isClickable = true
+        pick.isFocusable = true
+        fx(pick)
+        pick.setOnClickListener { showRecVoicePick() }
+        r1.addView(pick, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { rightMargin = dp(8f) })
         addChip(r1, "★ 收藏（" + favs.size + "）", recOnlyFav) {
             recOnlyFav = true; recVoiceId = null; buildRecords()
         }
         llRecTop.addView(r1)
+    }
 
-        // 角色筛选：列出记录里出现过的音色（横向可滚，避免 chip 太多撑破卡片）
+    /** 记录页「选择音色」下拉：跟随主题的弹出面板（与首页记录筛选同一套做法） */
+    private fun showRecVoicePick() {
+        val c = Skin.colors(this)
         val ids = LinkedHashSet<String>()
-        for (tk in takesAll) if (tk.voiceId.isNotBlank()) ids.add(tk.voiceId)
-        if (ids.isNotEmpty()) {
-            val hs = android.widget.HorizontalScrollView(this)
-            hs.isHorizontalScrollBarEnabled = false
-            val r2 = chipRow()
-            for (id in ids) {
-                addChip(r2, recVoiceName(id), recVoiceId == id) {
-                    recVoiceId = if (recVoiceId == id) null else id
-                    recOnlyFav = false
-                    buildRecords()
-                }
+        for (tk in store.loadTakes()) if (tk.voiceId.isNotBlank()) ids.add(tk.voiceId)
+        var pop: android.widget.PopupWindow? = null
+        val listBox = LinearLayout(this)
+        listBox.orientation = LinearLayout.VERTICAL
+        fun row(label: String, id: String?) {
+            val tv = TextView(this)
+            val on = id == recVoiceId
+            tv.text = (if (on) "✓ " else "　 ") + label
+            tv.setTextColor(if (on) c.acc else c.txt)
+            tv.textSize = 14f
+            tv.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                recVoiceId = id
+                recOnlyFav = false
+                buildRecords()
+                pop?.dismiss()
             }
-            hs.addView(r2)
-            llRecTop.addView(hs)
+            listBox.addView(tv)
         }
+        row("全部音色", null)
+        for (id in ids) row(recVoiceName(id), id)
+        val sc = ScrollView(this)
+        sc.isVerticalScrollBarEnabled = false
+        sc.addView(listBox)
+        val panel = LinearLayout(this)
+        panel.orientation = LinearLayout.VERTICAL
+        panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
+        panel.setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+        panel.addView(sc)
+        val rows = ids.size + 1
+        val h = minOf(dp(300f), dp(12f) + dp(46f) * rows)
+        val w = minOf(dp(280f), resources.displayMetrics.widthPixels - dp(32f))
+        pop = android.widget.PopupWindow(panel, w, h, true)
+        pop.inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        pop.elevation = dp(8f).toFloat()
+        pop.showAsDropDown(llRecTop, dp(4f), dp(2f))
     }
 
     /** 列表：按 收藏 / 角色 / 搜索词（关键词·角色·日期）过滤后渲染 */
@@ -793,6 +857,11 @@ class SettingsActivity : AppCompatActivity() {
     /** 保存键：把「模型」页的接口字段落盘 */
     private fun saveAll() {
         saveProviderFields()
+        store.llmBaseUrl = etLlmBase.text.toString()
+        store.llmKey = etLlmKey.text.toString().trim()
+        store.llmModel = etLlmModel.text.toString()
+        store.llmPrompt = etLlmPrompt.text.toString()
+        store.llmExtra = etLlmExtra.text.toString().trim()
         buildProviders()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }

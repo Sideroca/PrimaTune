@@ -78,9 +78,12 @@ class VoiceIndicatorView @JvmOverloads constructor(
         val ph = phase * (2.0 * Math.PI).toFloat()
         for (i in xs.indices) {
             val px = cx + xs[i] * halfW
-            // 生成中：每个折点带相位差地上下摆 —— 整条线持续"动来动去"
+            // 生成中：每个折点带相位差地上下摆
             val k = if (busy) (0.55f + 0.45f * kotlin.math.sin(ph + i * 0.9f)) else 1f
-            val py = cy + ys[i] * halfH * k
+            // ⚠️ 光乘 ys 不行：ys 两端本来就是 0（水平段），只有中间起伏 → 看着像"只有中间在动"。
+            // 这里再叠一层**整条线的行波**，两端也跟着上下走，才是"整条都在动"。
+            val wob = if (busy) halfH * 0.55f * kotlin.math.sin(ph * 1.25f + i * 0.85f) else 0f
+            val py = cy + ys[i] * halfH * k + wob
             if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
         canvas.drawPath(path, line)

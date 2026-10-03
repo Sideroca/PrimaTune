@@ -192,6 +192,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivVoiceInd: VoiceIndicatorView
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
+    private lateinit var btnYi: TextView
+    private lateinit var btnSmartFill: TextView
     private lateinit var etCustomVoice: EditText
     private lateinit var tvVoiceNote: TextView
     private lateinit var btnCreateVoice: TextView
@@ -267,7 +269,9 @@ class MainActivity : AppCompatActivity() {
         reloadFromStore()
         // 设置页改过「默认 model」且用户没在高级参数里手改过 → 同步过来（不覆盖用户输入）
         if (!modelTouched) setModelField(store.lastModel)
-        if (etApiKey.text.toString() != store.apiKey) etApiKey.setText(store.apiKey)
+        val ek = effectiveKey()
+        if (etApiKey.text.toString() != ek) etApiKey.setText(ek)
+        (etApiKey as? android.widget.AutoCompleteTextView)?.setAdapter(ContainsAdapter(this, keyHistory()))
     }
 
     /**
@@ -284,6 +288,37 @@ class MainActivity : AppCompatActivity() {
         fitVoiceWidth()
         syncVoiceUi()
         renderHistory()
+    }
+
+    /** 当前厂商**真正生效**的那份 Key（生成/复刻都用它，界面展示也用这份 → 不会再两处不一致） */
+    private fun effectiveKey(): String {
+        val pid = store.providerId
+        return store.providerKey(pid).ifBlank { if (pid == "aliyun-bailian") store.apiKey else "" }
+    }
+
+    /** 首页密钥栏的下拉历史：用过的密钥 + 当前这一份 */
+    private fun keyHistory(): List<String> {
+        val pid = store.providerId
+        val list = ArrayList(store.providerKeyHistory(pid))
+        val cur = effectiveKey()
+        if (cur.isNotBlank() && !list.contains(cur)) list.add(0, cur)
+        return list
+    }
+
+    /** 展开「高级参数」并滚动/聚焦到密钥栏（替代往设置页跳） */
+    private fun revealApiKeyField() {
+        if (!store.advExpanded) {
+            setAdvanced(true, animate = false)
+            store.advExpanded = true
+        }
+        var y = 0
+        var v: View? = etApiKey
+        while (v != null && v !== svRoot) {
+            y += v.top
+            v = v.parent as? View
+        }
+        svRoot.post { svRoot.smoothScrollTo(0, (y - dp(30)).coerceAtLeast(0)) }
+        etApiKey.requestFocus()
     }
 
     /** 设置「模型」输入框并把它标记为"未被用户手改" */
@@ -321,6 +356,8 @@ class MainActivity : AppCompatActivity() {
         ivVoiceInd = findViewById(R.id.ivVoiceInd)
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
+        btnYi = findViewById(R.id.btnYi)
+        btnSmartFill = findViewById(R.id.btnSmartFill)
         etCustomVoice = findViewById(R.id.etCustomVoice)
         tvVoiceNote = findViewById(R.id.tvVoiceNote)
         btnCreateVoice = findViewById(R.id.btnCreateVoice)
@@ -359,7 +396,10 @@ class MainActivity : AppCompatActivity() {
         etApiKey.setText(store.apiKey)
         etApiKey.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                store.apiKey = s?.toString()?.trim() ?: ""
+                val v = s?.toString()?.trim() ?: ""
+                store.apiKey = v
+                // 百炼就是"主 Key"：与厂商栏那一份保持同步，避免两处不一致
+                if (store.providerId == "aliyun-bailian") store.setProviderKey("aliyun-bailian", v)
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -391,13 +431,33 @@ class MainActivity : AppCompatActivity() {
         // 空白处点按也有"留痕"（整页常驻；滚动不算——位移超过阈值就跳过）
         findViewById<View>(R.id.llRoot)?.let { TapFx.tapAnywhere(it) { Skin.colors(this).acc } }
 
+        // 首页密钥栏也吃"用过的密钥"历史：点一下/输一个字就弹（和设置页同一套）
+        (etApiKey as? android.widget.AutoCompleteTextView)?.let { ac ->
+            ac.setAdapter(ContainsAdapter(this, keyHistory()))
+            ac.threshold = 0
+            ac.setOnClickListener { ac.showDropDown() }
+            ac.setOnFocusChangeListener { _, has -> if (has) ac.showDropDown() }
+        }
+
         // 翻译：一键把文本框内容翻成目标语言（内置免费接口，不跳 App）
         btnTranslate.background = glassBg()
         btnTranslate.tag = "bg:keep"
         fx(btnTranslate, findViewById(R.id.llRoot))
-        tvTransTarget.text = "→ " + store.trTarget
         btnTranslate.setOnClickListener { translateText() }
         tvTransTarget.setOnClickListener { pickTransTarget() }
+        syncTransUi()
+
+        // 悬浮「译」：判定 48dp、字形小而浅；位置 = 文本框✕所在竖线 × 屏幕竖直中心
+        btnYi.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))   // 浅灰、微不足道
+        TapFx.press(btnYi, Skin.colors(this).acc, findViewById(R.id.llRoot))
+        // 智能填参：给 LLM 一条请求 → 自动挑厂商 / 写风格指令 / 生成纠错表
+        fx(btnSmartFill, findViewById(R.id.llRoot))
+        btnSmartFill.setOnClickListener { smartFill() }
+
+        // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
+        btnYi.setOnClickListener {
+            if (etText.text.toString().trim().isEmpty()) pickTransTarget() else translateText()
+        }
     }
 
     /** 翻译文本框内容（原地替换，不跳任何 App） */
@@ -424,20 +484,103 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 选目标语言 */
-    private fun pickTransTarget() {
-        val names = TransClient.targetNames().toTypedArray()
-        val d = AlertDialog.Builder(this)
-            .setTitle("翻译成")
-            .setSingleChoiceItems(names, names.indexOf(store.trTarget)) { dlg, which ->
-                store.trTarget = names[which]
-                tvTransTarget.text = "→ " + names[which]
-                dlg.dismiss()
+    /**
+     * 智能填参：把「文本 + 音色身份 + 补充说明」发给 LLM，让它回
+     * {provider, instruction, hot_fix} —— 自动挑 TTS 厂商、写自然语言风格/分割指令、生成纠错表。
+     */
+    private fun smartFill() {
+        val text = etText.text.toString().trim()
+        if (text.isEmpty()) {
+            toast("请先输入文本")
+            return
+        }
+        if (store.llmKey.isBlank()) {
+            toast("请先在「设置 → 模型 → 提示词助手」填 Key")
+            openSettings()
+            return
+        }
+        val voice = if (voiceIsCustom) "自定义音色" else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
+        val system = store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT }
+        val user = buildString {
+            append("音色：").append(voice.ifBlank { "未指定" }).append('\n')
+            if (store.llmExtra.isNotBlank()) append("补充说明：").append(store.llmExtra).append('\n')
+            append("待合成文本：\n").append(text)
+        }
+        tvStatus.text = "✨ 正在向 LLM 要参数…"
+        btnSmartFill.isEnabled = false
+        LlmClient.ask(store.llmBaseUrl, store.llmKey, store.llmModel, system, user) { out, err ->
+            ui {
+                btnSmartFill.isEnabled = true
+                if (out == null) {
+                    tvStatus.text = "❌ " + (err ?: "请求失败")
+                    toast(err ?: "请求失败")
+                } else {
+                    val ok = applySmartFill(out)
+                    tvStatus.text = if (ok) "✅ 已按 LLM 建议填好：厂商 / 风格指令 / 纠错表"
+                                     else "⚠️ LLM 返回没法解析：" + out.take(80)
+                }
             }
-            .setNegativeButton("取消", null)
-            .create()
-        d.setOnShowListener { skinDialog(d) }
-        d.show()
+        }
+    }
+
+    /** 解析并应用 LLM 的建议（容错：从返回里抠出第一个 { ... } 再解析） */
+    private fun applySmartFill(raw: String): Boolean = try {
+        val s = raw.indexOf('{')
+        val e = raw.lastIndexOf('}')
+        if (s < 0 || e <= s) false else {
+            val o = JSONObject(raw.substring(s, e + 1))
+            val pid = o.optString("provider").trim()
+            if (pid.isNotBlank() && TtsProviders.byId(pid) != null) store.providerId = pid
+            val instr = o.optString("instruction").trim()
+            if (instr.isNotEmpty()) etInstr.setText(instr)
+            val hf = o.optJSONObject("hot_fix")
+            if (hf != null) etHotfix.setText(hf.toString())
+            syncVoiceUi()
+            true
+        }
+    } catch (ex: Exception) {
+        false
+    }
+
+    /** 刷新翻译相关文案（目标语言） */
+    private fun syncTransUi() {
+        tvTransTarget.text = "→ " + store.trTarget
+    }
+
+    /**
+     * 选目标语言。
+     * 注意：不能用 setSingleChoiceItems —— 它的列表项吃系统 textColorPrimary（近白），
+     * 在浅色主题的弹窗底板上会**看不见字**（实测）。这里改成自带主题色的自定义行。
+     */
+    private fun pickTransTarget() {
+        val c = Skin.colors(this)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(18), dp(6), dp(18), dp(6))
+        var dlg: AlertDialog? = null
+        for (name in TransClient.targetNames()) {
+            val on = name == store.trTarget
+            val tv = TextView(this)
+            tv.text = (if (on) "✓ " else "　 ") + name
+            tv.setTextColor(if (on) c.acc else c.txt)
+            tv.textSize = 15f
+            tv.setPadding(dp(4), dp(12), dp(4), dp(12))
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                store.trTarget = name
+                syncTransUi()
+                dlg?.dismiss()
+            }
+            box.addView(tv)
+        }
+        val sc = ScrollView(this)
+        sc.addView(box)
+        dlg = AlertDialog.Builder(this).setTitle("翻译成").setView(sc).setNegativeButton("取消", null).create()
+        val dd = dlg
+        dd.setOnShowListener { skinDialog(dd) }
+        dd.show()
     }
 
     /** 高级参数展开/收起：180ms 高度过渡（原来瞬变） */
@@ -856,10 +999,11 @@ class MainActivity : AppCompatActivity() {
             toast("正在合成中，请稍候…")
             return
         }
-        val key = store.apiKey.trim()
+        val key = effectiveKey()
         if (key.isEmpty()) {
-            toast("请先在「设置」里填写 API Key")
-            openSettings()
+            // 之前是"跳去设置页"，可主页这边才是真正生效的那份 → 直接把他带到主页的密钥栏
+            toast("请先填「高级参数 → API 密钥」")
+            revealApiKeyField()
             return
         }
         val text = etText.text.toString().trim()
@@ -937,7 +1081,8 @@ class MainActivity : AppCompatActivity() {
         var lastTick = 0L
         // P1：按厂商形态分派 —— 百炼内部再按模型分 ws/http；OpenAI 系走 OpenAI 兼容客户端
         val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
-        val provKey = store.providerKey(prov.id).ifBlank { store.apiKey }
+        // 与界面展示的「生效 Key」同一套逻辑（非百炼不再借用百炼的 Key，避免两处不一致）
+        val provKey = store.providerKey(prov.id).ifBlank { if (prov.id == "aliyun-bailian") store.apiKey else "" }
         store.addProviderKeyToHistory(prov.id, provKey)   // 用过的密钥进该厂商的历史下拉
         val synthCall = { cb: SynthCallback ->
             if (prov.shape == "system") {
