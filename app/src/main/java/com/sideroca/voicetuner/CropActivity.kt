@@ -103,10 +103,10 @@ class CropActivity : AppCompatActivity() {
         zoomBar.addView(btnReset)
 
         var syncing = false
-        crop.onZoom = { k ->
+        crop.onZoomChanged = { pct ->
             syncing = true
-            zSeek.progress = (((k - 1f) * 100f).toInt()).coerceIn(0, 300)
-            zVal.text = Math.round(k * 100).toString() + "%"
+            zSeek.progress = (pct - 100).coerceIn(0, 300)
+            zVal.text = pct.toString() + "%"
             syncing = false
         }
         zSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -114,7 +114,7 @@ class CropActivity : AppCompatActivity() {
                 if (syncing) return
                 val k = 1f + progress / 100f
                 zVal.text = Math.round(k * 100).toString() + "%"
-                crop.setZoom(k)
+                crop.setZoomMult(k)
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
@@ -164,6 +164,12 @@ class CropActivity : AppCompatActivity() {
 
         // 取景框比例：图标 = 1:1；壁纸 = 屏幕比例
         val dm = resources.displayMetrics
-        crop.setImage(src, if (isIcon) 1f else dm.widthPixels.toFloat() / dm.heightPixels.toFloat())
+        // 取景框：图标=1:1；壁纸=跟随屏幕比例（0 = 跟随视图比例，由 CropView 自己算）
+        crop.setImage(src, if (isIcon) 1f else 0f)
+        // 裁「主界面壁纸」时叠加"首页映射剪影"（规范 §2.3），遮罩浓度取当前设置，所见即所得
+        if (!isIcon && slot == "main") {
+            val st = Store(this)
+            crop.setMapping(true, 0.6f, st.scrimMain)
+        }
     }
 }
