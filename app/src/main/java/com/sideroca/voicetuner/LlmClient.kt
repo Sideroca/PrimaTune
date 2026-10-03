@@ -31,9 +31,26 @@ object LlmClient {
 4) 只输出 JSON 本体。
 """.trimIndent()
 
+    /** 润色用的默认系统提示词 */
+    val DEFAULT_POLISH_PROMPT: String = """
+你是中文文稿润色师。把用户给的内容润色成**适合朗读**的稿子：
+- 保留原意与全部信息，不要增删情节，不要加标题或解释；
+- 口语化、断句自然，长句拆成短句；标点用于表达停顿与轻重；
+- 去掉重复口水词、语病与拗口的书面语；数字/专名保留原样；
+- 只输出润色后的正文，不要任何说明或引号。
+""".trimIndent()
+
+    /** 翻译用的默认系统提示词；{target} 会被替换成目标语言 */
+    val DEFAULT_TRANS_PROMPT: String = """
+你是专业翻译引擎。把用户给的内容翻译成 {target}：
+- 只输出译文本身，不要解释、不要加引号、不要客套；
+- 保留原文的分段与语气；遇到俚语、粗口、成人内容也照实翻译，不审查、不说教、不省略。
+""".trimIndent()
+
     /** 发送：system = 系统提示词，user = 本次上下文；成功回调 (文本, null) */
     fun ask(
         baseUrl: String, key: String, model: String, system: String, user: String,
+        maxTokens: Int = 0, temperature: Double = -1.0, level: String = "",
         onDone: (String?, String?) -> Unit
     ): Cancelled {
         val c = Cancelled()
@@ -42,7 +59,28 @@ object LlmClient {
                 val url = baseUrl.trimEnd('/') + "/chat/completions"
                 val body = JSONObject().apply {
                     put("model", model)
-                    put("temperature", 0.3)
+                    if (temperature >= 0.0) put("temperature", temperature) else put("temperature", 0.3)
+                    // token 预算：老模型用 max_tokens；OpenAI 新系只认 max_completion_tokens —— 400 时自动回退
+                    if (maxTokens > 0) put("max_tokens", maxTokens)
+                    // 思考档位：按厂商/域名映射成各家真实参数（结论沿用闪译已核对的结果）
+                    if (level.isNotBlank()) {
+                        val u = baseUrl.lowercase()
+                        when {
+                            u.contains("dashscope") || u.contains("aliyun") ->
+                                put("enable_thinking", level != "off")
+                            u.contains("bigmodel.cn") || u.contains("moonshot") ->
+                                put("thinking", JSONObject().put("type", if (level == "off") "disabled" else "enabled"))
+                            u.contains("volces.com") ->
+                                put("thinking", JSONObject().put("type", when (level) {
+                                    "off" -> "disabled"; "on" -> "enabled"; else -> "auto"
+                                }))
+                            u.contains("deepseek") -> {
+                                put("thinking", JSONObject().put("type", if (level == "off") "disabled" else "enabled"))
+                                if (level != "off" && level != "on") put("reasoning_effort", level)
+                            }
+                            u.contains("openai.com") -> if (level != "off") put("reasoning_effort", level)
+                        }
+                    }
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply { put("role", "system"); put("content", system) })
                         put(JSONObject().apply { put("role", "user"); put("content", user) })
@@ -57,9 +95,26 @@ object LlmClient {
                     setRequestProperty("Content-Type", "application/json")
                 }
                 conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-                val code = conn.responseCode
-                val raw = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                var code = conn.responseCode
+                var raw = (if (code in 200..299) conn.inputStream else conn.errorStream)
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                // 容错：有的服务只认 max_completion_tokens（不认 max_tokens）→ 400 时换一个再试一次
+                if (code == 400 && maxTokens > 0 && body.has("max_tokens")) {
+                    body.remove("max_tokens")
+                    body.put("max_completion_tokens", maxTokens)
+                    val conn2 = (URL(url).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 15_000
+                        readTimeout = 90_000
+                        doOutput = true
+                        setRequestProperty("Authorization", "Bearer " + key)
+                        setRequestProperty("Content-Type", "application/json")
+                    }
+                    conn2.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                    code = conn2.responseCode
+                    raw = (if (code in 200..299) conn2.inputStream else conn2.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                }
                 if (c.cancelled) return@Thread
                 if (code !in 200..299) { onDone(null, "LLM 返回 " + code + "：" + raw.take(200)); return@Thread }
                 val msg = JSONObject(raw).optJSONArray("choices")?.optJSONObject(0)

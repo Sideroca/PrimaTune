@@ -64,8 +64,46 @@
                     android:orientation="vertical"
                     android:padding="14dp">
 
+                    <!-- 语音 / 润色 两个子页切换（顶部） -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btnTabVoice"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:padding="10dp"
+                            android:text="语音"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/btnTabPolish"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:padding="10dp"
+                            android:text="润色"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- ===== 语音：TTS 厂商配置 ===== -->
+                    <LinearLayout
+                        android:id="@+id/llVoiceCfg"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="厂商（输入关键字即匹配）" />
+                        <TextView
+                            style="@style/VtLabel"
+                            android:layout_marginTop="0dp"
+                            android:text="厂商（输入关键字即匹配）" />
 
                         <AutoCompleteTextView
                             android:id="@+id/etProvider"
@@ -197,45 +235,127 @@
                             android:orientation="vertical" />
 
                                             </LinearLayout>
-                    <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="提示词助手（给 LLM 发请求，自动挑厂商 / 写风格指令 / 生成纠错表）" />
-                        <EditText
-                            android:id="@+id/etLlmBase"
-                            style="@style/VtInput"
-                            android:hint="Base URL（OpenAI 兼容，如 https://api.deepseek.com/v1）"
-                            android:importantForAutofill="no"
-                            android:inputType="textUri"
-                            android:singleLine="true" />
-                        <EditText
-                            android:id="@+id/etLlmKey"
-                            style="@style/VtInput"
-                            android:hint="API Key（只存本机）"
-                            android:importantForAutofill="no"
-                            android:inputType="textVisiblePassword"
-                            android:singleLine="true" />
-                        <EditText
-                            android:id="@+id/etLlmModel"
-                            style="@style/VtInput"
-                            android:hint="模型名（如 deepseek-chat）"
-                            android:importantForAutofill="no"
-                            android:inputType="text"
-                            android:singleLine="true" />
-                        <TextView style="@style/VtLabel" android:text="系统提示词（展示出来，可自行修改）" />
-                        <EditText
-                            android:id="@+id/etLlmPrompt"
-                            style="@style/VtInput"
-                            android:gravity="top|start"
-                            android:importantForAutofill="no"
-                            android:inputType="textMultiLine"
-                            android:minLines="6" />
-                        <TextView style="@style/VtLabel" android:text="补充说明（可选。例：这个音色是《明日方舟》的艾雅法拉，说话偏冷静）" />
-                        <EditText
-                            android:id="@+id/etLlmExtra"
-                            style="@style/VtInput"
-                            android:gravity="top|start"
-                            android:importantForAutofill="no"
-                            android:inputType="textMultiLine"
-                            android:minLines="2" />
+
+                    </LinearLayout>
+
+                    <!-- ===== 润色：LLM 总配置（润色 / 翻译 / 智能填参 共用）===== -->
+                    <LinearLayout
+                        android:id="@+id/llPolishCfg"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout style="@style/VtCard">
+                            <TextView
+                                style="@style/VtLabel"
+                                android:layout_marginTop="0dp"
+                                android:text="润色 / 翻译用的 LLM（点厂商芯片即自动填好）" />
+
+                            <LinearLayout
+                                android:id="@+id/llLlmProviders"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:orientation="horizontal" />
+
+                            <EditText
+                                android:id="@+id/etLlmBase"
+                                style="@style/VtInput"
+                                android:hint="Base URL（OpenAI 兼容）"
+                                android:importantForAutofill="no"
+                                android:inputType="textUri"
+                                android:singleLine="true" />
+
+                            <EditText
+                                android:id="@+id/etLlmKey"
+                                style="@style/VtInput"
+                                android:hint="API Key（只存本机）"
+                                android:importantForAutofill="no"
+                                android:inputType="textVisiblePassword"
+                                android:singleLine="true" />
+
+                            <EditText
+                                android:id="@+id/etLlmModel"
+                                style="@style/VtInput"
+                                android:hint="模型名"
+                                android:importantForAutofill="no"
+                                android:inputType="text"
+                                android:singleLine="true" />
+
+                            <EditText
+                                android:id="@+id/etLlmMaxTokens"
+                                style="@style/VtInput"
+                                android:hint="token 预算 max_tokens（留空 = 不限）"
+                                android:importantForAutofill="no"
+                                android:inputType="number"
+                                android:singleLine="true" />
+
+                            <TextView style="@style/VtLabel" android:text="思考档位（按厂商自动换成真实参数）" />
+                            <LinearLayout
+                                android:id="@+id/llLlmLevels"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:orientation="horizontal" />
+
+                            <EditText
+                                android:id="@+id/etLlmTemp"
+                                style="@style/VtInput"
+                                android:hint="温度 temperature（0~2，留空 = 默认）"
+                                android:importantForAutofill="no"
+                                android:inputType="numberDecimal"
+                                android:singleLine="true" />
+
+                            <TextView style="@style/VtLabel" android:text="润色用的系统提示词（可改）" />
+                            <EditText
+                                android:id="@+id/etLlmPrompt"
+                                style="@style/VtInput"
+                                android:gravity="top|start"
+                                android:importantForAutofill="no"
+                                android:inputType="textMultiLine"
+                                android:minLines="5" />
+
+                            <TextView style="@style/VtLabel" android:text="翻译用的系统提示词（可改）" />
+                            <EditText
+                                android:id="@+id/etTransPrompt"
+                                style="@style/VtInput"
+                                android:gravity="top|start"
+                                android:importantForAutofill="no"
+                                android:inputType="textMultiLine"
+                                android:minLines="4" />
+
+                            <TextView style="@style/VtLabel" android:text="补充说明（可选。例：这个音色是《明日方舟》的艾雅法拉）" />
+                            <EditText
+                                android:id="@+id/etLlmExtra"
+                                style="@style/VtInput"
+                                android:gravity="top|start"
+                                android:importantForAutofill="no"
+                                android:inputType="textMultiLine"
+                                android:minLines="2" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/btnLlmTest"
+                                    style="@style/VtMiniBtn"
+                                    android:text="测试连接" />
+
+                                <TextView
+                                    android:id="@+id/tvLlmTest"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:paddingStart="6dp"
+                                    android:text="（未测试）"
+                                    android:textColor="@color/dim"
+                                    android:textSize="12.5sp" />
+                            </LinearLayout>
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </ScrollView>

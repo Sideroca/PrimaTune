@@ -65,6 +65,17 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etLlmModel: EditText
     private lateinit var etLlmPrompt: EditText
     private lateinit var etLlmExtra: EditText
+    private lateinit var llVoiceCfg: LinearLayout
+    private lateinit var llPolishCfg: LinearLayout
+    private lateinit var btnTabVoice: TextView
+    private lateinit var btnTabPolish: TextView
+    private lateinit var llLlmProviders: LinearLayout
+    private lateinit var llLlmLevels: LinearLayout
+    private lateinit var etLlmMaxTokens: EditText
+    private lateinit var etLlmTemp: EditText
+    private lateinit var etTransPrompt: EditText
+    private lateinit var btnLlmTest: TextView
+    private lateinit var tvLlmTest: TextView
     /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
     private var recVoiceId: String? = null
     private var recQuery: String = ""
@@ -130,6 +141,26 @@ class SettingsActivity : AppCompatActivity() {
         etLlmModel.setText(store.llmModel)
         etLlmPrompt.setText(store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT })
         etLlmExtra.setText(store.llmExtra)
+        llVoiceCfg = findViewById(R.id.llVoiceCfg)
+        llPolishCfg = findViewById(R.id.llPolishCfg)
+        btnTabVoice = findViewById(R.id.btnTabVoice)
+        btnTabPolish = findViewById(R.id.btnTabPolish)
+        llLlmProviders = findViewById(R.id.llLlmProviders)
+        llLlmLevels = findViewById(R.id.llLlmLevels)
+        etLlmMaxTokens = findViewById(R.id.etLlmMaxTokens)
+        etLlmTemp = findViewById(R.id.etLlmTemp)
+        etTransPrompt = findViewById(R.id.etTransPrompt)
+        btnLlmTest = findViewById(R.id.btnLlmTest)
+        tvLlmTest = findViewById(R.id.tvLlmTest)
+        etLlmMaxTokens.setText(if (store.llmMaxTokens > 0) store.llmMaxTokens.toString() else "")
+        etLlmTemp.setText(if (store.llmTemp >= 0) (store.llmTemp / 10.0).toString() else "")
+        etTransPrompt.setText(store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT })
+        btnTabVoice.setOnClickListener { selectCfgTab(true) }
+        btnTabPolish.setOnClickListener { selectCfgTab(false) }
+        btnLlmTest.setOnClickListener { testLlm() }
+        buildLlmPresets()
+        buildLlmLevels()
+        selectCfgTab(true)
         // 搜索：只重建列表，不重建顶部（否则输入框会被顶掉、光标丢失）
         etRecSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
@@ -862,6 +893,9 @@ class SettingsActivity : AppCompatActivity() {
         store.llmModel = etLlmModel.text.toString()
         store.llmPrompt = etLlmPrompt.text.toString()
         store.llmExtra = etLlmExtra.text.toString().trim()
+        store.llmMaxTokens = etLlmMaxTokens.text.toString().trim().toIntOrNull() ?: 0
+        store.llmTemp = ((etLlmTemp.text.toString().trim().toDoubleOrNull() ?: -0.1) * 10).toInt()
+        store.transPrompt = etTransPrompt.text.toString()
         buildProviders()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }
@@ -1593,6 +1627,122 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         startActivityForResult(i, REQ_ICON_PICK)
     }
 
+    /** 语音 / 润色 两个子页 */
+    private fun selectCfgTab(voice: Boolean) {
+        val c = Skin.colors(this)
+        llVoiceCfg.visibility = if (voice) View.VISIBLE else View.GONE
+        llPolishCfg.visibility = if (voice) View.GONE else View.VISIBLE
+        listOf(btnTabVoice to voice, btnTabPolish to !voice).forEach { (tv, on) ->
+            tv.isSelected = on
+            tv.background = Skin.shapeDp(
+                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 12f, 100, 1f
+            )
+            tv.setTextColor(if (on) c.onAcc else c.dim)
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+        }
+    }
+
+    /** 润色页：厂商预设芯片（点一下=自动填 Base URL + 模型 + 该家的思考档位） */
+    private fun buildLlmPresets() {
+        llLlmProviders.removeAllViews()
+        val c = Skin.colors(this)
+        val cur = LlmPresets.match(store.llmBaseUrl)
+        for (p in LlmPresets.all) {
+            val on = cur?.id == p.id
+            val tv = TextView(this)
+            tv.text = p.label
+            tv.textSize = 12.5f
+            tv.isSingleLine = true
+            tv.maxLines = 1
+            tv.isSelected = on
+            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
+            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
+            tv.setTextColor(if (on) c.onAcc else c.dim)
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                if (p.url.isNotBlank()) etLlmBase.setText(p.url)
+                p.models.firstOrNull()?.let { etLlmModel.setText(it) }
+                store.llmLevel = ""
+                buildLlmPresets()
+                buildLlmLevels()
+                toast("已填入：" + p.label)
+            }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.rightMargin = dp(8f)
+            tv.layoutParams = lp
+            llLlmProviders.addView(tv)
+        }
+    }
+
+    /** 润色页：思考档位芯片（按当前 Base URL 识别厂商，用它家的真实档位） */
+    private fun buildLlmLevels() {
+        llLlmLevels.removeAllViews()
+        val c = Skin.colors(this)
+        val levels = LlmPresets.match(etLlmBase.text.toString().trim())?.levels.orEmpty()
+        llLlmLevels.visibility = if (levels.isEmpty()) View.GONE else View.VISIBLE
+        for ((name, value) in levels) {
+            val on = store.llmLevel == value
+            val tv = TextView(this)
+            tv.text = name
+            tv.textSize = 12.5f
+            tv.isSelected = on
+            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
+            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
+            tv.setTextColor(if (on) c.onAcc else c.dim)
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                store.llmLevel = if (on) "" else value
+                buildLlmLevels()
+            }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.rightMargin = dp(8f)
+            tv.layoutParams = lp
+            llLlmLevels.addView(tv)
+        }
+    }
+
+    /** 连接测试：发一句最短的请求，回显耗时 */
+    private fun testLlm() {
+        val base = etLlmBase.text.toString().trim()
+        val key = etLlmKey.text.toString().trim()
+        val model = etLlmModel.text.toString().trim()
+        if (base.isBlank() || key.isBlank()) { toast("先填 Base URL 和 Key"); return }
+        tvLlmTest.text = "测试中…"
+        val t0 = System.currentTimeMillis()
+        applyTransFieldsQuietly()
+        LlmClient.ask(base, key, model, "你是连接测试助手，只回复：ok", "ping",
+            maxTokens = 8, temperature = 0.0, level = store.llmLevel
+        ) { out, err ->
+            runOnUiThread {
+                val ms = System.currentTimeMillis() - t0
+                tvLlmTest.text = if (out != null) "✅ 连接成功 · " + ms + "ms · " + model
+                                 else "❌ " + (err ?: "失败")
+            }
+        }
+    }
+
+    /** 测试前把编辑框里的值先落盘（与生成时用的保持一致） */
+    private fun applyTransFieldsQuietly() {
+        store.llmBaseUrl = etLlmBase.text.toString()
+        store.llmKey = etLlmKey.text.toString().trim()
+        store.llmModel = etLlmModel.text.toString()
+        store.llmMaxTokens = etLlmMaxTokens.text.toString().trim().toIntOrNull() ?: 0
+        store.llmTemp = ((etLlmTemp.text.toString().trim().toDoubleOrNull() ?: -0.1) * 10).toInt()
+        store.transPrompt = etTransPrompt.text.toString()
+        store.llmPrompt = etLlmPrompt.text.toString()
+        store.llmExtra = etLlmExtra.text.toString().trim()
+    }
+
     /** 弹窗统一换肤：面板 / 标题 / 正文 / 按钮（与首页同一套） */
     private fun skinDialog(dlg: androidx.appcompat.app.AlertDialog) {
         dlg.window?.setDimAmount(0.28f)
@@ -1673,8 +1823,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 危险色（删除）：不写死一个红 —— 浅色主题用更深、深色主题提亮，保证对比 */
     private fun dangerColor(): Int {
         val c = Skin.colors(this)
-        return if (c.light) 0xFFB23A34.toInt()
-        else Skin.Colors.mix(0xFFE06B64.toInt(), c.txt, 0.18f)
+        return if (c.light) 0xFFC9463F.toInt()
+        else Skin.Colors.mix(0xFFE8736B.toInt(), c.txt, 0.12f)
     }
 
     private fun toast(msg: String) {

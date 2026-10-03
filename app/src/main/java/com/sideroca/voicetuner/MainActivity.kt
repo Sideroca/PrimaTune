@@ -109,8 +109,8 @@ class MainActivity : AppCompatActivity() {
     /** 破坏性动作（删除）的红色：不写死一个 —— 浅色主题更深、深色主题提亮 */
     private fun deleteRed(): Int {
         val c = Skin.colors(this)
-        return if (c.light) 0xFFB23A34.toInt()
-        else Skin.Colors.mix(0xFFE06B64.toInt(), c.txt, 0.18f)
+        return if (c.light) 0xFFC9463F.toInt()
+        else Skin.Colors.mix(0xFFE8736B.toInt(), c.txt, 0.12f)
     }
 
     // ---------------------------------------------------------------- 状态
@@ -193,6 +193,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
     private lateinit var btnYi: TextView
+    private lateinit var btnRun: TextView
     private lateinit var btnSmartFill: TextView
     private lateinit var etCustomVoice: EditText
     private lateinit var tvVoiceNote: TextView
@@ -357,6 +358,7 @@ class MainActivity : AppCompatActivity() {
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
         btnYi = findViewById(R.id.btnYi)
+        btnRun = findViewById(R.id.btnRun)
         btnSmartFill = findViewById(R.id.btnSmartFill)
         etCustomVoice = findViewById(R.id.etCustomVoice)
         tvVoiceNote = findViewById(R.id.tvVoiceNote)
@@ -451,22 +453,37 @@ class MainActivity : AppCompatActivity() {
         btnYi.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))   // 浅灰、微不足道
         TapFx.press(btnYi, Skin.colors(this).acc, findViewById(R.id.llRoot))
         // 智能填参：给 LLM 一条请求 → 自动挑厂商 / 写风格指令 / 生成纠错表
+        btnSmartFill.background = glassBg()
+        btnSmartFill.tag = "bg:keep"
         fx(btnSmartFill, findViewById(R.id.llRoot))
         btnSmartFill.setOnClickListener { smartFill() }
 
         // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
+        btnRun.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
+        TapFx.press(btnRun, Skin.colors(this).acc, findViewById(R.id.llRoot))
+        btnRun.setOnClickListener { polishText() }
         btnYi.setOnClickListener {
             if (etText.text.toString().trim().isEmpty()) pickTransTarget() else translateText()
         }
     }
 
-    /** 翻译文本框内容（原地替换，不跳任何 App） */
-    private fun translateText() {
+    /** 润色：把文本框内容交给 LLM 润色成"适合朗读的稿子"，原地替换 */
+    private fun polishText() {
         val text = etText.text.toString().trim()
-        if (text.isEmpty()) {
-            toast("请先输入文本")
+        if (text.isEmpty()) { toast("请先输入文本"); return }
+        if (store.llmKey.isBlank()) {
+            toast("请先在「设置 → 模型 → 润色」配好 LLM")
+            openSettings()
             return
         }
+        llmRewrite(false, text)
+    }
+
+    /** 翻译：配了 LLM 就走 LLM（质量好），否则退回免费源 */
+    private fun translateText() {
+        val text = etText.text.toString().trim()
+        if (text.isEmpty()) { toast("请先输入文本"); return }
+        if (store.llmKey.isNotBlank()) { llmRewrite(true, text); return }
         tvStatus.text = "翻译中…"
         btnTranslate.isEnabled = false
         TransClient.translate(text, store.trTarget, store.trLastSource) { out, err, src ->
@@ -483,6 +500,33 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    /** 走 LLM：translate=true 翻译 / false 润色 */
+    private fun llmRewrite(translate: Boolean, text: String) {
+        val sys = if (translate)
+            store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT }.replace("{target}", store.trTarget)
+        else
+            store.llmPrompt.ifBlank { LlmClient.DEFAULT_POLISH_PROMPT }
+        tvStatus.text = if (translate) "🤖 LLM 翻译中…" else "🤖 润色中…"
+        btnTranslate.isEnabled = false
+        LlmClient.ask(
+            store.llmBaseUrl, store.llmKey, store.llmModel, sys, text,
+            store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+        ) { out, err ->
+            ui {
+                btnTranslate.isEnabled = true
+                if (out != null) {
+                    etText.setText(out)
+                    tvStatus.text = if (translate) "✅ LLM 已翻译成" + store.trTarget else "✅ 已润色"
+                } else {
+                    tvStatus.text = "❌ " + (err ?: "失败")
+                    toast(err ?: "失败")
+                }
+            }
+        }
+    }
+
+
 
     /**
      * 智能填参：把「文本 + 音色身份 + 补充说明」发给 LLM，让它回
@@ -561,7 +605,8 @@ class MainActivity : AppCompatActivity() {
         for (name in TransClient.targetNames()) {
             val on = name == store.trTarget
             val tv = TextView(this)
-            tv.text = (if (on) "✓ " else "　 ") + name
+            // 顺序：名字在前、对号在后
+            tv.text = name + if (on) "  ✓" else ""
             tv.setTextColor(if (on) c.acc else c.txt)
             tv.textSize = 15f
             tv.setPadding(dp(4), dp(12), dp(4), dp(12))
@@ -579,7 +624,18 @@ class MainActivity : AppCompatActivity() {
         sc.addView(box)
         dlg = AlertDialog.Builder(this).setTitle("翻译成").setView(sc).setNegativeButton("取消", null).create()
         val dd = dlg
-        dd.setOnShowListener { skinDialog(dd) }
+        dd.setOnShowListener {
+            skinDialog(dd)
+            // 别铺满整屏：列表限高，窗口收紧 —— 这样"点窗口外的阴影"才真的在窗口外（能关闭）
+            sc.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 300).toInt()
+            )
+            dd.window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.72).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        dd.setCanceledOnTouchOutside(true)
         dd.show()
     }
 

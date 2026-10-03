@@ -260,6 +260,26 @@ class Store(context: Context) {
         get() = prefs.getString("llmPrompt", "") ?: ""
         set(v) { prefs.edit().putString("llmPrompt", v).apply() }
 
+    /** token 预算（0 = 不限） */
+    var llmMaxTokens: Int
+        get() = prefs.getInt("llmMaxTokens", 0)
+        set(v) { prefs.edit().putInt("llmMaxTokens", v).apply() }
+
+    /** 思考档位（关/低/高/极高…；空 = 不发该参数） */
+    var llmLevel: String
+        get() = prefs.getString("llmLevel", "") ?: ""
+        set(v) { prefs.edit().putString("llmLevel", v).apply() }
+
+    /** 温度（-1 = 用默认） */
+    var llmTemp: Int      // 存 0.1 为单位，避免 Float 精度问题
+        get() = prefs.getInt("llmTemp", -10)
+        set(v) { prefs.edit().putInt("llmTemp", v).apply() }
+
+    /** 翻译用的系统提示词（空 = 用内置默认） */
+    var transPrompt: String
+        get() = prefs.getString("transPrompt", "") ?: ""
+        set(v) { prefs.edit().putString("transPrompt", v).apply() }
+
     /** 用户补充说明（如"这个音色是《明日方舟》的艾雅法拉"） */
     var llmExtra: String
         get() = prefs.getString("llmExtra", "") ?: ""
