@@ -1454,7 +1454,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             if (path.isEmpty()) { toast("没有拿到截取结果"); return }
             val bmp = try { android.graphics.BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
             if (bmp == null) { toast("图片读取失败"); return }
-            val label = etEntryName.text.toString().trim().ifEmpty { getString(R.string.app_name_launcher) }
+            val label = data?.getStringExtra(CropActivity.EXTRA_NAME).orEmpty().trim()
+                .ifEmpty { etEntryName.text.toString().trim() }
+                .ifEmpty { getString(R.string.app_name_launcher) }
             pinShortcut("custom_" + System.currentTimeMillis(), label, bmp)
             return
         }
@@ -1482,30 +1484,11 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     )
     private var curIconStyle = "default"
 
-    private fun iconFgRes(key: String) = when (key) {
-        "a" -> R.drawable.icon_style_a_fg
-        "b" -> R.drawable.icon_style_b_fg
-        "c" -> R.drawable.icon_style_c_fg
-        else -> R.drawable.icon_style_d_fg
-    }
 
-    private fun iconBgRes(key: String) = when (key) {
-        "a" -> R.drawable.icon_style_a_bg
-        "b" -> R.drawable.icon_style_b_bg
-        "c" -> R.drawable.icon_style_c_bg
-        else -> R.drawable.icon_style_d_bg
-    }
 
     /** 合成一张该样式的完整图标位图（背景层铺底 + 前景层盖上） */
-    private fun composeIcon(key: String, size: Int): android.graphics.Bitmap {
-        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
-        val cv = android.graphics.Canvas(bmp)
-        val bg = androidx.core.content.ContextCompat.getDrawable(this, iconBgRes(key))
-        val fg = androidx.core.content.ContextCompat.getDrawable(this, iconFgRes(key))
-        bg?.setBounds(0, 0, size, size); bg?.draw(cv)
-        fg?.setBounds(0, 0, size, size); fg?.draw(cv)
-        return bmp
-    }
+    private fun composeIcon(key: String, size: Int): android.graphics.Bitmap =
+        IconStyles.compose(this, key, size)
 
     private fun setupIconWorkshop() {
         curIconStyle = store.appIconStyle
@@ -1557,10 +1540,21 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240))
     }
 
-    /** 切换 App 自身图标：每套样式对应一个 activity-alias，运行时只开一个 */
+    /**
+     * 切 App 自身图标。
+     * 说明：目前只有「紫·默认」这一张做得够干净，另外三套作为 App 图标效果不好 →
+     * 选它们时**不再切 App 图标**，而是留给「创建桌面入口」当素材（那边可以自己截取）。
+     */
     private fun applyAppIconStyle(key: String, tell: Boolean) {
         curIconStyle = key
-        store.appIconStyle = key
+        store.appIconStyle = if (key == "default") key else "default"
+        if (key != "default") {
+            renderIconStyleChips()
+            updateIconPreview()
+            if (tell) toast("已选素材：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key) +
+                "（点「创建桌面入口」自己截取）")
+            return
+        }
         val aliases = mapOf(
             "default" to ".IconStyleDefault", "a" to ".IconStyleA",
             "b" to ".IconStyleB", "c" to ".IconStyleC"
@@ -1595,10 +1589,18 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
     }
 
-    /** 钉一个桌面入口（用当前样式的图标） */
+    /** 创建桌面入口：走"取景"让用户自己截一张（素材 = 当前样式），截完再钉上去 */
     private fun pinEntry() {
-        val label = etEntryName.text.toString().trim().ifEmpty { getString(R.string.app_name_launcher) }
-        pinShortcut("style_" + curIconStyle + "_" + System.currentTimeMillis(), label, composeIcon(curIconStyle, 256))
+        if (etEntryName.text.toString().trim().isEmpty()) {
+            toast("可以先填个「桌面入口名称」，截完再钉")
+        }
+        startActivityForResult(
+            Intent(this, CropActivity::class.java)
+                .putExtra(CropActivity.EXTRA_SLOT, "icon")
+                .putExtra(CropActivity.EXTRA_STYLE, curIconStyle)
+                .putExtra(CropActivity.EXTRA_NAME, etEntryName.text.toString().trim()),
+            REQ_CROP_ICON
+        )
     }
 
     private fun pinShortcut(id: String, label: String, bmp: android.graphics.Bitmap) {

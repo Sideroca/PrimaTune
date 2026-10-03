@@ -1641,14 +1641,13 @@ class MainActivity : AppCompatActivity() {
         bDown.setOnClickListener { exportTake(take) }
         val refreshStar = {
             val fav = take.id in store.favTakes
-            // 自绘 View 不走 Skin.apply → 直接用主题色；描边比正文浅 35%，免得又厚又深太抢眼
+            // 文字跟旁边按钮**完全一致**（Skin 会按角色重着色）；只有星星描边略微收浅一点，别又厚又深
             val sc = Skin.colors(this)
-            val tc = Skin.Colors.mix(sc.txt, sc.card, 0.35f)
-            starIcon.colorSolid = tc      // 未收藏＝描边跟旁边文字同色
+            starIcon.colorSolid = Skin.Colors.mix(sc.txt, sc.card, 0.18f)
             starIcon.filled = fav         // 已收藏＝亮黄渐变（StarView 里直接画）
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
             starLabel.text = "收藏"                     // 恒定文字，只有星星上色/变实心
-            starLabel.setTextColor(tc)
+            starLabel.setTextColor(cTxt)                // 与「播放/回填/下载」同色（Skin 按角色统一重着色）
         }
         refreshStar()
         bStar.setOnClickListener {

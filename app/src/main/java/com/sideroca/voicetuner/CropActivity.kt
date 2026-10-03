@@ -27,6 +27,8 @@ class CropActivity : AppCompatActivity() {
         const val EXTRA_SLOT = "slot"       // "main" | "page" | "icon"
         const val EXTRA_URI = "uri"
         const val EXTRA_PATH = "path"       // 结果：裁好的文件绝对路径
+        const val EXTRA_STYLE = "style"     // 用内置图标样式当素材（此时不需要 uri）
+        const val EXTRA_NAME = "name"       // 桌面入口名字（原样回传）
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,8 +36,11 @@ class CropActivity : AppCompatActivity() {
         val slot = intent.getStringExtra(EXTRA_SLOT) ?: "main"
         val uriStr = intent.getStringExtra(EXTRA_URI).orEmpty()
 
+        val style = intent.getStringExtra(EXTRA_STYLE).orEmpty()
         val src: Bitmap? = try {
-            if (uriStr.isNotEmpty()) {
+            if (style.isNotEmpty()) {
+                IconStyles.compose(this, style, 1024)      // 素材 = 内置样式（合成一张大图来取景）
+            } else if (uriStr.isNotEmpty()) {
                 contentResolver.openInputStream(Uri.parse(uriStr))?.use { BitmapFactory.decodeStream(it) }
             } else null
         } catch (e: Exception) {
@@ -142,7 +147,11 @@ class CropActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     // ignore
                 }
-                setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_PATH, f.absolutePath))
+                setResult(
+                    Activity.RESULT_OK,
+                    Intent().putExtra(EXTRA_PATH, f.absolutePath)
+                        .putExtra(EXTRA_NAME, intent.getStringExtra(EXTRA_NAME).orEmpty())
+                )
                 finish()
             }
         })
