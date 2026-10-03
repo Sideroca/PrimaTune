@@ -524,6 +524,64 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /** 记录页「翻译」：翻这条记录的正文（配了 LLM 走 LLM，否则走免费源），结果弹窗可复制 */
+    private fun translateHistory(t: Take) {
+        val src = t.text.trim()
+        if (src.isEmpty()) { Toast.makeText(this, "这条记录没有正文", Toast.LENGTH_SHORT).show(); return }
+        Toast.makeText(this, "翻译中…", Toast.LENGTH_SHORT).show()
+        if (store.llmKey.isNotBlank()) {
+            val sys = store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT }
+                .replace("{target}", store.trTarget)
+            LlmClient.ask(
+                store.llmBaseUrl, store.llmKey, store.llmModel, sys, src,
+                store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+            ) { out, err ->
+                runOnUiThread { if (out != null) showTranslated(out) else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show() }
+            }
+        } else {
+            TransClient.translate(src, store.trTarget, store.trLastSource) { out, err, s2 ->
+                runOnUiThread {
+                    if (out != null) { s2?.let { store.trLastSource = it }; showTranslated(out) }
+                    else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /** 译文弹窗：可选中、可一键复制（跟随主题） */
+    private fun showTranslated(out: String) {
+        val tv = TextView(this)
+        tv.text = out
+        tv.setTextIsSelectable(true)
+        tv.textSize = 15f
+        tv.setPadding(dp(20f), dp(8f), dp(20f), dp(8f))
+        val sc = ScrollView(this)
+        sc.addView(tv)
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("翻译成" + store.trTarget)
+            .setView(sc)
+            .setPositiveButton("复制") { _, _ ->
+                (getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager)
+                    ?.setPrimaryClip(android.content.ClipData.newPlainText("trans", out))
+                toast("已复制译文")
+                store.pendingFillId = ""
+            }
+            .setNegativeButton("关闭", null)
+            .create()
+        d.setOnShowListener {
+            skinDialog(d)
+            val w = d.window
+            if (w != null) {
+                sc.layoutParams = android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 300).toInt()
+                )
+                w.setLayout((resources.displayMetrics.widthPixels * 0.82).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+        }
+        d.setCanceledOnTouchOutside(true)
+        d.show()
+    }
+
     private fun shareHistory(t: Take) {
         try {
             val f = store.fileOf(t)
@@ -805,8 +863,10 @@ class SettingsActivity : AppCompatActivity() {
 
             // 常驻信息：时间 · 音色 · 格式 · 字数
             val b = TextView(this)
+            val durStr = if (t.durationMs > 0)
+                String.format(java.util.Locale.US, "%.1f 秒", t.durationMs / 1000.0) else "未知"
             b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " +
-                    t.format + " · " + t.text.length + " 字"
+                    t.format + " · 时长 " + durStr + " · " + t.text.length + " 字"
             b.setTextColor(c.dim)
             b.textSize = 11.5f
             b.layoutParams = LinearLayout.LayoutParams(
@@ -844,8 +904,8 @@ class SettingsActivity : AppCompatActivity() {
             val play = TextView(this)
             play.text = "▶ 播放"
             play.setTextColor(c.dim)
-            play.textSize = 11.5f
-            play.setPadding(0, dp(6f), dp(16f), dp(2f))
+            play.textSize = 12.5f
+            play.setPadding(0, dp(6f), dp(12f), dp(2f))
             play.isClickable = true
             play.isFocusable = true
             fx(play)
@@ -855,8 +915,8 @@ class SettingsActivity : AppCompatActivity() {
             val down = TextView(this)
             down.text = "下载"
             down.setTextColor(c.dim)
-            down.textSize = 11.5f
-            down.setPadding(0, dp(6f), dp(16f), dp(2f))
+            down.textSize = 12.5f
+            down.setPadding(0, dp(6f), dp(12f), dp(2f))
             down.isClickable = true
             down.isFocusable = true
             fx(down)
@@ -866,8 +926,8 @@ class SettingsActivity : AppCompatActivity() {
             val share = TextView(this)
             share.text = "分享"
             share.setTextColor(c.dim)
-            share.textSize = 11.5f
-            share.setPadding(0, dp(6f), dp(16f), dp(2f))
+            share.textSize = 12.5f
+            share.setPadding(0, dp(6f), dp(12f), dp(2f))
             share.isClickable = true
             share.isFocusable = true
             fx(share)
@@ -877,14 +937,14 @@ class SettingsActivity : AppCompatActivity() {
             val star = LinearLayout(this)
             star.orientation = LinearLayout.HORIZONTAL
             star.gravity = Gravity.CENTER_VERTICAL
-            star.setPadding(0, dp(6f), dp(14f), dp(2f))
+            star.setPadding(0, dp(6f), dp(12f), dp(2f))
             star.isClickable = true
             star.isFocusable = true
             val starIcon = StarView(this)
             starIcon.layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f))
             star.addView(starIcon)
             val starLabel = TextView(this)
-            starLabel.textSize = 11.5f
+            starLabel.textSize = 12.5f
             starLabel.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(2f) }
@@ -910,7 +970,7 @@ class SettingsActivity : AppCompatActivity() {
             val fill = TextView(this)
             fill.text = "回填"
             fill.setTextColor(c.dim)
-            fill.textSize = 11.5f
+            fill.textSize = 12.5f
             fill.setPadding(0, dp(6f), 0, dp(2f))
             fill.isClickable = true
             fill.isFocusable = true
@@ -921,6 +981,18 @@ class SettingsActivity : AppCompatActivity() {
                 finish()          // 回主页 → onResume 里自动应用
             }
             bar2.addView(fill)
+
+            // 翻译（最右）：翻这条记录的正文，结果弹出来可复制（配了 LLM 走 LLM）
+            val tr = TextView(this)
+            tr.text = "翻译"
+            tr.setTextColor(c.dim)
+            tr.textSize = 12.5f
+            tr.setPadding(dp(12f), dp(6f), dp(4f), dp(2f))
+            tr.isClickable = true
+            tr.isFocusable = true
+            fx(tr)
+            tr.setOnClickListener { translateHistory(t) }
+            bar2.addView(tr)
 
             box.addView(bar2)
 

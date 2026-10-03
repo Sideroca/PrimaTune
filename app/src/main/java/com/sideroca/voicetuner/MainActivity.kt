@@ -919,7 +919,15 @@ class MainActivity : AppCompatActivity() {
     private fun selectedVoiceId(): String =
         if (voiceIsCustom) etCustomVoice.text.toString().trim() else currentVoiceId
 
-    private fun voiceNameOf(id: String): String = allVoices().firstOrNull { it.id == id }?.name ?: "自定义音色"
+    /**
+     * 音色 id → 显示名。
+     * 先查当前音色列表；查不到就**回退到记录里存的名字**（每条记录自带 voiceName）——
+     * 否则自建音色一旦被删除/改过名，筛选下拉里就会一片「自定义音色」（实测踩到）。
+     */
+    private fun voiceNameOf(id: String): String =
+        allVoices().firstOrNull { it.id == id }?.name
+            ?: takes.firstOrNull { it.voiceId == id }?.voiceName?.takeIf { it.isNotBlank() }
+            ?: "自定义音色"
 
     private fun renderChips() {
         llChips.removeAllViews()
@@ -1568,8 +1576,8 @@ class MainActivity : AppCompatActivity() {
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
         meta.text = time + " · " + take.voiceName + " · " + take.format +
-                " · " + take.text.length + " 字" +
-                " · 时长 " + fmtDur(take.durationMs)
+                " · 时长 " + fmtDur(take.durationMs) +
+                " · " + take.text.length + " 字"        // 时长在左、字数最右
         meta.setTextColor(cDim)
         meta.textSize = 12f
         meta.setPadding(0, dp(3), dp(12), dp(6))
