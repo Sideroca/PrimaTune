@@ -115,7 +115,8 @@ object Skin {
                 v.thumb = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(c.acc)
-                    setSize((16f * dd).toInt(), (16f * dd).toInt())
+                    // 尺寸比默认小 15%（16dp → 13.6dp）
+                    setSize((13.6f * dd).toInt(), (13.6f * dd).toInt())
                 }
                 v.thumbTintList = null
             }

@@ -19,13 +19,16 @@ object Ratchet {
         val s = step.coerceAtLeast(1)
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                if (!fromUser) return
                 val snapped = ((progress + s / 2) / s) * s
                 if (snapped != progress) {
-                    bar.progress = snapped          // 递归回调里 fromUser=false → 会直接返回
+                    // 吸附到整档：这次设置会递归回调一次（fromUser=false），由那一次负责刷新数字
+                    bar.progress = snapped
                     return
                 }
-                bar.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                // 关键：**值一旦对齐就立刻刷新数字**，不再区分 fromUser。
+                // 之前 `if (!fromUser) return` 会让"吸附"那条路径跳过刷新 →
+                // 数字只碰巧落在整档上时才更新，快拖到最左边时会"卡在原来的值"。
+                if (fromUser) bar.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 onChanged()
             }
 

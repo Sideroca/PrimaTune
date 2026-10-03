@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="history" path="history/" />
+    <!-- 分享前的"好名字"副本（缓存目录） -->
+    <cache-path name="share" path="share/" />
 </paths>

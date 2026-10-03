@@ -60,7 +60,10 @@ class VoiceIndicatorView @JvmOverloads constructor(
         anim = null
     }
 
-    private var anim: AnimatorSet? = null
+    private var anim: Animator? = null
+    /** 生成中：一直在动 */
+    private var busy = false
+    private var phase = 0f
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
@@ -72,9 +75,12 @@ class VoiceIndicatorView @JvmOverloads constructor(
         val halfW = w / 2f * 0.94f * (1f - 2f * inset)
         val halfH = h / 2f * 0.62f * amp
         path.reset()
+        val ph = phase * (2.0 * Math.PI).toFloat()
         for (i in xs.indices) {
             val px = cx + xs[i] * halfW
-            val py = cy + ys[i] * halfH
+            // 生成中：每个折点带相位差地上下摆 —— 整条线持续"动来动去"
+            val k = if (busy) (0.55f + 0.45f * kotlin.math.sin(ph + i * 0.9f)) else 1f
+            val py = cy + ys[i] * halfH * k
             if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
         canvas.drawPath(path, line)
@@ -90,8 +96,35 @@ class VoiceIndicatorView @JvmOverloads constructor(
         }
     }
 
+    /** 生成中：一直动（连续摆动，无限循环） */
+    fun startBusy() {
+        stop()
+        visibility = VISIBLE
+        alpha = 1f
+        inset = 0f
+        amp = 1f
+        line.color = indicatorColor
+        busy = true
+        val a = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1200
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { phase = it.animatedValue as Float; invalidate() }
+        }
+        anim = a
+        a.start()
+    }
+
+    /** 停止"生成中"的摆动（不改变可见性） */
+    fun stopBusy() {
+        busy = false
+        stop()
+        invalidate()
+    }
+
     /** 静态显示（不播动画） */
     fun showStatic() {
+        busy = false
         stop()
         visibility = VISIBLE
         alpha = 1f
@@ -103,6 +136,7 @@ class VoiceIndicatorView @JvmOverloads constructor(
     /** 退场：平掉 → 两端烧向中心 → 熄灭。
      *  注意：退场**直接用雾蓝灰**（不做「本色 → 灰」的颜色过渡）。 */
     fun playOut(onEnd: (() -> Unit)? = null) {
+        busy = false
         stop()
         visibility = VISIBLE
         alpha = 1f
@@ -131,6 +165,7 @@ class VoiceIndicatorView @JvmOverloads constructor(
 
     /** 入场：从中心长出 → 活起来 */
     fun playIn() {
+        busy = false
         stop()
         visibility = VISIBLE
         alpha = 0f

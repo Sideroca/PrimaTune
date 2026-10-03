@@ -189,6 +189,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var llVoice: LinearLayout
     private lateinit var tvVoice: TextView
     private lateinit var ivVoiceArrow: ImageView
+    private lateinit var ivVoiceInd: VoiceIndicatorView
+    private lateinit var btnTranslate: TextView
+    private lateinit var tvTransTarget: TextView
     private lateinit var etCustomVoice: EditText
     private lateinit var tvVoiceNote: TextView
     private lateinit var btnCreateVoice: TextView
@@ -299,6 +302,8 @@ class MainActivity : AppCompatActivity() {
         Wp.applySlot(this, wpImg, wpScrim, store.wpMain, store.scrimMain, c.bg)
         // 下拉浮层：底色 / 描边 / 宽度 跟随主题（音色选择器已改为自绘，见 showVoicePickerPopup）
         val ddw = resources.displayMetrics.widthPixels - dp(28)
+        ivVoiceInd.indicatorColor = runCatching { Color.parseColor(store.indicatorColor) }
+            .getOrDefault(0xFF2FE39B.toInt())
         spFormat.setPopupBackgroundDrawable(Skin.shapeDp(this, c.bg, c.line, 12f))
         spFormat.setDropDownWidth(ddw)
         // 结果卡三颗按钮与记录卡统一成"玻璃按键"
@@ -313,6 +318,9 @@ class MainActivity : AppCompatActivity() {
         llVoice = findViewById(R.id.llVoice)
         tvVoice = findViewById(R.id.tvVoice)
         ivVoiceArrow = findViewById(R.id.ivVoiceArrow)
+        ivVoiceInd = findViewById(R.id.ivVoiceInd)
+        btnTranslate = findViewById(R.id.btnTranslate)
+        tvTransTarget = findViewById(R.id.tvTransTarget)
         etCustomVoice = findViewById(R.id.etCustomVoice)
         tvVoiceNote = findViewById(R.id.tvVoiceNote)
         btnCreateVoice = findViewById(R.id.btnCreateVoice)
@@ -379,6 +387,57 @@ class MainActivity : AppCompatActivity() {
         fxPrimary(btnGenerate)
 
         setAdvanced(store.advExpanded, animate = false)
+
+        // 空白处点按也有"留痕"（整页常驻；滚动不算——位移超过阈值就跳过）
+        findViewById<View>(R.id.llRoot)?.let { TapFx.tapAnywhere(it) { Skin.colors(this).acc } }
+
+        // 翻译：一键把文本框内容翻成目标语言（内置免费接口，不跳 App）
+        btnTranslate.background = glassBg()
+        btnTranslate.tag = "bg:keep"
+        fx(btnTranslate, findViewById(R.id.llRoot))
+        tvTransTarget.text = "→ " + store.trTarget
+        btnTranslate.setOnClickListener { translateText() }
+        tvTransTarget.setOnClickListener { pickTransTarget() }
+    }
+
+    /** 翻译文本框内容（原地替换，不跳任何 App） */
+    private fun translateText() {
+        val text = etText.text.toString().trim()
+        if (text.isEmpty()) {
+            toast("请先输入文本")
+            return
+        }
+        tvStatus.text = "翻译中…"
+        btnTranslate.isEnabled = false
+        TransClient.translate(text, store.trTarget, store.trLastSource) { out, err, src ->
+            ui {
+                btnTranslate.isEnabled = true
+                if (out != null) {
+                    src?.let { store.trLastSource = it }
+                    etText.setText(out)
+                    tvStatus.text = "✅ 已翻译成" + store.trTarget
+                } else {
+                    tvStatus.text = "❌ " + (err ?: "翻译失败")
+                    toast(err ?: "翻译失败")
+                }
+            }
+        }
+    }
+
+    /** 选目标语言 */
+    private fun pickTransTarget() {
+        val names = TransClient.targetNames().toTypedArray()
+        val d = AlertDialog.Builder(this)
+            .setTitle("翻译成")
+            .setSingleChoiceItems(names, names.indexOf(store.trTarget)) { dlg, which ->
+                store.trTarget = names[which]
+                tvTransTarget.text = "→ " + names[which]
+                dlg.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        d.setOnShowListener { skinDialog(d) }
+        d.show()
     }
 
     /** 高级参数展开/收起：180ms 高度过渡（原来瞬变） */
@@ -452,13 +511,21 @@ class MainActivity : AppCompatActivity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val v = super.getView(position, convertView, parent)
             (v as? TextView)?.setTextColor(Skin.colors(parent.context).txt)
+            pressFx(v, parent)
             return v
         }
 
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
             val v = super.getDropDownView(position, convertView, parent)
             (v as? TextView)?.setTextColor(Skin.colors(parent.context).txt)
+            // 下拉卡片里的每一项也给点按反馈：水波 + 留痕（留痕画在它所在的那个列表上）
+            TapFx.press(v, Skin.colors(v.context).acc, rootAtTouch = { (v.parent as? View) })
             return v
+        }
+
+        /** 收起状态的那个控件本身也给反馈（留痕画在它自己的父容器上） */
+        private fun pressFx(v: View, parent: ViewGroup) {
+            TapFx.press(v, Skin.colors(v.context).acc, rootAtTouch = { parent })
         }
     }
 
@@ -478,7 +545,7 @@ class MainActivity : AppCompatActivity() {
         val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
         p.typeface = tvVoice.typeface
         p.textSize = tvVoice.textSize
-        val w = p.measureText(longest) + dp(10 + 10 + 8)
+        val w = p.measureText(longest) + dp(10 + 10 + 8) + dp(24 + 10)   // ⌀ 指示符 + 间距
         val lp = llVoice.layoutParams
         lp.width = w.toInt()
         llVoice.layoutParams = lp
@@ -595,7 +662,7 @@ class MainActivity : AppCompatActivity() {
                 etCustomVoice.setText(id)
                 setVoice(id)
                 syncVoiceUi()
-                toast("已使用：" + name)
+                toast("已加入：" + name)
             }
             .setNegativeButton("取消", null)
             .create()
@@ -859,6 +926,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         busy = true
+        ivVoiceInd.startBusy()          // 生成期间：指示符持续摆动
         KeepAliveService.start(this, "正在合成语音…（可以切到后台等）")
         btnGenerate.isEnabled = false
         btnGenerate.alpha = 0.55f
@@ -879,22 +947,22 @@ class MainActivity : AppCompatActivity() {
             } else if (prov.shape == "mimo") {
                 ExtraTts2.mimo(
                     store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb,
-                    req.instruction, req.voice
+                    req.instruction, req.voice, req.seed
                 )
             } else if (prov.shape == "elevenlabs") {
                 ExtraTts.eleven(
                     store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb,
-                    req.rate
+                    req.rate, req.seed
                 )
             } else if (prov.shape == "minimax") {
                 ExtraTts.minimax(
                     store.providerBaseUrl(prov.id), provKey, store.workspace, req.model, req.voice,
-                    req.text, req.rate, req.pitch, req.volume, cb
+                    req.text, req.rate, req.pitch, req.volume, cb, req.instruction
                 )
             } else if (prov.shape == "fish") {
                 ExtraTts.fish(
                     store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model,
-                    req.rate, req.volume, extra
+                    req.rate, req.volume, extra, req.instruction, req.seed
                 )
             } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL
@@ -908,7 +976,8 @@ class MainActivity : AppCompatActivity() {
                         extra = extra
                     ),
                     rate = req.rate,
-                    volume = req.volume
+                    volume = req.volume,
+                    seed = if (prov.id == "custom") req.seed else null
                 )
             }
             else
@@ -1021,6 +1090,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun finishBusy() {
         busy = false
+        // 生成结束 = 进入播放阶段 → 不再动，直接"变灰 → 消失"
+        ivVoiceInd.stopBusy()
+        ivVoiceInd.playOut()
         KeepAliveService.stop(this)
         btnGenerate.isEnabled = true
         btnGenerate.alpha = 1f
@@ -1040,6 +1112,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun startPlayback(take: Take) {
         stopPlayback()
+        // 申请音频焦点：音乐/播客会先暂停，我们放完它们自动续播
+        // ——"新的生成好了自动播放"就能打断正在响的声音，而不是两个声音叠着
+        AudioFocus.request(this) { stopPlayback(); refreshPlayButtons() }
         val file = store.fileOf(take)
         if (!file.exists()) {
             toast("文件不存在")
@@ -1047,6 +1122,13 @@ class MainActivity : AppCompatActivity() {
         }
         try {
             val mp = MediaPlayer()
+            // 声明成"媒体/语音"用途，配合上面的焦点申请
+            mp.setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
             mp.setDataSource(file.absolutePath)
             mp.setOnCompletionListener {
                 stopPlayback()
@@ -1089,6 +1171,7 @@ class MainActivity : AppCompatActivity() {
         playingId = null
         playingProgress = null
         mainHandler.removeCallbacks(progTick)
+        AudioFocus.abandon(this)      // 交还焦点 → 刚才暂停的音乐自动续播
     }
 
     private fun refreshPlayButtons() {
@@ -1101,22 +1184,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 分享 / 导出
+    /** 分享前先把音频复制成"好名字"（对方收到的就是「音色·正文.wav」，而不是 vt_1759…_abc.wav） */
+    private fun shareableOf(take: Take): File {
+        val src = store.fileOf(take)
+        return try {
+            val dir = File(cacheDir, "share").apply { mkdirs() }
+            val dst = File(dir, niceFileName(take))
+            if (!dst.exists() || dst.length() != src.length()) src.copyTo(dst, overwrite = true)
+            if (dst.exists()) dst else src
+        } catch (e: Exception) {
+            src
+        }
+    }
+
     private fun shareTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
             toast("文件不存在")
             return
         }
+        val out = shareableOf(take)
         try {
-            val uri: Uri = FileProvider.getUriForFile(this, packageName + ".fileprovider", file)
+            val uri: Uri = FileProvider.getUriForFile(this, packageName + ".fileprovider", out)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = mimeOf(file.name)
+                type = mimeOf(out.name)
                 putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TITLE, out.name)
+                // 关键：有些接收方/系统只认 ClipData 里的 uri（只给 EXTRA_STREAM 会"点了没反应"）
+                clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "分享音频"))
         } catch (e: Exception) {
-            toast("分享失败：" + e.message)
+            toast("分享失败：" + (e.message ?: ""))
         }
     }
 
@@ -1125,16 +1225,8 @@ class MainActivity : AppCompatActivity() {
     private val REQ_SAVE = 9001
 
     /** 默认文件名 = 音色 + 正文一小段（去掉文件名非法字符、限长，空则回退） */
-    private fun defaultFileName(take: Take): String {
-        val ext = take.fileName.substringAfterLast('.', "wav")
-        val voice = take.voiceName.ifBlank { "音色" }.trim()
-        val snippet = take.text.replace(Regex("[\\s\\r\\n]+"), " ").trim().take(18)
-        val raw = if (snippet.isEmpty()) voice else voice + "·" + snippet
-        val safe = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().ifBlank { "语音" }
-        return safe + "." + ext
-    }
 
-    /** 下载：先让用户命名 + 选目录（SAF） */
+    /** 下载：自己命名 + 自己选目录（SAF）；默认名已按「音色·正文片段」预填好，可直接用 */
     private fun exportTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
@@ -1145,12 +1237,12 @@ class MainActivity : AppCompatActivity() {
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = mimeOf(file.name)
-            putExtra(Intent.EXTRA_TITLE, defaultFileName(take))   // 默认名 = 音色 + 正文片段（可改）
+            putExtra(Intent.EXTRA_TITLE, niceFileName(take))   // 建议名（认它的文件管理器会自动填上）
         }
         try {
             startActivityForResult(i, REQ_SAVE)
         } catch (e: Exception) {
-            toast("无法打开保存对话框：" + e.message)
+            toast("无法打开保存对话框：" + (e.message ?: ""))
         }
     }
 
@@ -1298,8 +1390,10 @@ class MainActivity : AppCompatActivity() {
         val bStar = LinearLayout(this)
         bStar.orientation = LinearLayout.HORIZONTAL
         bStar.gravity = android.view.Gravity.CENTER_VERTICAL
-        bStar.background = ContextCompat.getDrawable(this, R.drawable.bg_btn)
-        bStar.setPadding(dp(12), dp(7), dp(12), dp(7))
+        // 与同排按钮用同一套"玻璃底"（原来这里还是旧的 bg_btn，会被换肤刷成更深的一档，显得突兀）
+        bStar.background = glassBg()
+        bStar.tag = "bg:keep"
+        bStar.setPadding(dp(13), dp(8), dp(13), dp(8))
         bStar.isClickable = true
         bStar.isFocusable = true
         bStar.layoutParams = LinearLayout.LayoutParams(
@@ -1346,7 +1440,9 @@ class MainActivity : AppCompatActivity() {
         bDown.setOnClickListener { exportTake(take) }
         val refreshStar = {
             val fav = take.id in store.favTakes
-            val tc = Skin.colors(this).txt   // 自绘 View 不走 Skin.apply → 直接用当前主题文字色
+            // 自绘 View 不走 Skin.apply → 直接用主题色；描边比正文浅 35%，免得又厚又深太抢眼
+            val sc = Skin.colors(this)
+            val tc = Skin.Colors.mix(sc.txt, sc.card, 0.35f)
             starIcon.colorSolid = tc      // 未收藏＝描边跟旁边文字同色
             starIcon.filled = fav         // 已收藏＝亮黄渐变（StarView 里直接画）
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
@@ -1387,7 +1483,7 @@ class MainActivity : AppCompatActivity() {
 
         // 点按反馈：这些小按钮都在卡片里 → 带"留痕"
         listOf(bPlay, bFill, bDown, bStar, bShare).forEach { fx(it, row) }
-        fx(x)
+        // 记录卡的删除 ✕ 刻意**不做**点按特效：字形小、判定大是它的设计取向，加反馈反而破坏极简
 
         rowRefs.add(RowRef(take, bPlay, prog))
         return row
@@ -1469,7 +1565,6 @@ class MainActivity : AppCompatActivity() {
         val c = Skin.colors(this)
         val all = allVoices()
         var pop: PopupWindow? = null
-        val inds = HashMap<String, VoiceIndicatorView>()
 
         val listBox = LinearLayout(this)
         listBox.orientation = LinearLayout.VERTICAL
@@ -1484,14 +1579,6 @@ class MainActivity : AppCompatActivity() {
             tv.setTextColor(tint)
             tv.textSize = 15f
             row.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            if (id != null) {
-                val ind = VoiceIndicatorView(this)
-                ind.indicatorColor = runCatching { Color.parseColor(store.indicatorColor) }
-                    .getOrDefault(0xFF2FE39B.toInt())
-                row.addView(ind, LinearLayout.LayoutParams(dp(22), dp(22)))
-                inds[id] = ind
-                if (!voiceIsCustom && id == currentVoiceId) ind.showStatic() else ind.visibility = View.INVISIBLE
-            }
             row.isClickable = true
             row.isFocusable = true
             fx(row)
@@ -1535,15 +1622,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun switchTo(id: String) {
-            val old = if (voiceIsCustom) null else inds[currentVoiceId]
             voiceIsCustom = false
             currentVoiceId = id
             fitVoiceWidth()
             syncVoiceUi()
-            old?.let { o -> o.playOut { o.visibility = View.INVISIBLE } }
-            inds[id]?.playIn()
-            // 等这套「烧尽 → 复活」播完再收起
-            listBox.postDelayed({ pop?.dismiss() }, 790)
+            pop?.dismiss()          // 指示符已搬到首页 → 这里立即收起（不再等 790ms）
         }
 
         if (all.isEmpty()) {
@@ -1554,7 +1637,8 @@ class MainActivity : AppCompatActivity() {
             hint.setPadding(dp(16), dp(10), dp(16), dp(10))
             listBox.addView(hint)
         }
-        for (v in all) addRow(v.name, v.id, c.txt) { switchTo(v.id) }
+        // 当前音色用主题主色标出（指示符搬去首页后，这里留个静态标记）
+        for (v in all) addRow(v.name, v.id, if (!voiceIsCustom && v.id == currentVoiceId) c.acc else c.txt) { switchTo(v.id) }
         addRow(customLabel, null, c.dim) {
             openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
             syncVoiceUi()

@@ -31,8 +31,17 @@ import kotlin.random.Random
  */
 object TapFx {
 
-    /** 普通按钮：水波（可选留痕，root 不为空时开） */
-    fun press(v: View, accent: Int, root: View? = null, primary: Boolean = false) {
+    /** 普通按钮：水波 + 可选留痕；rootAtTouch 用于"父容器在绑定那一刻还没挂上"的场合 */
+    fun press(
+        v: View, accent: Int, root: View? = null, primary: Boolean = false,
+        rootAtTouch: (() -> View?)? = null
+    ) {
+        press2(v, accent, root, primary, rootAtTouch)
+    }
+
+    private fun press2(
+        v: View, accent: Int, root: View?, primary: Boolean, rootAtTouch: (() -> View?)?
+    ) {
         installRipple(v, accent)
         val d = v.resources.displayMetrics.density
         val sink = 1f * d
@@ -49,10 +58,11 @@ object TapFx {
                         view.animate().translationY(0f).setDuration(150)
                             .setInterpolator(OvershootInterpolator(1.6f)).start()
                     }
-                    if (root != null) {
+                    val r = root ?: rootAtTouch?.invoke()
+                    if (r != null) {
                         val a = IntArray(2); view.getLocationInWindow(a)
-                        val b = IntArray(2); root.getLocationInWindow(b)
-                        spark(root, a[0] - b[0] + e.x, a[1] - b[1] + e.y, accent)
+                        val b = IntArray(2); r.getLocationInWindow(b)
+                        spark(r, a[0] - b[0] + e.x, a[1] - b[1] + e.y, accent)
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
@@ -71,6 +81,26 @@ object TapFx {
         val color = (accent and 0x00FFFFFF) or (0x33 shl 24)          // accent @20%
         val mask = v.background?.constantState?.newDrawable()?.mutate() // 水波裁成按钮圆角形状
         v.foreground = RippleDrawable(ColorStateList.valueOf(color), null, mask)
+    }
+
+    /**
+     * 常驻留痕：整页**空白处**点一下也会迸星点（不影响滚动：位移超过阈值就不算点按）。
+     * accent 用 lambda 传，换主题后颜色自动跟着变。
+     */
+    fun tapAnywhere(v: View, accent: () -> Int) {
+        var downX = 0f; var downY = 0f
+        v.setOnTouchListener { view, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downX = e.x; downY = e.y }
+                MotionEvent.ACTION_UP -> {
+                    val slop = 22f * view.resources.displayMetrics.density
+                    if (kotlin.math.hypot(e.x - downX, e.y - downY) < slop) {
+                        spark(view, e.x, e.y, accent())
+                    }
+                }
+            }
+            false
+        }
     }
 
     // ------------------------------------------------------------------ 留痕

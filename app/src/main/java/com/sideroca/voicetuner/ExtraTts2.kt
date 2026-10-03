@@ -131,11 +131,12 @@ object ExtraTts2 {
     // ------------------------------------------------------------ MiMo（messages 形状）
     fun mimo(
         baseUrl: String, apiKey: String, model: String, text: String, cb: SynthCallback,
-        instruction: String? = null, voice: String = ""
+        instruction: String? = null, voice: String = "", seed: Int? = null
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/chat/completions"
         val body = JSONObject().apply {
             put("model", model.ifBlank { "MiMo-V2.5-TTS" })
+            seed?.let { put("seed", it) }        // chat/completions 标准字段
             val msgs = JSONArray()
             // 官方：**待合成文本必须放在 assistant**；风格/语速等自然语言指令放在 user（可选）
             if (!instruction.isNullOrBlank()) {

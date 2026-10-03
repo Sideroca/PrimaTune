@@ -165,8 +165,8 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 分页 + 坞
 
-    private val pageTitles = listOf("模型", "音色", "主题", "记录", "提示")
-    private val dockDefs = listOf("模型", "音色", "主题", "记录", "提示")
+    private val pageTitles = listOf("模型", "音色", "主题", "记录", "关于")
+    private val dockDefs = listOf("模型", "音色", "主题", "记录", "关于")
     /** 坞图标：手绘矢量（统一 24dp 画布/线宽），跨机型一致、跟主题变色 */
     private val dockIconRes = intArrayOf(
         R.drawable.ic_tab_model, R.drawable.ic_tab_voice, R.drawable.ic_tab_theme,
@@ -465,12 +465,21 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
                 return
             }
+            // 复制成"好名字"再分享（否则对方收到的是 vt_1759…_abc.wav）
+            val out = try {
+                val dir = java.io.File(cacheDir, "share").apply { mkdirs() }
+                val dst = java.io.File(dir, niceFileName(t))
+                if (!dst.exists() || dst.length() != f.length()) f.copyTo(dst, overwrite = true)
+                if (dst.exists()) dst else f
+            } catch (e: Exception) { f }
             val uri = androidx.core.content.FileProvider.getUriForFile(
-                this, packageName + ".fileprovider", f
+                this, packageName + ".fileprovider", out
             )
             val i = Intent(Intent.ACTION_SEND).apply {
-                type = if (t.fileName.endsWith("mp3")) "audio/mpeg" else "audio/wav"
+                type = if (out.name.endsWith("mp3")) "audio/mpeg" else "audio/wav"
                 putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TITLE, out.name)
+                clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(i, "分享到"))
@@ -485,16 +494,26 @@ class SettingsActivity : AppCompatActivity() {
     private fun playHistory(t: Take) {
         try {
             recPlayer?.release()
+            AudioFocus.request(this) { }
             val f = store.fileOf(t)
             if (!f.exists()) {
                 Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
                 return
             }
             recPlayer = android.media.MediaPlayer().apply {
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
                 setDataSource(f.absolutePath)
                 prepare()
                 start()
-                setOnCompletionListener { it.release() }
+                setOnCompletionListener {
+                    it.release()
+                    AudioFocus.abandon(this@SettingsActivity)
+                }
             }
         } catch (e: Exception) {
             Toast.makeText(this, "播放失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
@@ -645,7 +664,7 @@ class SettingsActivity : AppCompatActivity() {
             )
             x.isClickable = true
             x.isFocusable = true
-            fx(x)
+            // 同样的删除 ✕：不做点按特效
             x.setOnClickListener {
                 val dd = androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle("删除这条记录？")
@@ -1519,10 +1538,20 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         dlg.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)?.setTextColor(c.dim)
     }
 
+    override fun onPause() {
+        super.onPause()
+        // 离开设置页就停掉试听（否则回到主页时可能和新生成的结果"两个声音一起响"）
+        try { recPlayer?.stop() } catch (e: Exception) { /* ignore */ }
+        try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
+        recPlayer = null
+        AudioFocus.abandon(this)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
         recPlayer = null
+        AudioFocus.abandon(this)
     }
 
     /** 点按水波（+ root 时在该卡片里迸"留痕"星点） */

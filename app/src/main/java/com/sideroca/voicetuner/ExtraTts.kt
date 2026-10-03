@@ -27,13 +27,15 @@ object ExtraTts {
     fun eleven(
         baseUrl: String, apiKey: String, voice: String, model: String,
         text: String, stability: Double, similarity: Double, cb: SynthCallback,
-        rate: Double = 1.0
+        rate: Double = 1.0, seed: Int? = null
     ): Cancellable {
         val v = voice.ifBlank { "21m00Tcm4TlvDq8ikWAM" }        // 官方公开示例音色 Rachel
         val url = baseUrl.trimEnd('/') + "/v1/text-to-speech/" + v + "?output_format=pcm_24000"   // 它没有 wav 容器 → 要裸 PCM，本地套头（无损）"
         val body = JSONObject().apply {
             put("text", text)
             put("model_id", model.ifBlank { "eleven_multilingual_v2" })
+            // 官方：指定 seed 会尽量确定性复现（顶层字段，不在 voice_settings 里）
+            seed?.let { put("seed", it) }
             put("voice_settings", JSONObject().apply {
                 put("stability", stability)
                 put("similarity_boost", similarity)
@@ -46,9 +48,29 @@ object ExtraTts {
     }
 
     // ------------------------------------------------------------------ MiniMax
+    /** 从用户写的「情绪/风格指令」里认出 MiniMax 官方支持的 8 种情绪（认不出就不发） */
+    private fun emotionOf(instruction: String?): String? {
+        val t = instruction.orEmpty()
+        if (t.isBlank()) return null
+        val map = listOf(
+            "happy" to listOf("高兴", "开心", "愉悦", "欢快", "happy"),
+            "sad" to listOf("悲伤", "难过", "哀伤", "sad"),
+            "angry" to listOf("愤怒", "生气", "愤怒", "angry"),
+            "fearful" to listOf("害怕", "恐惧", "fearful"),
+            "disgusted" to listOf("厌恶", "disgusted"),
+            "surprised" to listOf("惊讶", "surprised"),
+            "calm" to listOf("中性", "平静", "冷静", "calm"),
+            "fluent" to listOf("生动", "流畅", "fluent"),
+            "whisper" to listOf("低语", "耳语", "whisper")
+        )
+        for ((k, words) in map) if (words.any { t.contains(it, ignoreCase = true) }) return k
+        return null
+    }
+
     fun minimax(
         baseUrl: String, apiKey: String, groupId: String, model: String, voice: String,
-        text: String, speed: Double, pitch: Double, volume: Int, cb: SynthCallback
+        text: String, speed: Double, pitch: Double, volume: Int, cb: SynthCallback,
+        instruction: String? = null
     ): Cancellable {
         val g = if (groupId.isBlank()) "" else "?GroupId=" + groupId
         val url = baseUrl.trimEnd('/') + "/t2a_v2" + g
@@ -58,9 +80,12 @@ object ExtraTts {
             put("stream", false)
             put("voice_setting", JSONObject().apply {
                 put("voice_id", voice.ifBlank { "male-qn-qingse" })
-                put("speed", speed)                 // 0.5~2
-                put("pitch", (pitch - 1.0) * 12.0)  // 界面是 0.5~1.5 倍率，MiniMax 是 -12~12 半音
-                put("vol", volume)                  // 0~100
+                put("speed", speed)                 // 官方 0.5~2
+                put("pitch", ((pitch - 1.0) * 12.0).coerceIn(-12.0, 12.0))  // 界面倍率 → 官方 -12~12 半音
+                // ⚠️ 官方 vol 范围是 (0,10]、默认 1.0 —— 以前直接把界面 0~100 发过去（默认 50 = 正常值 50 倍）
+                put("vol", ((volume.coerceIn(0, 100)) / 50.0).coerceIn(0.1, 10.0))
+                // 情绪：官方 8 种（高兴/悲伤/愤怒/害怕/厌恶/惊讶/中性/生动/低语），从「情绪/风格指令」里认出来
+                emotionOf(instruction)?.let { put("emotion", it) }
             })
             put("audio_setting", JSONObject().apply {
                 put("format", "mp3")     // TODO 待核：MiniMax 是否支持 wav/pcm（支持再改无损）
@@ -73,14 +98,22 @@ object ExtraTts {
     // ------------------------------------------------------------------ Fish Audio
     fun fish(
         baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback,
-        model: String = "", rate: Double = 1.0, volume: Int = 50, extra: JSONObject? = null
+        model: String = "", rate: Double = 1.0, volume: Int = 50, extra: JSONObject? = null,
+        instruction: String? = null, seed: Int? = null
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/v1/tts"
         // 官方 prosody：speed 0.5~2.0（正好对上我们的语速 0.5~2.0）、volume -20~20（我们的 0~100 线性映射）
         val sp = rate.coerceIn(0.5, 2.0)
         val vol = (volume.coerceIn(0, 100) / 100.0) * 40.0 - 20.0
+        // Fish 没有独立的"指令"字段：把自然语言提示写成括号提示拼到文本最前面
+        //   S2 / S2.1 → [方括号]（可自由自然语言）；S1（老模型）→ (圆括号) 且只认固定标签
+        val cue = instruction?.trim().orEmpty()
+        val bodyText = if (cue.isEmpty()) text else {
+            val b = if (model.trim().lowercase().startsWith("s1")) "(" + cue + ")" else "[" + cue + "]"
+            b + " " + text
+        }
         val body = JSONObject().apply {
-            put("text", text)
+            put("text", bodyText)
             put("format", "wav")     // 官方支持 wav，无损
             if (voice.isNotBlank()) put("reference_id", voice)
             if (kotlin.math.abs(sp - 1.0) > 0.001 || kotlin.math.abs(vol) > 0.001) {
@@ -89,6 +122,8 @@ object ExtraTts {
                     put("volume", vol)
                 })
             }
+            // 种子：官方参数表里没有，但填了我们就发（服务认就用；不认一般会忽略）
+            seed?.let { put("seed", it) }
             // temperature / top_p / repetition_penalty / normalize 等高级参数：写进「额外参数」即可
             mergeInto(this, extra)
         }

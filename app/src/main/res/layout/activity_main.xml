@@ -24,6 +24,7 @@
         android:scrollbars="none">
 
     <LinearLayout
+        android:id="@+id/llRoot"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -97,6 +98,18 @@
                         android:textColor="@color/txt"
                         android:textSize="17sp" />
 
+                    <com.sideroca.voicetuner.VoiceIndicatorView
+                        android:id="@+id/ivVoiceInd"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:visibility="gone" />
+
+                    <!-- 黄金分割：让指示符落在「名字 ↔ 三角」之间约 61.8% 处 -->
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="0.618" />
+
                     <ImageView
                         android:id="@+id/ivVoiceArrow"
                         android:layout_width="wrap_content"
@@ -169,6 +182,31 @@
                     android:textColor="@color/clear_x"
                     android:textSize="11sp" />
             </FrameLayout>
+
+            <!-- 翻译：内置免费接口，一键把文本框内容翻成目标语言（不跳转任何 App） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnTranslate"
+                    style="@style/VtMiniBtn"
+                    android:text="翻译" />
+
+                <TextView
+                    android:id="@+id/tvTransTarget"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingStart="4dp"
+                    android:textColor="@color/dim"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
 
             <TextView style="@style/VtLabel" android:text="情绪 / 风格指令（≤128 字）" />
 
@@ -442,7 +480,10 @@
             style="@style/VtCard"
             android:visibility="gone">
 
-            <TextView style="@style/VtLabel" android:text="本次结果" />
+            <TextView
+                style="@style/VtLabel"
+                android:layout_marginTop="2dp"
+                android:text="本次结果" />
 
             <TextView
                 android:id="@+id/tvResultInfo"
@@ -552,7 +593,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v0.5.17 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v0.5.18 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

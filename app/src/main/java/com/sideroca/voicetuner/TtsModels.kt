@@ -59,12 +59,18 @@ object TtsModels {
         val prov = TtsProviders.byId(providerId)
         val viaBailian = prov == null || prov.shape == "dashscope"
         if (!viaBailian) {
+            // 自定义渠道：端点由用户填，seed 也放行（服务支持就用；不支持会被忽略）
+            if (prov?.id == "custom" && param == "seed") return true
             return when (prov?.shape) {
-                "minimax" -> param == "rate" || param == "pitch" || param == "volume"   // voice_setting
+                // MiniMax：voice_setting 支持 speed/pitch/vol/**emotion**（emotion 由「情绪/风格指令」映射），无 seed
+                "minimax" -> param == "rate" || param == "pitch" || param == "volume" || param == "instruction"
                 "system" -> param == "rate" || param == "pitch"                          // setSpeechRate/setPitch
-                "fish" -> param == "rate" || param == "volume" || param == "extra"       // prosody + 高级参数
-                "elevenlabs" -> param == "rate"                                          // voice_settings.speed (0.7~1.2)
-                "openai", "xai" -> param == "instruction" || param == "rate" || param == "extra"  // instructions/speed（阶跃另有 instruction/volume）
+                // Fish：prosody(speed/volume) + [方括号]指令 + 额外参数；官方**没有 seed**，但留口子（填了才发）
+                "fish" -> param == "rate" || param == "volume" || param == "extra" ||
+                    param == "instruction" || param == "seed"
+                "elevenlabs" -> param == "rate" || param == "seed"                        // voice_settings.speed + 顶层 seed
+                "mimo" -> param == "seed" || param == "instruction"                       // 走 chat/completions：标准 seed + user 指令
+                "openai", "xai" -> param == "instruction" || param == "rate" || param == "extra"
                 else -> false
             }
         }
@@ -79,34 +85,27 @@ object TtsModels {
         }
     }
 
-    /** 不适用时的说明文案（空串 = 全部适用） */
+    /** 参数名 → 界面上的叫法（用于自动生成置灰说明） */
+    private val paramNames = listOf(
+        "rate" to "语速", "pitch" to "音调", "volume" to "音量", "seed" to "种子",
+        "instruction" to "风格指令", "langhints" to "语言提示",
+        "hotfix" to "纠错", "extra" to "额外参数", "ssml" to "SSML"
+    )
+
+    /**
+     * 置灰说明：**由 [supports] 自动算出来**，只写"不支持什么"（不写长篇解释）。
+     * 以后接新厂商只需改上面的表，这里不用动。
+     */
     fun unsupportedNote(providerId: String?, modelId: String?): String {
-        val prov = TtsProviders.byId(providerId)
-        val viaBailian = prov == null || prov.shape == "dashscope"
-        if (!viaBailian) {
-            val mini = prov?.shape == "minimax"
-            val oai = prov?.shape == "openai" || prov?.shape == "xai"
-            val fish = prov?.shape == "fish"
-            return when {
-                mini -> "「MiniMax」支持 文本 / 音色 / 模型 + 语速 / 音调 / 音量；种子、SSML、高级参数不适用（已置灰）"
-                fish -> "「Fish Audio」支持 文本 / 音色 / 模型 + 语速 / 音量（prosody）；" +
-                    "temperature / top_p / repetition_penalty / normalize 等写进「额外参数」；音调不适用"
-                prov?.shape == "elevenlabs" -> "「ElevenLabs」支持 文本 / 音色 / 模型 + 语速（voice_settings.speed，官方 0.7~1.2，超出自动夹边界）；" +
-                    "音调、音量不适用"
-                oai -> if (prov?.id == "step")
-                    "「Step 阶跃」支持 文本 / 音色 / 模型 + 语速 / 音量 / 风格指令；" +
-                        "text_normalization、voice_label、pronunciation_map 等写进「额外参数」"
-                else "「" + (prov?.name ?: "该厂商") + "」支持 文本 / 音色 / 模型 / 语速（speed）；" +
-                    "音调、音量该端点不保证生效（其它字段可写进「额外参数」）；种子、SSML 不适用"
-                else -> "「" + (prov?.name ?: "该厂商") + "」只吃 文本 / 音色 / 模型（可选风格指令）—— " +
-                    "语速、音调、音量、种子、SSML 与高级参数都不适用，已置灰"
-            }
-        }
-        val m = byId(modelId) ?: return ""
-        return if (m.transport == "http") {
-            val instr = m.family.contains("Instruct", ignoreCase = true)
-            "当前模型（" + m.family + "）不吃 语速 / 音调 / 音量 / 种子；可调「语言提示」（language_type）" +
-                if (instr) "与「风格指令」（instructions）" else "；「风格指令」只有 Instruct 版支持（已置灰）"
-        } else ""
+        val no = ArrayList<String>()
+        for ((k, label) in paramNames) if (!supports(providerId, modelId, k)) no.add(label)
+        if (TtsProviders.byId(providerId)?.canClone != true) no.add("声音复刻")
+        if (no.isEmpty()) return ""
+        val who = TtsProviders.byId(providerId)?.name ?: "该厂商"
+        val m = byId(modelId)
+        val head = if (who == "阿里云百炼" && m != null) "当前模型" else who
+        val list = if (no.size <= 6) no.joinToString("、")
+                   else no.take(6).joinToString("、") + " 等 " + no.size + " 项"
+        return head + " 不支持：" + list + "（已置灰）"
     }
 }

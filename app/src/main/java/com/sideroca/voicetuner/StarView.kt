@@ -93,7 +93,7 @@ class StarView @JvmOverloads constructor(
             paint.reset()
             paint.isAntiAlias = true
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.4f * resources.displayMetrics.density
+            paint.strokeWidth = 1.0f * resources.displayMetrics.density   // 原来 1.4dp 偏厚
             paint.color = colorSolid
             paint.strokeJoin = Paint.Join.ROUND
             canvas.drawPath(path, paint)

@@ -237,6 +237,16 @@ class Store(context: Context) {
         get() = prefs.getInt("cardAlpha", 100)
         set(v) { prefs.edit().putInt("cardAlpha", v).apply() }
 
+    /** 翻译目标语言（中文/英语/…） */
+    var trTarget: String
+        get() = prefs.getString("trTarget", "中文") ?: "中文"
+        set(v) { prefs.edit().putString("trTarget", v).apply() }
+
+    /** 上次翻译成功的免费源（google / mm），下次优先用它 */
+    var trLastSource: String
+        get() = prefs.getString("trLastSource", "") ?: ""
+        set(v) { prefs.edit().putString("trLastSource", v).apply() }
+
     /** 选过的 App 图标样式 key（default / a / b / c） */
     var appIconStyle: String
         get() = prefs.getString("appIconStyle", "default") ?: "default"
@@ -348,4 +358,14 @@ class Store(context: Context) {
             // ignore
         }
     }
+}
+
+/** 导出 / 分享用的"好名字"：音色 + 正文片段 + 原扩展名（自动去掉文件名非法字符） */
+fun niceFileName(take: Take): String {
+    val ext = take.fileName.substringAfterLast('.', "wav")
+    val voice = take.voiceName.ifBlank { "音色" }.trim()
+    val snippet = take.text.replace(Regex("[\\s\\r\\n]+"), " ").trim().take(18)
+    val raw = if (snippet.isEmpty()) voice else voice + "·" + snippet
+    val safe = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().ifBlank { "语音" }
+    return safe + "." + ext
 }

@@ -24,7 +24,8 @@ object OpenAiCompatTts {
         cb: SynthCallback,
         cfg: TtsProviders.Cfg = TtsProviders.Cfg(),
         rate: Double = 1.0,                      // 语速：OpenAI 兼容端点是 speed
-        volume: Int = 50                         // 音量：目前只有阶跃用（扩展参数 volume）
+        volume: Int = 50,                        // 音量：目前只有阶跃用（扩展参数 volume）
+        seed: Int? = null                        // 自定义渠道：填了才发（服务认就用）
     ): Cancellable {
         var cancelled = false
         val th = Thread {
@@ -58,6 +59,7 @@ object OpenAiCompatTts {
                         if (provider.id == "step" && volume != 50) {
                             put("volume", (volume.coerceIn(0, 100) / 50.0).coerceIn(0.1, 3.0))
                         }
+                        seed?.let { put("seed", it) }
                         ExtraTts.mergeInto(this, cfg.extra)
                     }
                 }
