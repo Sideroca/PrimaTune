@@ -360,9 +360,8 @@ class MainActivity : AppCompatActivity() {
         btnSmartFill.background = glassBg()
         btnSmartFill.tag = "bg:keep"
         btnSmartFill.setTextColor(c.acc)
-        btnRole.background = Skin.shapeDp(this, 0x00000000, c.acc, 11f, 100, 1f)
-        btnRole.tag = "bg:keep"
-        btnRole.setTextColor(c.acc)
+        // 「角色提示词」：**保持旧版观感**（淡底 + 细边、字色随主题）——不再用亮 accent 描边
+        // （用户 2026-10-05 明确：喜欢旧的；这里不碰它，交给 Skin 按 bg_btn/角色着色）
         // 「翻译」是同一款 accent 玻璃，一并刷新（字色保持原样，不动它的观感）
         btnTranslate.background = glassBg()
         btnTranslate.tag = "bg:keep"
@@ -486,8 +485,8 @@ class MainActivity : AppCompatActivity() {
         // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
         btnRun.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
         btnRun.setOnClickListener { polishText() }
-        // 「角色提示词」：写这个音色的人设（喂给 AI，不是给 TTS）
-        btnRole.setTextColor(Skin.colors(this).acc)
+        // 「角色提示词」：写这个音色的人设（喂给 AI，不是给 TTS）。**保持旧版淡底细边**，字色随主题 dim。
+        btnRole.setTextColor(Skin.colors(this).dim)
         fx(btnRole, findViewById(R.id.llRoot))
         btnRole.setOnClickListener { openRoleDialog() }
         btnYi.setOnClickListener {

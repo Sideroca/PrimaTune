@@ -1874,8 +1874,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                 if (applyingLlm) return      // ⚠️ 防死循环：见 applyLlmPreset
                 val typed = s?.toString().orEmpty().trim()
                 if (typed.isEmpty()) return
+                // 只有「整串完全等于某个厂商名」才自动填 —— 否则你打字/退格时会被 setText 夺走光标
+                // （现象：光标突然跳到最左、名字删不掉）。想按"名字里的字母"选，请用下拉（包含匹配）。
                 val p = LlmPresets.all.firstOrNull { it.label.equals(typed, true) }
-                    ?: LlmPresets.all.firstOrNull { it.label.contains(typed, true) || it.id.contains(typed, true) }
                 if (p != null && p.id != "custom") applyLlmPreset(p)
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
