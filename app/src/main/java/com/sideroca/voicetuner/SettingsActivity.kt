@@ -80,6 +80,8 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
     /** 当前在语音页还是润色页（换主题时需要按它重新上色） */
     private var cfgTabVoice = true
+    /** 防重入：applyLlmPreset 会 setText(etLlmProvider) → 又触发 afterTextChanged → 死循环 */
+    private var applyingLlm = false
     private var recVoiceId: String? = null
     private var recQuery: String = ""
 
@@ -1869,6 +1871,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         etLlmProvider.setOnFocusChangeListener { _, has -> if (has) etLlmProvider.showDropDown() }
         etLlmProvider.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
+                if (applyingLlm) return      // ⚠️ 防死循环：见 applyLlmPreset
                 val typed = s?.toString().orEmpty().trim()
                 if (typed.isEmpty()) return
                 val p = LlmPresets.all.firstOrNull { it.label.equals(typed, true) }
@@ -1885,17 +1888,22 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     /** 应用一个厂商预设：**连状态一起写上**（旧实现在这里漏了，导致绿色高亮永远停在 DeepSeek） */
     private fun applyLlmPreset(p: LlmPresets.P) {
-        if (p.url.isNotBlank()) {
-            etLlmBase.setText(p.url)
-            store.llmBaseUrl = p.url
+        applyingLlm = true               // 下面 setText 会触发 afterTextChanged，先上锁
+        try {
+            if (p.url.isNotBlank()) {
+                etLlmBase.setText(p.url)
+                store.llmBaseUrl = p.url
+            }
+            p.models.firstOrNull()?.let {
+                etLlmModel.setText(it)
+                store.llmModel = it
+            }
+            store.llmLevel = ""
+            etLlmProvider.setText(p.label, false)
+            buildLlmLevels()
+        } finally {
+            applyingLlm = false
         }
-        p.models.firstOrNull()?.let {
-            etLlmModel.setText(it)
-            store.llmModel = it
-        }
-        store.llmLevel = ""
-        etLlmProvider.setText(p.label, false)
-        buildLlmLevels()
     }
 
     /** 润色页：思考档位芯片（按当前 Base URL 识别厂商，用它家的真实档位） */
