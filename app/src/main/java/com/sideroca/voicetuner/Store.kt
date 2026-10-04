@@ -266,7 +266,11 @@ class Store(context: Context) {
 
     /** 系统提示词（设置页里展示出来、可改） */
     var llmPrompt: String
-        get() = prefs.getString("llmPrompt", "") ?: ""
+        get() {
+            val v = prefs.getString("llmPrompt", "") ?: ""
+            // 旧版那条"几百字"的参数助手提示词迁移：命中旧标题 → 视为未自定义，回落到新的短默认
+            return if (v.contains("TTS（语音合成）参数助手")) "" else v
+        }
         set(v) { prefs.edit().putString("llmPrompt", v).apply() }
 
     /** token 预算（0 = 不限） */

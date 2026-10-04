@@ -92,6 +92,10 @@ object TtsModels {
         "hotfix" to "纠错", "extra" to "额外参数", "ssml" to "SSML"
     )
 
+    /** 当前厂商 + 模型"支持哪些参数"（显示名）——给"发消息时自动附带配置"用 */
+    fun supportedNames(providerId: String?, modelId: String?): List<String> =
+        paramNames.filter { supports(providerId, modelId, it.first) }.map { it.second }
+
     /**
      * 置灰说明：**由 [supports] 自动算出来**，只写"不支持什么"（不写长篇解释）。
      * 以后接新厂商只需改上面的表，这里不用动。

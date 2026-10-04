@@ -465,6 +465,8 @@ class MainActivity : AppCompatActivity() {
         // 智能填参：给 LLM 一条请求 → 自动挑厂商 / 写风格指令 / 生成纠错表
         btnSmartFill.background = glassBg()
         btnSmartFill.tag = "bg:keep"
+        // 原来是 @color/dim（灰字压透明底）→ 看着"发闷、不亮"；改主色字，玻璃底才立起来
+        btnSmartFill.setTextColor(Skin.colors(this).acc)
         fx(btnSmartFill, findViewById(R.id.llRoot))
         btnSmartFill.setOnClickListener { smartFill() }
 
@@ -554,7 +556,14 @@ class MainActivity : AppCompatActivity() {
         }
         val voice = if (voiceIsCustom) "自定义音色" else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
         val system = store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT }
+        // 当前 TTS 厂商 + 它接受的参数：**系统按当前配置自动附带**（不让模型去猜 provider）
+        val prov = TtsProviders.byId(store.providerId)
         val user = buildString {
+            if (prov != null) {
+                append("当前 TTS 厂商：").append(prov.name).append("（").append(prov.id).append("）\n")
+                val params = TtsModels.supportedNames(store.providerId, store.lastModel)
+                append("该厂商接受的参数：").append(if (params.isEmpty()) "（仅文本与音色）" else params.joinToString("、")).append('\n')
+            }
             append("音色：").append(voice.ifBlank { "未指定" }).append('\n')
             if (store.llmExtra.isNotBlank()) append("补充说明：").append(store.llmExtra).append('\n')
             append("待合成文本：\n").append(text)
@@ -2576,9 +2585,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle("上次运行时出了点问题")
             .setMessage(text.take(600))
             .setPositiveButton("复制错误信息") { _, _ ->
-                (getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager)
-                    ?.setPrimaryClip(android.content.ClipData.newPlainText("crash", text))
-                toast("已复制，可直接发给我")
+                Clip.copy(this, text, "crash")
             }
             .setNegativeButton("知道了", null)
             .create()

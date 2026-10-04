@@ -15,20 +15,18 @@ object LlmClient {
 
     class Cancelled { @Volatile var cancelled = false }
 
-    /** 默认系统提示词（可被设置里覆盖） */
+    /**
+     * 默认系统提示词（可被设置里覆盖）。
+     * 刻意**写短**：相信模型的遵循能力；提示词越长越容易互相打架、也越可能与"待合成文本"抢注意力。
+     * 「当前厂商 + 它接受的参数」由 App 在 user 消息里**自动附带**（见 MainActivity.smartFill），
+     * 所以这里不再让模型去猜 provider。
+     */
     val DEFAULT_PROMPT: String = """
-你是 TTS（语音合成）参数助手。用户会给你：待合成文本、当前音色（可能是某游戏/动画角色）、以及一段补充说明。
-请只输出**严格的 JSON**，不要解释、不要 markdown 代码块、不要多余文字：
-{"provider":"厂商id","instruction":"自然语言风格与分割指令","hot_fix":{"replace":[{"错词":"正词"}]}}
-
-要求：
-1) provider 只能从这里选：aliyun-bailian / fish / minimax / elevenlabs / gemini / mimo / step / openai / custom。
-   按文本语言、情绪表现力、性价比挑最合适的一家；拿不准就选 aliyun-bailian。
-2) instruction ≤120 字：写清语气、情绪、语速，以及句间的停顿与强调。
-   长句请**用标点或换行做"自然语言分割"**，让合成有呼吸感、不要一口气念完。
-3) hot_fix 用来纠正专有名词、多音字、生僻字的读音：key 是文中出现的样子，value 是给 TTS 的正确写法。
-   没有需要纠正的就给 {"replace":[]}。
-4) 只输出 JSON 本体。
+你是语音合成的风格导演。你会收到当前 TTS 厂商及其支持的参数、音色资料、可选补充说明，以及待合成文本。
+请写**一句简短的自然语言指令**，告诉 TTS 用什么语气、情绪、语速和停顿来念这段文本；长句用标点断出呼吸感。
+再给一张纠错表，纠正专名、多音字、生僻字的读音；没有就给空表。
+只输出 JSON：
+{"instruction":"简短的自然语言风格指令","hot_fix":{"replace":[{"错词":"正词"}]}}
 """.trimIndent()
 
     /** 润色用的默认系统提示词 */

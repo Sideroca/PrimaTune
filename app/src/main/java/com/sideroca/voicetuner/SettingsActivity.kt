@@ -318,7 +318,9 @@ class SettingsActivity : AppCompatActivity() {
     /** 三个自动补全框的下拉弹窗：浅底 + 主题描边（原来跟随系统，深色很突兀） */
     private fun styleDropdowns(c: Skin.Colors) {
         val bg = Skin.shapeDp(this, c.card, c.line, 12f, 100, 1f)
-        listOf(R.id.etProvider, R.id.etModel, R.id.etKey).forEach { id ->
+        // ⚠️ 主题父类是深色（Theme.AppCompat.NoActionBar）→ 不刷底的下拉是"深底深字"，看不见。
+        // 新增自动补全框后**务必加进这个名单**（etLlmProvider 就曾漏掉 → 润色厂商下拉一片模糊）。
+        listOf(R.id.etProvider, R.id.etModel, R.id.etKey, R.id.etLlmProvider).forEach { id ->
             (findViewById<View>(id) as? android.widget.AutoCompleteTextView)
                 ?.setDropDownBackgroundDrawable(bg)
         }
@@ -565,9 +567,7 @@ class SettingsActivity : AppCompatActivity() {
             .setTitle("翻译成" + store.trTarget)
             .setView(sc)
             .setPositiveButton("复制") { _, _ ->
-                (getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager)
-                    ?.setPrimaryClip(android.content.ClipData.newPlainText("trans", out))
-                toast("已复制译文")
+                Clip.copy(this, out, "trans")
                 store.pendingFillId = ""
             }
             .setNegativeButton("关闭", null)
