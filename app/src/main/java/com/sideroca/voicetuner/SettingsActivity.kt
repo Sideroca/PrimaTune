@@ -43,7 +43,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var pageTheme: ScrollView
     private lateinit var pageModel: ScrollView
     private lateinit var pageVoice: ScrollView
-    private lateinit var pageRecords: android.view.View   // 记录页现为 LinearLayout（筛选+搜索吸顶）
+    private lateinit var pageRecords: ScrollView
     private lateinit var pageAbout: ScrollView
     private lateinit var tvPageTitle: TextView
     private lateinit var llDock: LinearLayout
@@ -59,7 +59,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etEntryName: EditText
     private lateinit var llTips: LinearLayout
     private lateinit var etRecSearch: EditText
-    private lateinit var recDivider: android.view.View
     private lateinit var llRecTop: LinearLayout
     private lateinit var etLlmBase: EditText
     private lateinit var etLlmKey: EditText
@@ -134,7 +133,6 @@ class SettingsActivity : AppCompatActivity() {
         etEntryName = findViewById(R.id.etEntryName)
         llTips = findViewById(R.id.llTips)
         etRecSearch = findViewById(R.id.etRecSearch)
-        recDivider = findViewById(R.id.recDivider)
         llRecTop = findViewById(R.id.llRecTop)
         etLlmBase = findViewById(R.id.etLlmBase)
         etLlmKey = findViewById(R.id.etLlmKey)
@@ -213,7 +211,6 @@ class SettingsActivity : AppCompatActivity() {
         // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
         styleDock(c)
         styleDropdowns(c)
-        styleRecDivider(c)
         renderIconStyleChips()
         buildTips()
         selectCfgTab(cfgTabVoice)      // 换主题后页签配色也跟着重刷
@@ -330,16 +327,6 @@ class SettingsActivity : AppCompatActivity() {
             (findViewById<View>(id) as? android.widget.AutoCompleteTextView)
                 ?.setDropDownBackgroundDrawable(bg)
         }
-    }
-
-    /** 记录页「吸顶区 ↔ 列表」的分隔线：两端渐隐（中间实、两头淡出），颜色随主题 */
-    private fun styleRecDivider(c: Skin.Colors) {
-        val t = 0x00000000
-        val m = (c.line and 0x00FFFFFF) or (0x88 shl 24)
-        recDivider.background = android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(t, m, t)
-        )
     }
 
     /** 坞 + 保存键的显式上色（颜色走 11 槽；形状/质感走 4 参数 —— 对齐《夕汀前端规范》） */
@@ -1105,13 +1092,12 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    /** 5 个设置页整体下移（按屏高动态算）。
-     *  用户 2026-10-04：先下移 15% → 上移 8%（=7%）；且**标题要跟着内容一起下移**——
-     *  所以空档放在「标题上方」，而不是塞在标题与内容之间（否则标题会孤零零高悬左上角）。 */
+    /** 仿手机设置页：5 个设置页整体下移（按屏高动态算，不写死 dp）。
+     *  用户 2026-10-04：先下移 15%，后要求「集体上移 8%」→ 现为 7%。 */
     private fun applyPageShift() {
+        val host = findViewById<android.widget.FrameLayout>(R.id.pageHost) ?: return
         val shift = (resources.displayMetrics.heightPixels * 0.07f).toInt()
-        val header = (tvPageTitle.parent as? android.view.View) ?: return
-        header.setPadding(header.paddingLeft, shift, header.paddingRight, header.paddingBottom)
+        host.setPadding(host.paddingLeft, shift, host.paddingRight, host.paddingBottom)
     }
 
     // ---------------------------------------------------------------- 主题
