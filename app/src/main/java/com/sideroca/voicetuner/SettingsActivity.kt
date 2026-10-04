@@ -1920,7 +1920,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tv.textSize = 12.5f
             tv.isSelected = on
             tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
+            // 圆角 96→8dp：原来近圆（药丸），用户要更方正的长方形；8 同时避开 Skin 的魔法半径
+            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 8f, 100, 1f)
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
