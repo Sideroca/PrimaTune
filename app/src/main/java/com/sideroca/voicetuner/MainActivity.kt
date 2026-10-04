@@ -355,6 +355,17 @@ class MainActivity : AppCompatActivity() {
         spFormat.setDropDownWidth(ddw)
         // 结果卡三颗按钮与记录卡统一成"玻璃按键"
         listOf(btnPlay, btnShare, btnExport).forEach { it.background = glassBg(); it.tag = "bg:keep" }
+        // ⚠️ 这两个以前只在 bindViews 里刷一次 → 换主题后**留在旧色**（竹青下仍是蓝）。
+        //    现在并入 applyLook：智能填参＝accent 派生玻璃；角色提示词＝accent 字 + 细 accent 描边。
+        btnSmartFill.background = glassBg()
+        btnSmartFill.tag = "bg:keep"
+        btnSmartFill.setTextColor(c.acc)
+        btnRole.background = Skin.shapeDp(this, 0x00000000, c.acc, 11f, 100, 1f)
+        btnRole.tag = "bg:keep"
+        btnRole.setTextColor(c.acc)
+        // 「翻译」是同一款 accent 玻璃，一并刷新（字色保持原样，不动它的观感）
+        btnTranslate.background = glassBg()
+        btnTranslate.tag = "bg:keep"
     }
 
     private fun bindViews() {
