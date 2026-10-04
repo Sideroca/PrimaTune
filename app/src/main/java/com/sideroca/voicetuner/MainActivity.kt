@@ -194,6 +194,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTransTarget: TextView
     private lateinit var btnYi: TextView
     private lateinit var btnRun: TextView
+    private lateinit var btnRole: TextView
     private lateinit var btnSmartFill: TextView
     private lateinit var etCustomVoice: EditText
     private lateinit var tvVoiceNote: TextView
@@ -369,6 +370,7 @@ class MainActivity : AppCompatActivity() {
         tvTransTarget = findViewById(R.id.tvTransTarget)
         btnYi = findViewById(R.id.btnYi)
         btnRun = findViewById(R.id.btnRun)
+        btnRole = findViewById(R.id.btnRole)
         btnSmartFill = findViewById(R.id.btnSmartFill)
         etCustomVoice = findViewById(R.id.etCustomVoice)
         tvVoiceNote = findViewById(R.id.tvVoiceNote)
@@ -473,6 +475,10 @@ class MainActivity : AppCompatActivity() {
         // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
         btnRun.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
         btnRun.setOnClickListener { polishText() }
+        // 「角色提示词」：写这个音色的人设（喂给 AI，不是给 TTS）
+        btnRole.setTextColor(Skin.colors(this).acc)
+        fx(btnRole, findViewById(R.id.llRoot))
+        btnRole.setOnClickListener { openRoleDialog() }
         btnYi.setOnClickListener {
             if (etText.text.toString().trim().isEmpty()) pickTransTarget() else translateText()
         }
@@ -520,8 +526,16 @@ class MainActivity : AppCompatActivity() {
             store.llmPrompt.ifBlank { LlmClient.DEFAULT_POLISH_PROMPT }
         tvStatus.text = if (translate) "🤖 LLM 翻译中…" else "🤖 润色中…"
         btnTranslate.isEnabled = false
+        // 润色时带上「音色 + 角色提示词」（给世界知识不足的模型补背景）；翻译则只给正文
+        val userMsg = if (!translate && roleVoiceId().isNotBlank()) buildString {
+            val nm = voiceNameOf(roleVoiceId())
+            if (nm.isNotBlank()) append("音色：").append(nm).append('\n')
+            val role = store.rolePrompt(roleVoiceId())
+            if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
+            append("内容：\n").append(text)
+        } else text
         LlmClient.ask(
-            store.llmBaseUrl, store.llmKey, store.llmModel, sys, text,
+            store.llmBaseUrl, store.llmKey, store.llmModel, sys, userMsg,
             store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
         ) { out, err ->
             ui {
@@ -565,6 +579,8 @@ class MainActivity : AppCompatActivity() {
                 append("该厂商接受的参数：").append(if (params.isEmpty()) "（仅文本与音色）" else params.joinToString("、")).append('\n')
             }
             append("音色：").append(voice.ifBlank { "未指定" }).append('\n')
+            val role = store.rolePrompt(roleVoiceId())
+            if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
             if (store.llmExtra.isNotBlank()) append("补充说明：").append(store.llmExtra).append('\n')
             append("待合成文本：\n").append(text)
         }
@@ -837,6 +853,55 @@ class MainActivity : AppCompatActivity() {
         tvRate.text = fmtNum(0.5 + sbRate.progress * 0.01)
         tvPitch.text = fmtNum(0.5 + sbPitch.progress * 0.01)
         tvVol.text = sbVol.progress.toString()
+    }
+
+    /** 角色提示词挂在哪个音色上（自定义音色时用输入的 ID） */
+    private fun roleVoiceId(): String =
+        if (voiceIsCustom) etCustomVoice.text.toString().trim() else currentVoiceId
+
+    /** 「角色提示词」：给当前音色写人设 —— 只喂给 AI 助手（润色/写台词），不发给 TTS。 */
+    private fun openRoleDialog() {
+        val vid = roleVoiceId()
+        if (vid.isBlank()) {
+            toast("请先选一个音色")
+            return
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+        }
+        val who = TextView(this).apply {
+            text = "给「" + voiceNameOf(vid) + "」写人设：性格、语气、背景等。" +
+                "这段只给 AI 助手看（增强润色与写台词），不会发给 TTS。"
+            setTextColor(cDim)
+            textSize = 12f
+        }
+        box.addView(who)
+        val et = EditText(this).apply {
+            setText(store.rolePrompt(vid))
+            hint = "如：拉普兰德——狼群出身的赏金猎人，语气慵懒，带点挑衅与笑意"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            minLines = 3
+            setTextColor(cTxt)
+            setHintTextColor(cDim)
+            textSize = 14f
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+        box.addView(et)
+        val sc = ScrollView(this)
+        sc.addView(box)
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("角色提示词")
+            .setView(sc)
+            .setPositiveButton("保存") { _, _ ->
+                store.setRolePrompt(vid, et.text.toString().trim())
+                toast("已保存角色提示词")
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        dlg.setOnShowListener { skinDialog(dlg) }
+        dlg.show()
     }
 
     /** 「自定义音色 ID…」→ 弹一张卡片：① 填厂商那边的音色 ID ② 给它起个中文名 */

@@ -264,6 +264,15 @@ class Store(context: Context) {
     fun transLangList(): List<String> =
         transLangs.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
+    /** 音色「角色提示词」（按 voiceId 存）：给 AI 助手看的人设，用来增强润色 / 写台词。 */
+    fun rolePrompt(voiceId: String): String =
+        if (voiceId.isBlank()) "" else prefs.getString("role_" + voiceId, "") ?: ""
+
+    fun setRolePrompt(voiceId: String, v: String) {
+        if (voiceId.isBlank()) return
+        prefs.edit().putString("role_" + voiceId, v.trim()).apply()
+    }
+
     // ---- 提示词助手（给 LLM 发请求 → 自动挑厂商 / 写风格指令 / 生成纠错表）----
     var llmBaseUrl: String
         get() = prefs.getString("llmBaseUrl", "https://api.deepseek.com/v1") ?: "https://api.deepseek.com/v1"
