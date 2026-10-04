@@ -21,6 +21,26 @@ object Wp {
 
     fun file(ctx: Context, slot: String): File = File(ctx.filesDir, "wp_$slot.jpg")
 
+    /**
+     * 取景「原图」：为"可随时重裁"永久保留的源图（不随裁剪结果改变）。
+     * 用户在壁纸上点「重新取景」时，从这里带图 + 归一化参数回到 CropActivity。
+     */
+    fun sourceFile(ctx: Context, slot: String): File = File(ctx.filesDir, "wp_${slot}_src.jpg")
+
+    fun saveSource(ctx: Context, slot: String, bmp: Bitmap): Boolean = try {
+        sourceFile(ctx, slot).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        true
+    } catch (_: Exception) {
+        false
+    }
+
+    fun clearSource(ctx: Context, slot: String) {
+        try {
+            sourceFile(ctx, slot).delete()
+        } catch (_: Exception) {
+        }
+    }
+
     fun import(ctx: Context, uri: Uri, slot: String): Boolean = try {
         val input = ctx.contentResolver.openInputStream(uri) ?: return false
         input.use { ins -> file(ctx, slot).outputStream().use { out -> ins.copyTo(out) } }
@@ -34,6 +54,7 @@ object Wp {
             file(ctx, slot).delete()
         } catch (_: Exception) {
         }
+        clearSource(ctx, slot)
     }
 
     fun decode(path: String, maxEdge: Int = 3000): Bitmap? = try {

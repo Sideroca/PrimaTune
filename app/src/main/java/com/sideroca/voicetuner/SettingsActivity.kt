@@ -188,6 +188,7 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveAll.setOnClickListener { saveAll() }
         applyThemeTab()
         selectPage(0)
+        applyPageShift()
     }
 
     override fun onResume() {
@@ -1087,6 +1088,14 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
+    /** 仿手机设置页：5 个设置页整体下移 15% 屏高（用户 2026-10-04 要求）。
+     *  按屏高动态算，不写死 dp；改 pageHost 顶部内边距即整体生效。 */
+    private fun applyPageShift() {
+        val host = findViewById<android.widget.FrameLayout>(R.id.pageHost) ?: return
+        val shift = (resources.displayMetrics.heightPixels * 0.15f).toInt()
+        host.setPadding(host.paddingLeft, shift, host.paddingRight, host.paddingBottom)
+    }
+
     // ---------------------------------------------------------------- 主题
     private fun buildCatChips() {
         llCats.removeAllViews()
@@ -1492,6 +1501,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         findViewById<TextView>(R.id.btnWpMainClear).setOnClickListener {
             Wp.clear(this, "main")
             store.wpMain = ""
+            store.wpMainCrop = ""
             refreshWpStates()
             toast("已清除主界面壁纸")
         }
@@ -1499,6 +1509,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         findViewById<TextView>(R.id.btnWpPageClear).setOnClickListener {
             Wp.clear(this, "page")
             store.wpPage = ""
+            store.wpPageCrop = ""
             refreshWpStates()
             applyLook()
             toast("已清除设置页壁纸")
@@ -1508,6 +1519,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             Wp.clear(this, "page")
             store.wpMain = ""
             store.wpPage = ""
+            store.wpMainCrop = ""
+            store.wpPageCrop = ""
             store.scrimMain = 35
             store.scrimPage = 35
             store.cardAlphaPct = 100
@@ -1521,12 +1534,57 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             applyLook()
             toast("已恢复默认")
         }
+        tvWpMainState.setOnClickListener { if (store.wpMain.isNotEmpty()) startRecrop("main") }
+        tvWpPageState.setOnClickListener { if (store.wpPage.isNotEmpty()) startRecrop("page") }
         refreshWpStates()
     }
 
+    /** 归一化参数编码 "nx,ny,nz" → 三元组；无效返回 null */
+    private fun parseCrop(s: String): Triple<Float, Float, Float>? {
+        val p = s.split(",")
+        if (p.size != 3) return null
+        val nx = p[0].toFloatOrNull() ?: return null
+        val ny = p[1].toFloatOrNull() ?: return null
+        val nz = p[2].toFloatOrNull() ?: return null
+        if (nx.isNaN() || ny.isNaN() || nz.isNaN()) return null
+        return Triple(nx, ny, nz)
+    }
+
+    /**
+     * 「重新取景」：用永久保留的原图 + 上次归一化参数回到 CropActivity，
+     * 不重新选图、不丢手感（"可随时重裁"）。
+     */
+    private fun startRecrop(slot: String) {
+        val src = Wp.sourceFile(this, slot)
+        if (!src.exists()) {
+            toast("未保留原图，请重新选一张")
+            pick(slot)
+            return
+        }
+        val req = Intent(this, CropActivity::class.java)
+            .putExtra(CropActivity.EXTRA_SLOT, slot)
+            .putExtra(CropActivity.EXTRA_SRC, src.absolutePath)
+        parseCrop(if (slot == "main") store.wpMainCrop else store.wpPageCrop)?.let { (nx, ny, nz) ->
+            req.putExtra(CropActivity.EXTRA_NX, nx)
+                .putExtra(CropActivity.EXTRA_NY, ny)
+                .putExtra(CropActivity.EXTRA_NZ, nz)
+        }
+        startActivityForResult(req, if (slot == "main") REQ_CROP_MAIN else REQ_CROP_PAGE)
+    }
+
     private fun refreshWpStates() {
-        tvWpMainState.text = if (store.wpMain.isNotEmpty() && File(store.wpMain).exists()) "已设置" else "未设置"
-        tvWpPageState.text = if (store.wpPage.isNotEmpty() && File(store.wpPage).exists()) "已设置" else "未设置"
+        val mainSet = store.wpMain.isNotEmpty() && File(store.wpMain).exists()
+        val pageSet = store.wpPage.isNotEmpty() && File(store.wpPage).exists()
+        tvWpMainState.text = when {
+            !mainSet -> "未设置"
+            Wp.sourceFile(this, "main").exists() -> "已设置 · 点此重裁"
+            else -> "已设置"
+        }
+        tvWpPageState.text = when {
+            !pageSet -> "未设置"
+            Wp.sourceFile(this, "page").exists() -> "已设置 · 点此重裁"
+            else -> "已设置"
+        }
     }
 
     private fun pick(slot: String) {
@@ -1601,11 +1659,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             return
         }
 
-        // ② 截取页回来 → 裁好的图直接作为该槽位壁纸
+        // ② 截取页回来 → 裁好的图直接作为该槽位壁纸（并记下归一化参数，供日后「重新取景」）
         val slot = if (requestCode == REQ_CROP_MAIN) "main" else "page"
-        val path = data?.getStringExtra(CropActivity.EXTRA_PATH).orEmpty()
+        val d2 = data
+        val path = d2?.getStringExtra(CropActivity.EXTRA_PATH).orEmpty()
         if (path.isNotEmpty() && File(path).exists()) {
             if (slot == "main") store.wpMain = path else store.wpPage = path
+            val nx = d2?.getFloatExtra(CropActivity.EXTRA_NX, Float.NaN) ?: Float.NaN
+            val ny = d2?.getFloatExtra(CropActivity.EXTRA_NY, Float.NaN) ?: Float.NaN
+            val nz = d2?.getFloatExtra(CropActivity.EXTRA_NZ, Float.NaN) ?: Float.NaN
+            if (!nx.isNaN() && !ny.isNaN() && !nz.isNaN()) {
+                val enc = "$nx,$ny,$nz"
+                if (slot == "main") store.wpMainCrop = enc else store.wpPageCrop = enc
+            }
             refreshWpStates()
             applyLook()
             toast("壁纸已应用（已截取）")

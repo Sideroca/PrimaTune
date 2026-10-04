@@ -225,6 +225,15 @@ class Store(context: Context) {
         get() = prefs.getString("wpPage", "") ?: ""
         set(v) { prefs.edit().putString("wpPage", v).apply() }
 
+    /** 壁纸取景的归一化参数（"nx,ny,nz"，空 = 未记录）——「可随时重裁」用 */
+    var wpMainCrop: String
+        get() = prefs.getString("wpMainCrop", "") ?: ""
+        set(v) { prefs.edit().putString("wpMainCrop", v).apply() }
+
+    var wpPageCrop: String
+        get() = prefs.getString("wpPageCrop", "") ?: ""
+        set(v) { prefs.edit().putString("wpPageCrop", v).apply() }
+
     var scrimMain: Int
         get() = prefs.getInt("scrimMain", 35)
         set(v) { prefs.edit().putInt("scrimMain", v).apply() }

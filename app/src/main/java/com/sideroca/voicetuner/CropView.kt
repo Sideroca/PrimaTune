@@ -120,6 +120,26 @@ class CropView @JvmOverloads constructor(
         if (frame.width() <= 0f) floatArrayOf(0f, 0f, 1f)
         else floatArrayOf(x / frame.width(), y / frame.height(), (s / minS).coerceIn(1f, 4f))
 
+    /**
+     * 带入上次的归一化状态（"可随时重裁"接线）。
+     * - 在图片布局前调用 → 记下状态，布局时按此还原（优先于自动 fit）；
+     * - 已布局则立即生效。
+     */
+    fun setInitialState(nx: Float, ny: Float, nz: Float) {
+        pnx = nx
+        pny = ny
+        pnz = nz.coerceIn(1f, 4f)
+        if (frame.width() > 0f) {
+            hasPendingState = false
+            s = minS * pnz
+            x = pnx * frame.width()
+            y = pny * frame.height()
+            clampAll(); invalidate(); notifyZoom()
+        } else {
+            hasPendingState = true
+        }
+    }
+
     fun zoomMult(): Float = if (minS > 0f) s / minS else 1f
 
     fun setZoomMult(m: Float) {

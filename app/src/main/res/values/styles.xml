@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- v1.2：卡片留白收紧（用户 2026-10-04：「文字离卡片边缘太远、整卡太高」）——
+         卡内边距 14→11dp，标签/输入/滑条行的纵向间距各收 1~2dp；只收不挤。 -->
     <style name="VtCard">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
-        <item name="android:padding">14dp</item>
-        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:padding">11dp</item>
+        <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/dim</item>
         <item name="android:textSize">13sp</item>
-        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtInput">
         <item name="android:layout_width">match_parent</item>
@@ -22,15 +24,15 @@
         <item name="android:textColor">@color/txt</item>
         <item name="android:textColorHint">@color/hint</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:padding">10dp</item>
-        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:padding">9dp</item>
+        <item name="android:layout_marginTop">5dp</item>
     </style>
     <style name="VtSliderRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center_vertical</item>
-        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:layout_marginTop">7dp</item>
     </style>
     <style name="VtSliderLabel">
         <item name="android:layout_width">40dp</item>
