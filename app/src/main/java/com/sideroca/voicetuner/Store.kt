@@ -251,6 +251,11 @@ class Store(context: Context) {
         get() = prefs.getString("trTarget", "中文") ?: "中文"
         set(v) { prefs.edit().putString("trTarget", v).apply() }
 
+    /** MyMemory 免费翻译的邮箱（可选）：带 `de` 参数后免额 5,000 → 50,000 字符/天 */
+    var transEmail: String
+        get() = prefs.getString("transEmail", "") ?: ""
+        set(v) { prefs.edit().putString("transEmail", v.trim()).apply() }
+
     // ---- 提示词助手（给 LLM 发请求 → 自动挑厂商 / 写风格指令 / 生成纠错表）----
     var llmBaseUrl: String
         get() = prefs.getString("llmBaseUrl", "https://api.deepseek.com/v1") ?: "https://api.deepseek.com/v1"

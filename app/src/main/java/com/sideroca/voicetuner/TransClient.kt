@@ -33,10 +33,11 @@ object TransClient {
 
     /**
      * @param lastGood 上次成功的源（"google" / "mm"），先试它 —— 免得每次都在被墙的那个上白等超时
+     * @param email    MyMemory 的 `de` 参数：带一个有效邮箱，免费额度 5,000 → 50,000 字符/天（匿名按 IP 限）
      * @param onDone (译文, 错误, 用的哪个源)
      */
     fun translate(
-        text: String, targetName: String, lastGood: String,
+        text: String, targetName: String, lastGood: String, email: String = "",
         onDone: (String?, String?, String?) -> Unit
     ): Cancelled {
         val c = Cancelled()
@@ -44,7 +45,7 @@ object TransClient {
             val tc = codeOf(targetName)
             val order = if (lastGood == "mm") listOf("mm", "google") else listOf("google", "mm")
             for (src in order) {
-                val out = if (src == "google") tryGoogle(text, tc) else tryMyMemory(text, tc)
+                val out = if (src == "google") tryGoogle(text, tc) else tryMyMemory(text, tc, email)
                 if (c.cancelled) return@Thread
                 if (out != null) { onDone(out, null, src); return@Thread }
             }
@@ -66,10 +67,12 @@ object TransClient {
         null
     }
 
-    /** ② MyMemory（langpair=Autodetect|目标） */
-    private fun tryMyMemory(text: String, tc: String): String? = try {
-        val url = "https://api.mymemory.translated.net/get?q=" + URLEncoder.encode(text, "UTF-8") +
+    /** ② MyMemory（langpair=Autodetect|目标；带 de=邮箱可把免费额度从 5千 提到 5万 字符/天） */
+    private fun tryMyMemory(text: String, tc: String, email: String): String? = try {
+        var url = "https://api.mymemory.translated.net/get?q=" + URLEncoder.encode(text, "UTF-8") +
             "&langpair=" + URLEncoder.encode("Autodetect|" + tc, "UTF-8")
+        val mail = email.trim()
+        if (mail.isNotEmpty()) url += "&de=" + URLEncoder.encode(mail, "UTF-8")
         val raw = get(url, 6000, 20000) ?: return null
         val o = org.json.JSONObject(raw).optJSONObject("responseData") ?: return null
         o.optString("translatedText").trim().ifBlank { null }

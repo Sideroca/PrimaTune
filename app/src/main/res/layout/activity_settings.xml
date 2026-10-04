@@ -325,6 +325,15 @@
                                 android:inputType="textMultiLine"
                                 android:minLines="4" />
 
+                            <TextView style="@style/VtLabel" android:text="翻译 API 邮箱（可选）" />
+                            <EditText
+                                android:id="@+id/etTransEmail"
+                                style="@style/VtInput"
+                                android:hint="填了 MyMemory 免费额度 5千 → 5万 字符/天"
+                                android:importantForAutofill="no"
+                                android:inputType="textEmailAddress"
+                                android:singleLine="true" />
+
                             <TextView style="@style/VtLabel" android:text="补充说明（可选。例：这个音色是《明日方舟》的艾雅法拉）" />
                             <EditText
                                 android:id="@+id/etLlmExtra"
@@ -417,7 +426,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="样式 → 点选即换 App 图标；满意后「创建桌面入口」钉一个独立入口到桌面。"
+                            android:text="样式 → 点选即换 App 图标；满意后「创建桌面入口」钉一个独立入口到桌面（需先允许本应用的「桌面快捷方式」权限，否则不会弹创建框）。"
                             android:textColor="@color/hint"
                             android:textSize="11.5sp" />
 

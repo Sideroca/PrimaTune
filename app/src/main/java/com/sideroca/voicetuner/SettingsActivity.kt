@@ -74,6 +74,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etLlmMaxTokens: EditText
     private lateinit var etLlmTemp: EditText
     private lateinit var etTransPrompt: EditText
+    private lateinit var etTransEmail: EditText
     private lateinit var btnLlmTest: TextView
     private lateinit var tvLlmTest: TextView
     /** 记录页筛选状态：只看收藏 / 指定角色 / 搜索词 */
@@ -158,6 +159,8 @@ class SettingsActivity : AppCompatActivity() {
         etLlmMaxTokens.setText(if (store.llmMaxTokens > 0) store.llmMaxTokens.toString() else "")
         etLlmTemp.setText(if (store.llmTemp >= 0) (store.llmTemp / 10.0).toString() else "")
         etTransPrompt.setText(store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT })
+        etTransEmail = findViewById(R.id.etTransEmail)
+        etTransEmail.setText(store.transEmail)
         btnTabVoice.setOnClickListener { selectCfgTab(true) }
         btnTabPolish.setOnClickListener { selectCfgTab(false) }
         btnLlmTest.setOnClickListener { testLlm() }
@@ -545,7 +548,7 @@ class SettingsActivity : AppCompatActivity() {
                 runOnUiThread { if (out != null) showTranslated(out) else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show() }
             }
         } else {
-            TransClient.translate(src, store.trTarget, store.trLastSource) { out, err, s2 ->
+            TransClient.translate(src, store.trTarget, store.trLastSource, store.transEmail) { out, err, s2 ->
                 runOnUiThread {
                     if (out != null) { s2?.let { store.trLastSource = it }; showTranslated(out) }
                     else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show()
@@ -1019,6 +1022,7 @@ class SettingsActivity : AppCompatActivity() {
         store.llmMaxTokens = etLlmMaxTokens.text.toString().trim().toIntOrNull() ?: 0
         store.llmTemp = ((etLlmTemp.text.toString().trim().toDoubleOrNull() ?: -0.1) * 10).toInt()
         store.transPrompt = etTransPrompt.text.toString()
+        store.transEmail = etTransEmail.text.toString().trim()
         buildProviders()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
     }
@@ -1953,6 +1957,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         store.llmMaxTokens = etLlmMaxTokens.text.toString().trim().toIntOrNull() ?: 0
         store.llmTemp = ((etLlmTemp.text.toString().trim().toDoubleOrNull() ?: -0.1) * 10).toInt()
         store.transPrompt = etTransPrompt.text.toString()
+        store.transEmail = etTransEmail.text.toString().trim()
         store.llmPrompt = etLlmPrompt.text.toString()
         store.llmExtra = etLlmExtra.text.toString().trim()
     }

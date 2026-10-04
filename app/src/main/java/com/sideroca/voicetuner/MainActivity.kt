@@ -497,7 +497,7 @@ class MainActivity : AppCompatActivity() {
         if (store.llmKey.isNotBlank()) { llmRewrite(true, text); return }
         tvStatus.text = "翻译中…"
         btnTranslate.isEnabled = false
-        TransClient.translate(text, store.trTarget, store.trLastSource) { out, err, src ->
+        TransClient.translate(text, store.trTarget, store.trLastSource, store.transEmail) { out, err, src ->
             ui {
                 btnTranslate.isEnabled = true
                 if (out != null) {
