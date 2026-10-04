@@ -360,8 +360,11 @@ class MainActivity : AppCompatActivity() {
         btnSmartFill.background = glassBg()
         btnSmartFill.tag = "bg:keep"
         btnSmartFill.setTextColor(c.acc)
-        // 「角色提示词」：**保持旧版观感**（淡底 + 细边、字色随主题）——不再用亮 accent 描边
-        // （用户 2026-10-05 明确：喜欢旧的；这里不碰它，交给 Skin 按 bg_btn/角色着色）
+        // 「角色提示词」：**按用户要求保持旧版观感**（淡底 + 细边、字色随主题 dim）。
+        // 备注：曾做过"accent 字 + 细 accent 描边"的版本，用户说"还有点喜欢、但先不定"——
+        // 于是**只留在代码里、不启用**。将来若要换回，把下面两行放开即可：
+        //   btnRole.background = Skin.shapeDp(this, 0x00000000, c.acc, 11f, 100, 1f); btnRole.tag = "bg:keep"
+        //   btnRole.setTextColor(c.acc)
         // 「翻译」是同一款 accent 玻璃，一并刷新（字色保持原样，不动它的观感）
         btnTranslate.background = glassBg()
         btnTranslate.tag = "bg:keep"
@@ -2241,15 +2244,24 @@ class MainActivity : AppCompatActivity() {
         tvTip.textSize = 12f
         box.addView(tvTip)
 
-        val btnPick = smallBtn("选择音频文件…（可多选）")
+        val btnPick = smallBtn("选择音频文件")   // 文案缩短（"可多选"上面提示里已写），好让一行放得下
         fx(btnPick)
         btnPick.setOnClickListener { pickAudioFile() }
-        // [5] 不想复刻时，也可以直接导入厂商已有的音色 ID —— 放「选择音频文件」右边
+        // [5] 不想复刻时，也可以直接导入厂商已有的音色 ID
         val btnImportId = smallBtn("导入音色 ID…")
         fx(btnImportId)
         val rowPick = LinearLayout(this)
         rowPick.orientation = LinearLayout.HORIZONTAL
         rowPick.setPadding(0, dp(8), 0, 0)
+        // 等宽平分一行、都单行不换行、居中 —— 原来右边那个被挤成两行，很难看
+        listOf(btnPick, btnImportId).forEach { b ->
+            b.setSingleLine(true)
+            b.ellipsize = android.text.TextUtils.TruncateAt.END
+            b.gravity = android.view.Gravity.CENTER
+        }
+        btnPick.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            .apply { rightMargin = dp(8) }
+        btnImportId.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         rowPick.addView(btnPick)
         rowPick.addView(btnImportId)
         box.addView(rowPick)

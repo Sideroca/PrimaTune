@@ -62,7 +62,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var llRecTop: LinearLayout
     private lateinit var etLlmBase: EditText
     private lateinit var etLlmKey: EditText
-    private lateinit var etLlmModel: EditText
+    private lateinit var etLlmModel: android.widget.AutoCompleteTextView
     private lateinit var etLlmPrompt: EditText
     private lateinit var etLlmExtra: EditText
     private lateinit var llVoiceCfg: LinearLayout
@@ -144,6 +144,7 @@ class SettingsActivity : AppCompatActivity() {
         etLlmBase.setText(store.llmBaseUrl)
         etLlmKey.setText(store.llmKey)
         etLlmModel.setText(store.llmModel)
+        LlmPresets.match(store.llmBaseUrl)?.let { setupLlmModelDrop(it.models) }   // 润色页模型名也给下拉
         etLlmPrompt.setText(store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT })
         etLlmExtra.setText(store.llmExtra)
         llVoiceCfg = findViewById(R.id.llVoiceCfg)
@@ -1901,10 +1902,20 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             }
             store.llmLevel = ""
             etLlmProvider.setText(p.label, false)
+            setupLlmModelDrop(p.models)
             buildLlmLevels()
         } finally {
             applyingLlm = false
         }
+    }
+
+    /** 润色页：模型名也给下拉（用当前厂商预设的模型清单；「自定义」无清单则不挂） */
+    private fun setupLlmModelDrop(models: List<String>) {
+        if (models.isEmpty()) return
+        etLlmModel.setAdapter(ContainsAdapter(this, models))
+        etLlmModel.threshold = 0
+        etLlmModel.setOnClickListener { etLlmModel.showDropDown() }
+        etLlmModel.setOnFocusChangeListener { _, has -> if (has) etLlmModel.showDropDown() }
     }
 
     /** 润色页：思考档位芯片（按当前 Base URL 识别厂商，用它家的真实档位） */

@@ -275,10 +275,11 @@
                                 android:inputType="textVisiblePassword"
                                 android:singleLine="true" />
 
-                            <EditText
+                            <AutoCompleteTextView
                                 android:id="@+id/etLlmModel"
                                 style="@style/VtInput"
-                                android:hint="模型名"
+                                android:completionThreshold="0"
+                                android:hint="模型名（点一下可选）"
                                 android:importantForAutofill="no"
                                 android:inputType="text"
                                 android:singleLine="true" />
