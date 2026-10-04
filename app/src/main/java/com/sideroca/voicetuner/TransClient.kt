@@ -54,6 +54,35 @@ object TransClient {
         return c
     }
 
+    /**
+     * 一次翻成「多个目标语言」（每个目标一版）—— 给"多版本"用。
+     * 逐个目标串行翻；谁通用谁（google→mm），成功的收进 map（保持传入顺序）。
+     * @param onDone (目标名→译文 的有序 map, 错误)
+     */
+    fun translateMany(
+        text: String, targets: List<String>, email: String = "", lastGood: String = "",
+        onDone: (LinkedHashMap<String, String>?, String?) -> Unit
+    ): Cancelled {
+        val c = Cancelled()
+        Thread {
+            val out = LinkedHashMap<String, String>()
+            var used = lastGood
+            for (t in targets) {
+                if (c.cancelled) return@Thread
+                val tc = codeOf(t)
+                val order = if (used == "mm") listOf("mm", "google") else listOf("google", "mm")
+                for (src in order) {
+                    val r = if (src == "google") tryGoogle(text, tc) else tryMyMemory(text, tc, email)
+                    if (r != null) { out[t] = r; used = src; break }
+                }
+            }
+            if (c.cancelled) return@Thread
+            if (out.isEmpty()) onDone(null, "翻译源都失败了（Google 需能连外网；MyMemory 可能超了当日免额度）")
+            else onDone(out, null)
+        }.start()
+        return c
+    }
+
     /** ① Google 公开端点 */
     private fun tryGoogle(text: String, tc: String): String? = try {
         val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=" +

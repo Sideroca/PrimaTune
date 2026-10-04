@@ -256,6 +256,14 @@ class Store(context: Context) {
         get() = prefs.getString("transEmail", "") ?: ""
         set(v) { prefs.edit().putString("transEmail", v.trim()).apply() }
 
+    /** 翻译语言（逗号分隔、按顺序；默认「中文,英语」）—— 翻译按它决定方向与版本数 */
+    var transLangs: String
+        get() = prefs.getString("transLangs", "中文,英语") ?: "中文,英语"
+        set(v) { prefs.edit().putString("transLangs", v).apply() }
+
+    fun transLangList(): List<String> =
+        transLangs.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
     // ---- 提示词助手（给 LLM 发请求 → 自动挑厂商 / 写风格指令 / 生成纠错表）----
     var llmBaseUrl: String
         get() = prefs.getString("llmBaseUrl", "https://api.deepseek.com/v1") ?: "https://api.deepseek.com/v1"
