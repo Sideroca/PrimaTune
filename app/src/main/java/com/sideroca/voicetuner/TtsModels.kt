@@ -88,7 +88,7 @@ object TtsModels {
     /** 参数名 → 界面上的叫法（用于自动生成置灰说明） */
     private val paramNames = listOf(
         "rate" to "语速", "pitch" to "音调", "volume" to "音量", "seed" to "种子",
-        "instruction" to "风格指令", "langhints" to "语言提示",
+        "instruction" to "风格指令", "langhints" to "语言选择",
         "hotfix" to "纠错", "extra" to "额外参数", "ssml" to "SSML"
     )
 

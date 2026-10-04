@@ -1184,8 +1184,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val seed = (seedOverride ?: etSeed.text.toString().trim().toIntOrNull() ?: (0..65535).random()).coerceIn(0, 65535)
-        // 留空 = 每次随机，不回填；仅「重抽」时回填实际种子
-        if (seedOverride != null) {
+        // 生成后把"实际用的种子"回填到骰子栏 —— 但只在该 厂商+模型 支持 seed 时（别的引擎不显示，免得误导）
+        if (TtsModels.supports(store.providerId, store.lastModel, "seed")) {
             etSeed.setText(seed.toString())
         }
 
@@ -1626,7 +1626,8 @@ class MainActivity : AppCompatActivity() {
         val xInset = (3.5f * resources.displayMetrics.density).toInt()   // 字形内距 3.5dp
         x.setPadding(0, xInset, xInset, 0)
         x.layoutParams = android.widget.FrameLayout.LayoutParams(
-            dp(48), dp(48), android.view.Gravity.TOP or android.view.Gravity.END   // 判定再 +15%
+            dp(48), android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.TOP or android.view.Gravity.END   // 高度不再写死 48dp → 卡片高度随正文走
         )
         x.isClickable = true
         x.isFocusable = true
@@ -1634,12 +1635,12 @@ class MainActivity : AppCompatActivity() {
         head.addView(x)
         row.addView(head)
 
-        // ✕ 的判定范围：宽度保持 48dp，高度向下延伸到"卡片高度的一半"（长方形、随卡片变化）
+        // ✕ 判定范围：宽固定 48dp；**高度 = 正文高度**（不再抬到 48dp——否则 1 行消息的卡片也会被撑出空行）
         row.post {
-            val half = maxOf(dp(48), title.height)   // 用正文高度（不依赖 row，避免循环撑高）
-            if (half > dp(48)) {
+            val h = title.height
+            if (h > 0) {
                 (x.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { lp ->
-                    lp.height = half
+                    lp.height = h
                     x.layoutParams = lp
                 }
             }

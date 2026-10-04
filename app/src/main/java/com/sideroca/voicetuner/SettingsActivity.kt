@@ -1092,11 +1092,11 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    /** 仿手机设置页：5 个设置页整体下移 15% 屏高（用户 2026-10-04 要求）。
-     *  按屏高动态算，不写死 dp；改 pageHost 顶部内边距即整体生效。 */
+    /** 仿手机设置页：5 个设置页整体下移（按屏高动态算，不写死 dp）。
+     *  用户 2026-10-04：先下移 15%，后要求「集体上移 8%」→ 现为 7%。 */
     private fun applyPageShift() {
         val host = findViewById<android.widget.FrameLayout>(R.id.pageHost) ?: return
-        val shift = (resources.displayMetrics.heightPixels * 0.15f).toInt()
+        val shift = (resources.displayMetrics.heightPixels * 0.07f).toInt()
         host.setPadding(host.paddingLeft, shift, host.paddingRight, host.paddingBottom)
     }
 
