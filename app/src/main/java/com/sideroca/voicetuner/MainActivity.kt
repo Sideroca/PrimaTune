@@ -2168,10 +2168,14 @@ class MainActivity : AppCompatActivity() {
         val btnPick = smallBtn("选择音频文件…（可多选）")
         fx(btnPick)
         btnPick.setOnClickListener { pickAudioFile() }
+        // [5] 不想复刻时，也可以直接导入厂商已有的音色 ID —— 放「选择音频文件」右边
+        val btnImportId = smallBtn("导入音色 ID…")
+        fx(btnImportId)
         val rowPick = LinearLayout(this)
         rowPick.orientation = LinearLayout.HORIZONTAL
         rowPick.setPadding(0, dp(8), 0, 0)
         rowPick.addView(btnPick)
+        rowPick.addView(btnImportId)
         box.addView(rowPick)
 
         val tvFile = TextView(this)
@@ -2225,6 +2229,11 @@ class MainActivity : AppCompatActivity() {
         dlg.setOnShowListener {
             dlg.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener { doCreateVoice() }
             skinDialog(dlg)
+        }
+        // 导入音色 ID：关掉本弹窗，改走「自定义音色 ID」那张卡（按 ID 直接加一个音色）
+        btnImportId.setOnClickListener {
+            createDlg?.dismiss()
+            openCustomIdDialog()
         }
         dlg.setOnDismissListener {
             createDlg = null
