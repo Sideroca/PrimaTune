@@ -371,7 +371,8 @@ class MainActivity : AppCompatActivity() {
         if (dv != null) {
             btnGenerate.background = genButtonBg(dv.gen, bR)
             btnGenerate.tag = "bg:keep"
-            btnGenerate.setTextColor(if (dv.genText != 0) dv.genText else (pal?.text ?: c.txt))
+            // 「生成」字色**统一白字**（用户 2026-10-05：绿/金系原先用主题近黑，觉得不好看；已看过预览）
+            btnGenerate.setTextColor(if (dv.genText != 0) dv.genText else 0xFFFFFFFF.toInt())
         } else {
             btnGenerate.tag = null
             btnGenerate.background = ContextCompat.getDrawable(this, R.drawable.bg_btn_primary)
