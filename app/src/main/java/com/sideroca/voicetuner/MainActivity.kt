@@ -355,12 +355,29 @@ class MainActivity : AppCompatActivity() {
         spFormat.setDropDownWidth(ddw)
         // 结果卡三颗按钮与记录卡统一成"玻璃按键"
         listOf(btnPlay, btnShare, btnExport).forEach { it.background = glassBg(); it.tag = "bg:keep" }
-        // ⚠️ 这两个以前只在 bindViews 里刷一次 → 换主题后**留在旧色**（竹青下仍是蓝）。
-        //    现在并入 applyLook：智能填参＝accent 派生玻璃；角色提示词＝accent 字 + 细 accent 描边。
-        btnSmartFill.background = glassBg()
+
+        // ⑭ 色彩派生（《夕汀前端规范》2026-10-05）：中国传统色 · 浅色 26 套
+        val dv = Palettes.derivOf(store.themeId)
+        val pal = Palettes.byId(store.themeId)
+        val bR = (pal?.btnRadius ?: 12).toFloat()
+        // 「生成」主行动按钮：提亮提纯实色 + 按"白字线"配的字色（未列入的配色回退给 Skin 照常处理）
+        if (dv != null) {
+            btnGenerate.background = Skin.shapeDp(this, dv.gen, null, bR, 100, 0f)
+            btnGenerate.tag = "bg:keep"
+            btnGenerate.setTextColor(if (dv.genText != 0) dv.genText else (pal?.text ?: c.txt))
+        } else {
+            btnGenerate.tag = null
+            btnGenerate.background = ContextCompat.getDrawable(this, R.drawable.bg_btn_primary)
+            btnGenerate.setTextColor(0xFFFFFFFF.toInt())
+        }
+        // ⚠️ 这两个以前只在 bindViews 里刷一次 → 换主题后**留在旧色**（竹青下仍是蓝）→ 现在并入 applyLook。
+        // 智能填参：默认 accent 派生玻璃；⑭ 给了专属底/字（竹青）就用专属
+        btnSmartFill.background = if (dv != null && dv.sparkBg != 0)
+            Skin.shapeDp(this, dv.sparkBg, null, bR, 100, 0f) else glassBg()
         btnSmartFill.tag = "bg:keep"
-        btnSmartFill.setTextColor(c.acc)
-        // 「角色提示词」：**按用户要求保持旧版观感**（淡底 + 细边、字色随主题 dim）。
+        btnSmartFill.setTextColor(if (dv != null && dv.spark != 0) dv.spark else c.acc)
+        // 「角色提示词」：保持旧版观感（淡底 + 细边、字色走 dim）；⑭ 给了专属字色（竹青 #778D61）时用它。
+        btnRole.setTextColor(if (dv != null && dv.spark != 0) dv.spark else c.dim)
         // 备注：曾做过"accent 字 + 细 accent 描边"的版本，用户说"还有点喜欢、但先不定"——
         // 于是**只留在代码里、不启用**。将来若要换回，把下面两行放开即可：
         //   btnRole.background = Skin.shapeDp(this, 0x00000000, c.acc, 11f, 100, 1f); btnRole.tag = "bg:keep"

@@ -34,7 +34,7 @@ object Palettes {
         Pal("tokyo", "Tokyo Night", "modern", true, 0xFF1A1B26.toInt(), 0xFF24283B.toInt(), 0xFF7AA2F7.toInt(), 0xFFC0CAF5.toInt(), 0xFF7982A9.toInt(), 0xFF16161E.toInt(), 0xFFC0CAF5.toInt(), 0xFF7982A9.toInt(), 0xFFF0C239.toInt(), 0xFF1A1B26.toInt(), 0xFF292E42.toInt(), 12, 12, 0, true),
         Pal("ds", "死亡搁浅 · 冷蓝", "modern", true, 0xFF1E262E.toInt(), 0xFF262F38.toInt(), 0xFF7FB4D9.toInt(), 0xFFC8D4DC.toInt(), 0xFF7A8A96.toInt(), 0xFF222B33.toInt(), 0xFFC8D4DC.toInt(), 0xFF7A8A96.toInt(), 0xFF9D2933.toInt(), 0xFFF2F3F7.toInt(), 0xFF3A465E.toInt(), 6, 6, 0, false),
         Pal("song", "宋代美学 · 天水碧", "chinese", false, 0xFFD6ECF0.toInt(), 0xFFFFFFFF.toInt(), 0xFF5AA4AE.toInt(), 0xFF33454F.toInt(), 0xFF758A99.toInt(), 0xFFFFFFFF.toInt(), 0xFF33454F.toInt(), 0xFF758A99.toInt(), 0xFFF0C239.toInt(), 0xFF33454F.toInt(), 0xFF9FBFBF.toInt(), 8, 8, 0, true),
-        Pal("tea", "茶文化 · 竹青", "chinese", false, 0xFFEFF3EA.toInt(), 0xFFFFFFFF.toInt(), 0xFF789262.toInt(), 0xFF3B4634.toInt(), 0xFF9E8368.toInt(), 0xFFFFFFFF.toInt(), 0xFF3B4634.toInt(), 0xFF9E8368.toInt(), 0xFFF0C239.toInt(), 0xFF3B4634.toInt(), 0xFFC5D1BC.toInt(), 8, 8, 0, true),
+        Pal("tea", "茶文化 · 竹青", "chinese", false, 0xFFDCEDCF.toInt(), 0xFFFFFFFF.toInt(), 0xFF789262.toInt(), 0xFF3B4634.toInt(), 0xFF9E8368.toInt(), 0xFFFFFFFF.toInt(), 0xFF3B4634.toInt(), 0xFF9E8368.toInt(), 0xFFF0C239.toInt(), 0xFF3B4634.toInt(), 0xFFC5D1BC.toInt(), 8, 8, 0, true),
         Pal("ruyao_tianqing", "天青釉 · 汝窑", "chinese", false, 0xFFC7F2F9.toInt(), 0xFFF4FDFE.toInt(), 0xFF438894.toInt(), 0xFF1A2526.toInt(), 0xFF4B676B.toInt(), 0xFFF4FDFE.toInt(), 0xFF1A2526.toInt(), 0xFF4B676B.toInt(), 0xFF7FA9B0.toInt(), 0xFF1A1A1A.toInt(), 0xFFA4D3DB.toInt(), 8, 8, 0, true),
         Pal("longquan_fenqing", "粉青釉 · 龙泉", "chinese", false, 0xFFDBF9E9.toInt(), 0xFFF5FEF9.toInt(), 0xFF439467.toInt(), 0xFF1A261F.toInt(), 0xFF4B6B59.toInt(), 0xFFF5FEF9.toInt(), 0xFF1A261F.toInt(), 0xFF4B6B59.toInt(), 0xFFA8C3B4.toInt(), 0xFF1A1A1A.toInt(), 0xFFC0DBCC.toInt(), 8, 8, 0, true),
         Pal("longquan_meiziqing", "梅子青 · 龙泉", "chinese", false, 0xFFC7F9D8.toInt(), 0xFFF4FEF8.toInt(), 0xFF43945E.toInt(), 0xFF1A261E.toInt(), 0xFF4B6B56.toInt(), 0xFFF4FEF8.toInt(), 0xFF1A261E.toInt(), 0xFF4B6B56.toInt(), 0xFF6F9E7F.toInt(), 0xFF1A1A1A.toInt(), 0xFFA2DBB6.toInt(), 8, 8, 0, true),
@@ -81,6 +81,53 @@ object Palettes {
         Pal("guochao", "国潮 · 描金", "chinese", true, 0xFF2D1C14.toInt(), 0xFF3E2D26.toInt(), 0xFFD09579.toInt(), 0xFFFAF2EE.toInt(), 0xFFB1988D.toInt(), 0xFF3E2D26.toInt(), 0xFFFAF2EE.toInt(), 0xFFB1988D.toInt(), 0xFFE0B027.toInt(), 0xFF26120C.toInt(), 0xFF563F35.toInt(), 12, 12, 0, true),
 
     )
+
+    /**
+     * ⑭ 色彩派生 · 定稿（2026-10-05，《夕汀前端规范》14.3 / 14.4）——
+     * **中国传统色 · 浅色 26 套**的「生成色 / 球色 / 生成字色」。key = palette id。
+     * - genText = 0 → 用该主题自己的 `text` 槽；否则用给定字色（白字 `#FFFFFF` 或竹青的深字）。
+     * - spark / sparkBg = 0 → 不特殊处理，沿用 accent（目前只有竹青给了专属值）。
+     * - 底 `bg`、「设置」按钮：按规范**一律不改**（唯 竹青 按 14.3 把底改为 `#DCEDCF`）。
+     */
+    data class Deriv(
+        val gen: Int,
+        val ball: Int,
+        val genText: Int = 0,
+        val spark: Int = 0,
+        val sparkBg: Int = 0
+    )
+
+    /** 14.4 逐套处方（14.3 竹青单独定稿）。白字写 0xFFFFFFFF；深字写 0（= 用该主题 text 槽） */
+    val derive: Map<String, Deriv> = mapOf(
+        "song" to Deriv(0xFF86CBD5.toInt(), 0xFFB4DFE4.toInt()),
+        "tea" to Deriv(0xFF8FC464.toInt(), 0xFFB5CEA1.toInt(), 0xFF2F4526.toInt(), 0xFF778D61.toInt(), 0xFFDCE2D4.toInt()),
+        "ruyao_tianqing" to Deriv(0xFF86C9D5.toInt(), 0xFFB4DDE4.toInt()),
+        "longquan_fenqing" to Deriv(0xFF83D8A9.toInt(), 0xFFB1E7C9.toInt()),
+        "longquan_meiziqing" to Deriv(0xFF83D89F.toInt(), 0xFFB1E7C3.toInt()),
+        "song_yingqing" to Deriv(0xFF6E8DCC.toInt(), 0xFF9BB1DC.toInt(), 0xFFFFFFFF.toInt()),
+        "dingyao_yabai" to Deriv(0xFFDDB77E.toInt(), 0xFFEAD2AE.toInt()),
+        "jun_tianlan" to Deriv(0xFF6291C8.toInt(), 0xFF8FB0D8.toInt(), 0xFFFFFFFF.toInt()),
+        "jiangdou_hong" to Deriv(0xFFD86D78.toInt(), 0xFFE59DA5.toInt(), 0xFFFFFFFF.toInt()),
+        "yanzhi_shui" to Deriv(0xFFD86E6E.toInt(), 0xFFE59E9E.toInt(), 0xFFFFFFFF.toInt()),
+        "ming_tianbai" to Deriv(0xFF6490C9.toInt(), 0xFF92B0D9.toInt(), 0xFFFFFFFF.toInt()),
+        "qing_shanyuhuang" to Deriv(0xFFDDB87E.toInt(), 0xFFEAD3AE.toInt()),
+        "tang_zhehuang" to Deriv(0xFFDDBE7E.toInt(), 0xFFEAD6AE.toInt()),
+        "yuebai" to Deriv(0xFF698FCA.toInt(), 0xFF96B0DA.toInt(), 0xFFFFFFFF.toInt()),
+        "shilv" to Deriv(0xFF86D5D4.toInt(), 0xFFB4E4E4.toInt()),
+        "ouhe" to Deriv(0xFFD86A87.toInt(), 0xFFE49BAE.toInt(), 0xFFFFFFFF.toInt()),
+        "taohong" to Deriv(0xFFD86B85.toInt(), 0xFFE59CAD.toInt(), 0xFFFFFFFF.toInt()),
+        "haitang_hong" to Deriv(0xFFD86D7B.toInt(), 0xFFE59DA6.toInt(), 0xFFFFFFFF.toInt()),
+        "zhusha" to Deriv(0xFFD0754F.toInt(), 0xFFDD9B7F.toInt(), 0xFFFFFFFF.toInt()),
+        "xiangse" to Deriv(0xFFDDC57E.toInt(), 0xFFEADBAE.toInt()),
+        "chijin" to Deriv(0xFFDDC07E.toInt(), 0xFFEAD8AE.toInt()),
+        "tanse" to Deriv(0xFFD57260.toInt(), 0xFFE29D91.toInt(), 0xFFFFFFFF.toInt()),
+        "wanse" to Deriv(0xFFD37458.toInt(), 0xFFE09C89.toInt(), 0xFFFFFFFF.toInt()),
+        "hupo" to Deriv(0xFFCC793E.toInt(), 0xFFD99A6E.toInt(), 0xFFFFFFFF.toInt()),
+        "yanxia" to Deriv(0xFFD86B81.toInt(), 0xFFE59CAA.toInt(), 0xFFFFFFFF.toInt()),
+        "ailv" to Deriv(0xFF99D883.toInt(), 0xFFBFE7B1.toInt())
+    )
+
+    fun derivOf(id: String?): Deriv? = if (id.isNullOrEmpty()) null else derive[id]
 
     fun byId(id: String?): Pal? = if (id.isNullOrEmpty()) null else all.firstOrNull { it.id == id }
 }

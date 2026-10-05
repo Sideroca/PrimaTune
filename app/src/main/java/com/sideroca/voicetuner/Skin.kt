@@ -27,7 +27,9 @@ object Skin {
     class Colors(
         val bg: Int, val card: Int, val card2: Int, val line: Int, val row: Int,
         val txt: Int, val dim: Int, val hint: Int, val acc: Int, val acc2: Int,
-        val light: Boolean, val cardAlphaPct: Int, val isOriginal: Boolean
+        val light: Boolean, val cardAlphaPct: Int, val isOriginal: Boolean,
+        // ⑭ 色彩派生（中国传统色·浅色 26 套）：球色 / 智能填参与角色提示词的字色、智能填参底
+        val ball: Int = acc, val spark: Int = acc, val sparkBg: Int = 0
     ) {
         /** 按钮上的文字颜色（亮底自动切深字） */
         val onAcc: Int =
@@ -58,7 +60,10 @@ object Skin {
                     acc2 = if (p.barBg != 0) p.barBg else mix(p.accent, p.text, 0.25f),
                     light = !p.dark,
                     cardAlphaPct = cardAlphaPct,
-                    isOriginal = false
+                    isOriginal = false,
+                    ball = Palettes.derivOf(p.id)?.ball ?: p.accent,
+                    spark = Palettes.derivOf(p.id)?.spark ?: p.accent,
+                    sparkBg = Palettes.derivOf(p.id)?.sparkBg ?: 0
                 )
             }
 
@@ -114,7 +119,7 @@ object Skin {
                 val dd = v.resources.displayMetrics.density
                 v.thumb = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(c.acc)
+                    setColor(c.ball)      // ⑭：球＝同色相明度 +12（未列入的配色 = accent）
                     // 尺寸比默认小 15%（16dp → 13.6dp）
                     setSize((13.6f * dd).toInt(), (13.6f * dd).toInt())
                 }
