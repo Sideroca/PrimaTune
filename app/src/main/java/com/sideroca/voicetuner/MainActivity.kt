@@ -1484,7 +1484,7 @@ class MainActivity : AppCompatActivity() {
             } else if (prov.shape == "fish") {
                 ExtraTts.fish(
                     store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model,
-                    req.rate, req.volume, extra, req.instruction, req.seed
+                    req.rate, req.volume, extra, req.instruction, req.seed, fmt.format
                 )
             } else if (prov.shape == "openai" || prov.shape == "xai") {
                 // 自定义渠道：用用户填的 Base URL

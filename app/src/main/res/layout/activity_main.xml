@@ -364,27 +364,7 @@
                 android:textSize="12sp"
                 android:visibility="gone" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="格式"
-                    android:textColor="@color/dim"
-                    android:textSize="13sp" />
-
-                <Spinner
-                    android:id="@+id/spFormat"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1" />
-            </LinearLayout>
+            <!-- 格式 已收进「高级参数」（用户 2026-10-05） -->
 
             <TextView
                 android:id="@+id/tvAdvanced"
@@ -404,6 +384,13 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
+
+                <TextView style="@style/VtLabel" android:text="输出格式（各家支持不同：百炼 / Fish 认；MiniMax 固定 mp3、Gemini / MiMo 固定 wav）" />
+                <Spinner
+                    android:id="@+id/spFormat"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" />
 
                 <TextView style="@style/VtLabel" android:text="API 密钥（sk-ws-…；仅存本机，改完即生效）" />
 

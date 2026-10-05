@@ -99,7 +99,7 @@ object ExtraTts {
     fun fish(
         baseUrl: String, apiKey: String, voice: String, text: String, cb: SynthCallback,
         model: String = "", rate: Double = 1.0, volume: Int = 50, extra: JSONObject? = null,
-        instruction: String? = null, seed: Int? = null
+        instruction: String? = null, seed: Int? = null, format: String = "wav"
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/v1/tts"
         // 官方 prosody：speed 0.5~2.0（正好对上我们的语速 0.5~2.0）、volume -20~20（我们的 0~100 线性映射）
@@ -114,7 +114,7 @@ object ExtraTts {
         }
         val body = JSONObject().apply {
             put("text", bodyText)
-            put("format", "wav")     // 官方支持 wav，无损
+            put("format", if (format == "mp3") "mp3" else "wav")   // 官方支持 wav/mp3，跟随用户所选
             if (voice.isNotBlank()) put("reference_id", voice)
             if (kotlin.math.abs(sp - 1.0) > 0.001 || kotlin.math.abs(vol) > 0.001) {
                 put("prosody", JSONObject().apply {
