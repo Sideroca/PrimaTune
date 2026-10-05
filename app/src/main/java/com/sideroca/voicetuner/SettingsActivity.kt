@@ -332,8 +332,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun styleDropdowns(c: Skin.Colors) {
         val bg = Skin.shapeDp(this, c.card, c.line, 12f, 100, 1f)
         // ⚠️ 主题父类是深色（Theme.AppCompat.NoActionBar）→ 不刷底的下拉是"深底深字"，看不见。
-        // 新增自动补全框后**务必加进这个名单**（etLlmProvider 就曾漏掉 → 润色厂商下拉一片模糊）。
-        listOf(R.id.etProvider, R.id.etModel, R.id.etKey, R.id.etLlmProvider).forEach { id ->
+        // 新增自动补全框后**务必加进这个名单**（etLlmProvider、etLlmModel 都曾漏掉 → 下拉整张黑卡）。
+        listOf(R.id.etProvider, R.id.etModel, R.id.etKey, R.id.etLlmProvider, R.id.etLlmModel).forEach { id ->
             (findViewById<View>(id) as? android.widget.AutoCompleteTextView)
                 ?.setDropDownBackgroundDrawable(bg)
         }

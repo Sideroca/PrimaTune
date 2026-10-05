@@ -357,6 +357,9 @@ class MainActivity : AppCompatActivity() {
             .getOrDefault(0xFF2FE39B.toInt())
         spFormat.setPopupBackgroundDrawable(Skin.shapeDp(this, c.bg, c.line, 12f))
         spFormat.setDropDownWidth(ddw)
+        // 主页「密钥」下拉同样是 AutoCompleteTextView —— 不刷底就是系统深色弹层（黑卡）
+        (etApiKey as? android.widget.AutoCompleteTextView)
+            ?.setDropDownBackgroundDrawable(Skin.shapeDp(this, c.card, c.line, 12f, 100, 1f))
         // 结果卡三颗按钮与记录卡统一成"玻璃按键"
         listOf(btnPlay, btnShare, btnExport).forEach { it.background = glassBg(); it.tag = "bg:keep" }
 
