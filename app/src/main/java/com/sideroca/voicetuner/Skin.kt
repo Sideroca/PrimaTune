@@ -28,7 +28,8 @@ object Skin {
         val bg: Int, val card: Int, val card2: Int, val line: Int, val row: Int,
         val txt: Int, val dim: Int, val hint: Int, val acc: Int, val acc2: Int,
         val light: Boolean, val cardAlphaPct: Int, val isOriginal: Boolean,
-        // ⑭ 色彩派生（中国传统色·浅色 26 套）：球色 / 智能填参与角色提示词的字色、智能填参底
+        // ⑭ 色彩派生：主行动按钮（bg_btn_primary 角色）用的"提亮提纯"实色；其余派生量见下
+        val gen: Int = acc,
         val ball: Int = acc, val spark: Int = acc, val sparkBg: Int = 0
     ) {
         /** 按钮上的文字颜色（亮底自动切深字） */
@@ -61,6 +62,7 @@ object Skin {
                     light = !p.dark,
                     cardAlphaPct = cardAlphaPct,
                     isOriginal = false,
+                    gen = Palettes.derivOf(p.id)?.gen ?: p.accent,
                     ball = Palettes.derivOf(p.id)?.ball ?: p.accent,
                     spark = Palettes.derivOf(p.id)?.spark ?: p.accent,
                     sparkBg = Palettes.derivOf(p.id)?.sparkBg ?: 0
@@ -190,7 +192,8 @@ object Skin {
         val sel = v.isSelected
         when (role) {
             R.drawable.bg_btn_primary -> v.background =
-                if (c.isOriginal) grad(c.acc, c.acc2, 12f * d) else shape(c.acc, null, 12f * d, 100, 0f)
+                // ⑭：主行动按钮统一用"提亮提纯"的派生色（raw accent 只在未列入的配色 / 本机原色时用）
+                if (c.isOriginal) grad(c.acc, c.acc2, 12f * d) else shape(c.gen, null, 12f * d, 100, 0f)
             R.drawable.bg_card -> v.background = shape(c.card, c.line, 14f * d, c.cardAlphaPct, d)
             R.drawable.bg_chip -> if (!sel) v.background = shape(c.card2, c.line, 100f * d, 100, d)
             R.drawable.bg_row -> v.background = shape(c.row, null, 10f * d, 100, 0f)
