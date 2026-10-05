@@ -2073,12 +2073,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         line("· 数据：全部只保存在本机，不上传", c.dim)
     }
 
-    /** 危险色（删除）：不写死一个红 —— 浅色主题用更深、深色主题提亮，保证对比 */
-    private fun dangerColor(): Int {
-        val c = Skin.colors(this)
-        return if (c.light) 0xFFC9463F.toInt()
-        else Skin.Colors.mix(0xFFE8736B.toInt(), c.txt, 0.12f)
-    }
+    /** 破坏性动作（删除）的强调色：**跟随主题**（用户 2026-10-05：不要固定的红） */
+    private fun dangerColor(): Int = Skin.colors(this).acc
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

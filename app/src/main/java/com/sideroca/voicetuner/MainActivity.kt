@@ -109,12 +109,8 @@ class MainActivity : AppCompatActivity() {
 
     private val cTxt = Color.parseColor("#E8EEF8")
     private val cDim = Color.parseColor("#8D99AD")
-    /** 破坏性动作（删除）的红色：不写死一个 —— 浅色主题更深、深色主题提亮 */
-    private fun deleteRed(): Int {
-        val c = Skin.colors(this)
-        return if (c.light) 0xFFC9463F.toInt()
-        else Skin.Colors.mix(0xFFE8736B.toInt(), c.txt, 0.12f)
-    }
+    /** 破坏性动作（删除）的强调色：**跟随主题**（用户 2026-10-05：不要固定的红） */
+    private fun deleteRed(): Int = Skin.colors(this).acc
 
     // ---------------------------------------------------------------- 状态
     private lateinit var store: Store
