@@ -815,6 +815,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 设为某个音色（voiceId 为空/已失效时回落到第一个） */
     private fun setVoice(voiceId: String?) {
+        val beforeVoice = currentVoiceId
         val all = allVoices()
         if (voiceId != null && all.any { it.id == voiceId }) {
             currentVoiceId = voiceId
@@ -823,6 +824,8 @@ class MainActivity : AppCompatActivity() {
             currentVoiceId = all.firstOrNull()?.id ?: ""
             voiceIsCustom = false
         }
+        // 换音色 → **清空骰子**：文本不变、只换音色时，让新音色从随机种子重新"自由发挥"（用户 2026-10-05）
+        if (beforeVoice != currentVoiceId) etSeed.setText("")
         fitVoiceWidth()
         syncVoiceUi()
     }
@@ -1205,10 +1208,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val seed = (seedOverride ?: etSeed.text.toString().trim().toIntOrNull() ?: (0..65535).random()).coerceIn(0, 65535)
-        // 生成后把"实际用的种子"回填到骰子栏 —— 但只在该 厂商+模型 支持 seed 时（别的引擎不显示，免得误导）
-        if (TtsModels.supports(store.providerId, store.lastModel, "seed")) {
-            etSeed.setText(seed.toString())
-        }
+        // 骰子栏**不在生成前写**（否则数字会"飞快"提前跳出来）；等**生成完成**后再回填实际种子 —— 见 onTakeReady()
 
         val fmt = formats[spFormat.selectedItemPosition.coerceIn(0, formats.size - 1)]
         val instr = etInstr.text.toString().trim().take(128)
@@ -1392,6 +1392,10 @@ class MainActivity : AppCompatActivity() {
     private fun onTakeReady(take: Take) {
         finishBusy()
         tvStatus.text = "✅ 完成"
+        // 骰子：**生成完毕后才**写上实际用的种子（只在该 厂商+模型 支持 seed 时；别的引擎不写，免得误导）
+        if (TtsModels.supports(store.providerId, store.lastModel, "seed")) {
+            etSeed.setText(take.seed.toString())
+        }
         currentTake = take
         cardResult.visibility = View.VISIBLE
         tvResultInfo.text = take.voiceName + " · " + take.format + " · 语速 " + fmtNum(take.rate) +
