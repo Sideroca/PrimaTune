@@ -78,6 +78,9 @@ class MainActivity : AppCompatActivity() {
         Fmt("mp3_128", "mp3_128", "mp3", 16000, null, "mp3")
     )
 
+    /** 当前厂商**实际可选**的格式（按 TtsProviders.formats 过滤后的子集）——下拉与生成都用它 */
+    private var fmtList: List<Fmt> = formats
+
     private val instrChips = listOf(
         InstrChip("温柔", "语气温柔治愈，语速偏慢，像在轻声安慰"),
         InstrChip("开心", "语气开心活泼，语速稍快，句尾轻快上扬"),
@@ -193,6 +196,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
     private lateinit var llTransBlocks: LinearLayout
+    private lateinit var llProvChips: LinearLayout
     /** 多版本翻译：生成时逐个跑（译版在上、原文在下）；非空时 generate() 用它当文本 */
     private val genQueue = ArrayDeque<String>()
     private var genTextOverride: String? = null
@@ -321,20 +325,16 @@ class MainActivity : AppCompatActivity() {
         return list
     }
 
-    /** 展开「高级参数」并滚动/聚焦到密钥栏（替代往设置页跳） */
+    /**
+     * 缺 Key 时的引导：展开「高级参数」（这样能看到「TTS 厂商」芯片），
+     * 并明确告诉用户**密钥在设置页**（主页已不再暴露密钥框）。
+     */
     private fun revealApiKeyField() {
         if (!store.advExpanded) {
             setAdvanced(true, animate = false)
             store.advExpanded = true
         }
-        var y = 0
-        var v: View? = etApiKey
-        while (v != null && v !== svRoot) {
-            y += v.top
-            v = v.parent as? View
-        }
-        svRoot.post { svRoot.smoothScrollTo(0, (y - dp(30)).coerceAtLeast(0)) }
-        etApiKey.requestFocus()
+        toast("密钥在「设置 → 模型 → 语音」里填（主页不再放密钥框）")
     }
 
     /** 设置「模型」输入框并把它标记为"未被用户手改" */
@@ -364,6 +364,7 @@ class MainActivity : AppCompatActivity() {
         listOf(btnPlay, btnShare, btnExport).forEach { it.background = glassBg(); it.tag = "bg:keep" }
 
         // ⑭ 色彩派生（《夕汀前端规范》2026-10-05）：中国传统色 · 浅色 26 套
+        rebuildFormats()      // 换厂商回来 → 格式下拉按新厂商过滤
         val dv = Palettes.derivOf(store.themeId)
         val pal = Palettes.byId(store.themeId)
         val bR = (pal?.btnRadius ?: 12).toFloat()
@@ -407,6 +408,7 @@ class MainActivity : AppCompatActivity() {
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
         llTransBlocks = findViewById(R.id.llTransBlocks)
+        llProvChips = findViewById(R.id.llProvChips)
         btnYi = findViewById(R.id.btnYi)
         btnRun = findViewById(R.id.btnRun)
         btnRole = findViewById(R.id.btnRole)
@@ -971,8 +973,22 @@ class MainActivity : AppCompatActivity() {
         fitVoiceWidth()
         syncVoiceUi()
 
-        spFormat.adapter = ThemedSpinnerAdapter(this, formats.map { it.label })
         setModelField(store.lastModel)
+        rebuildFormats()
+    }
+
+    /**
+     * 主页「格式」下拉：**只列当前厂商支持的**（不可能选的就不显示，而不是列出来再置灰）。
+     * 依据 `TtsProviders.formats`（单一数据源）。
+     */
+    private fun rebuildFormats() {
+        val sup = TtsProviders.byId(store.providerId)?.formats ?: formats.map { it.key }
+        val sub = formats.filter { it.key in sup }.ifEmpty { formats }
+        val keep = fmtList.getOrNull(spFormat.selectedItemPosition)?.key
+        fmtList = sub
+        spFormat.adapter = ThemedSpinnerAdapter(this, sub.map { it.label })
+        val idx = sub.indexOfFirst { it.key == keep }.let { if (it >= 0) it else 0 }
+        spFormat.setSelection(idx)
     }
 
     /** 展开态宽度对齐原 Spinner：取最长条目宽度 → 名字靠左、三角靠右 */
@@ -1160,7 +1176,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun syncVoiceUi() {
         // P0.5：按所选模型置灰不适用的参数（数据驱动，见 TtsModels.supports）
-        val note = TtsModels.unsupportedNote(store.providerId, store.lastModel)
         // 一律按 View 取（View 本身就有 isEnabled/alpha）—— 之前按具体类型强取，
         // 遇到 id 实际是别的控件（如语言提示栏其实是 TextView）会 ClassCastException 崩在启动路径上
         gatedControls.forEach { (id, param) ->
@@ -1179,7 +1194,8 @@ class MainActivity : AppCompatActivity() {
             val noKey = TtsProviders.all.none { p ->
                 p.shape == "system" || store.providerKey(p.id).isNotBlank() || store.apiKey.isNotBlank() && p.id == "aliyun-bailian"
             }
-            text = if (noKey) "还没配置任何厂商：进「设置 → 模型」选厂商、填 Key 就能用。\n本机「系统 TTS」不需要 Key，也可以直接选它先试一句。" else note
+            // 不再列"不支持什么"（太长太丑）——只保留"一个厂商都没配"的引导
+            text = if (noKey) "还没配置任何厂商：进「设置 → 模型」选厂商、填 Key 就能用。\n本机「系统 TTS」不需要 Key，也可以直接选它先试一句。" else ""
             visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
         }
         val all = allVoices()
@@ -1193,6 +1209,48 @@ class MainActivity : AppCompatActivity() {
             tvVoiceNote.text = cur?.note ?: ""
         }
         renderChips()
+        renderProviderChips()
+    }
+
+    /**
+     * 主页「TTS 厂商」芯片：**点一下即切换**（与设置页共用同一份 `store.providerId`）。
+     * 顺手刷新：模型名 / 置灰状态 / 格式下拉。API 密钥已收进设置页，主页不再暴露。
+     */
+    private fun renderProviderChips() {
+        llProvChips.removeAllViews()
+        val c = Skin.colors(this)
+        var row: LinearLayout? = null
+        TtsProviders.all.forEachIndexed { i, p ->
+            if (i % 2 == 0) {
+                row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                llProvChips.addView(row)
+            }
+            val on = p.id == store.providerId
+            val tv = TextView(this)
+            tv.text = p.name
+            tv.textSize = 11.5f
+            tv.setPadding(dp(11), dp(6), dp(11), dp(6))
+            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
+            tv.setTextColor(if (on) 0xFFFFFFFF.toInt() else c.dim)
+            tv.tag = "bg:keep"
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                store.providerId = p.id
+                setModelField(store.lastModel)
+                syncVoiceUi()
+                rebuildFormats()
+            }
+            row!!.addView(tv, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { rightMargin = dp(6); bottomMargin = dp(6) })
+        }
     }
 
     private fun selectedVoiceId(): String =
@@ -1380,8 +1438,8 @@ class MainActivity : AppCompatActivity() {
         }
         val key = effectiveKey()
         if (key.isEmpty()) {
-            // 之前是"跳去设置页"，可主页这边才是真正生效的那份 → 直接把他带到主页的密钥栏
-            toast("请先填「高级参数 → API 密钥」")
+            // 主页不再放密钥框 → 引导去设置页（同时展开高级参数，能看到「TTS 厂商」）
+            toast("请先到「设置 → 模型 → 语音」填该厂商的 Key")
             revealApiKeyField()
             return
         }
@@ -1419,7 +1477,7 @@ class MainActivity : AppCompatActivity() {
         val seed = (seedOverride ?: etSeed.text.toString().trim().toIntOrNull() ?: (0..65535).random()).coerceIn(0, 65535)
         // 骰子栏**不在生成前写**（否则数字会"飞快"提前跳出来）；等**生成完成**后再回填实际种子 —— 见 onTakeReady()
 
-        val fmt = formats[spFormat.selectedItemPosition.coerceIn(0, formats.size - 1)]
+        val fmt = fmtList[spFormat.selectedItemPosition.coerceIn(0, fmtList.size - 1)]
         val instr = etInstr.text.toString().trim().take(128)
         val model = etModel.text.toString().trim().ifEmpty { "cosyvoice-v3.5-plus" }
         store.lastModel = model
@@ -2034,7 +2092,7 @@ class MainActivity : AppCompatActivity() {
         sbRate.progress = Math.round((take.rate - 0.5) * 100).toInt().coerceIn(0, 150)
         sbPitch.progress = Math.round((take.pitch - 0.5) * 100).toInt().coerceIn(0, 150)
         sbVol.progress = take.volume.coerceIn(0, 100)
-        val fi = formats.indexOfFirst { it.key == take.format }
+        val fi = fmtList.indexOfFirst { it.key == take.format }
         if (fi >= 0) spFormat.setSelection(fi)
         onParamChanged()   // 程序化设置 progress 不触发 ratchet 的标签刷新 → 手动刷一次
     }

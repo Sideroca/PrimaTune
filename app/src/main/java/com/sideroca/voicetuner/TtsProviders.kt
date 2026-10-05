@@ -22,7 +22,13 @@ object TtsProviders {
         /** 是否支持"声音复刻/克隆"。目前只有百炼实现；Fish / ElevenLabs / MiniMax 计划中 */
         val canClone: Boolean = false,
         /** 端点预设（Base URL 下拉里的候选；第一项视为"推荐"） */
-        val presets: List<String> = emptyList()
+        val presets: List<String> = emptyList(),
+        /**
+         * 该厂商**支持**的输出格式（keys；清单见 MainActivity.formats）。
+         * 主页「格式」下拉按它过滤 —— **不可能选的就不显示**（而不是列出来再置灰）。
+         * 默认＝全部；写死的厂商（ElevenLabs/MiniMax 固定 mp3、Gemini/MiMo 固定 wav…）各自声明。
+         */
+        val formats: List<String> = listOf("wav24", "wav48", "wav16", "mp3_256", "mp3_128")
     )
 
     val all: List<P> = listOf(
@@ -32,28 +38,34 @@ object TtsProviders {
         ),
         P(
             "openai", "OpenAI", "https://api.openai.com/v1", "openai", "sk-…",
-            listOf("gpt-4o-mini-tts")          // 官方 models 页已核实；tts-1 / tts-1-hd 属旧代
+            listOf("gpt-4o-mini-tts"),          // 官方 models 页已核实；tts-1 / tts-1-hd 属旧代
+            formats = listOf("mp3_256", "mp3_128")
         ),
         P(
             "groq", "Groq", "https://api.groq.com/openai/v1", "openai", "gsk_…",
-            listOf("canopylabs/orpheus-v1-english", "playai-tts")
+            listOf("canopylabs/orpheus-v1-english", "playai-tts"),
+            formats = listOf("mp3_256", "mp3_128")
         ),
         P(
             "step", "Step 阶跃星辰", "https://api.stepfun.com/v1", "openai", "…",
-            listOf("stepaudio-3-tts")          // 官网 curl 已核实
+            listOf("stepaudio-3-tts"),          // 官网 curl 已核实
+            formats = listOf("mp3_256", "mp3_128")
         ),
         P(
             "xai", "xAI", "https://api.x.ai/v1", "xai", "xai-…",
-            listOf("grok-tts")                 // 无独立 TTS 模型 id，随 grok-4.20 系列走
+            listOf("grok-tts"),                 // 无独立 TTS 模型 id，随 grok-4.20 系列走
+            formats = listOf("mp3_256", "mp3_128")
         ),
 
         P(
             "elevenlabs", "ElevenLabs", "https://api.elevenlabs.io", "elevenlabs", "xi-…",
-            listOf("eleven_v4", "eleven_v4_turbo", "eleven_v3")      // 官方 openapi 已核实（最近两代）
+            listOf("eleven_v4", "eleven_v4_turbo", "eleven_v3"),      // 官方 openapi 已核实（最近两代）
+            formats = listOf("mp3_256", "mp3_128")                    // 我们固定 mp3 输出
         ),
         P(
             "minimax", "MiniMax", "https://api.minimax.io/v1", "minimax", "eyJ…",
-            listOf("speech-2.8-hd", "speech-2.8-turbo", "speech-2.6-hd", "speech-2.6-turbo")
+            listOf("speech-2.8-hd", "speech-2.8-turbo", "speech-2.6-hd", "speech-2.6-turbo"),
+            formats = listOf("mp3_256", "mp3_128")                    // 客户端固定 mp3
         ),
         P(
             "fish", "Fish Audio", "https://api.fish.audio", "fish", "…",
@@ -63,20 +75,24 @@ object TtsProviders {
 
         P(
             "gemini", "Gemini", "https://generativelanguage.googleapis.com", "gemini", "AIza…",
-            listOf("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts")
+            listOf("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"),
+            formats = listOf("wav24", "wav48", "wav16")
         ),
         P(
             "mimo", "MiMo 小米", "https://api.mimo.mi.com/v1", "mimo", "MIMO_API_KEY",
-            listOf("MiMo-V2.5-TTS")          // 文档已核实模型名；端点与返回格式待真机验证
+            listOf("MiMo-V2.5-TTS"),          // 文档已核实模型名；端点与返回格式待真机验证
+            formats = listOf("wav24", "wav48", "wav16")
         ),
         P(
             "index-tts", "B站 IndexTTS", "", "openai", "自建服务的 Key（可留空）",
             listOf("IndexTTS2.5", "IndexTTS2"),   // 哔哩哔哩开源；B站自身不运营，由第三方托管
-            presets = listOf("https://api.siliconflow.cn/v1")   // 国内最知名：硅基流动（已核实其 IndexTTS-2 模型页可达）
+            presets = listOf("https://api.siliconflow.cn/v1"),   // 国内最知名：硅基流动（已核实其 IndexTTS-2 模型页可达）
+            formats = listOf("mp3_256", "mp3_128")
         ),
         P(
             "system", "系统 TTS（本地）", "", "system", "（无需 Key）",
-            listOf("系统引擎")
+            listOf("系统引擎"),
+            formats = listOf("wav24")            // 本地引擎直接产出 wav
         ),
 
         // 自定义渠道：Base URL 自己填，默认按 OpenAI 兼容形态（POST {base}/audio/speech）
