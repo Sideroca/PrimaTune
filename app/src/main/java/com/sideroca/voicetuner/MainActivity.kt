@@ -650,7 +650,8 @@ class MainActivity : AppCompatActivity() {
             val frame = android.widget.FrameLayout(this)
             val et = EditText(this)
             et.setText(txt)
-            et.hint = lang + " · 译版"
+            // 不标语言、不写"译版"——用户自己看得出，加了反而让卡片拥挤（用户 2026-10-05）
+            et.hint = ""
             et.setTextColor(c.txt)
             et.setHintTextColor(c.hint)
             et.textSize = 15f
