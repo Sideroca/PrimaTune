@@ -2002,6 +2002,12 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         dlg.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(c.acc)
         dlg.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)?.setTextColor(c.dim)
         dlg.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)?.setTextColor(c.dim)
+        // 弹窗按钮也装"跟随主题"的水波（系统默认水波吃系统色，不跟主题）
+        listOf(
+            android.content.DialogInterface.BUTTON_POSITIVE,
+            android.content.DialogInterface.BUTTON_NEGATIVE,
+            android.content.DialogInterface.BUTTON_NEUTRAL
+        ).forEach { b -> dlg.getButton(b)?.let { fx(it) } }
     }
 
     override fun onPause() {

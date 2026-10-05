@@ -1402,6 +1402,12 @@ class MainActivity : AppCompatActivity() {
         dlg.getButton(DialogInterface.BUTTON_POSITIVE)?.setTextColor(c.acc)
         dlg.getButton(DialogInterface.BUTTON_NEGATIVE)?.setTextColor(c.dim)
         dlg.getButton(DialogInterface.BUTTON_NEUTRAL)?.setTextColor(c.dim)
+        // 弹窗按钮也装"跟随主题"的水波（系统默认水波吃系统色，不跟主题——用户 2026-10-05 反馈）
+        listOf(
+            DialogInterface.BUTTON_POSITIVE,
+            DialogInterface.BUTTON_NEGATIVE,
+            DialogInterface.BUTTON_NEUTRAL
+        ).forEach { b -> dlg.getButton(b)?.let { fx(it) } }
     }
 
     // ---------------------------------------------------------------- 生成
@@ -1868,12 +1874,10 @@ class MainActivity : AppCompatActivity() {
             // 判定范围 = 一整条长条（卡片整宽 × 约 42dp 高）：字小、靶大，且与相邻行/按钮不重叠
             // 底部留白比顶部小 40%：卡片底边到文字的距离比原来近 20%
             more.setPadding(dp(12), dp(15), dp(12), dp(9))
-            val tvAttr = android.util.TypedValue()
-            if (theme.resolveAttribute(android.R.attr.selectableItemBackground, tvAttr, true)) {
-                more.setBackgroundResource(tvAttr.resourceId)
-            }
+            // 用**跟随主题**的水波 —— 原来用系统 selectableItemBackground，会吃系统高亮色（不跟主题）
             more.isClickable = true
             more.isFocusable = true
+            fx(more, llHistory)
             more.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             )
