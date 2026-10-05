@@ -30,6 +30,9 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Preflight check（静态体检：启动顺序 / 资源 id）
+        run: python3 tools/preflight_check.py
+
       - name: Build release APK
         run: gradle assembleRelease --no-daemon
 
