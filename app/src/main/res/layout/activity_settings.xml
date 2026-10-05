@@ -22,25 +22,30 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- 顶栏 -->
+        <!-- 顶栏：大标题 + 一条短 accent 下划线（往闪译「设置」那个观感靠） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:paddingHorizontal="14dp"
             android:paddingTop="14dp"
             android:paddingBottom="6dp">
 
             <TextView
                 android:id="@+id/tvPageTitle"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:letterSpacing="0.10"
                 android:text="模型"
                 android:textColor="@color/txt"
-                android:textSize="20sp"
+                android:textSize="30sp"
                 android:textStyle="bold" />
+
+            <View
+                android:id="@+id/tvTitleUnderline"
+                android:layout_width="52dp"
+                android:layout_height="3dp"
+                android:layout_marginTop="8dp" />
         </LinearLayout>
 
         <!-- 5 个分页 -->

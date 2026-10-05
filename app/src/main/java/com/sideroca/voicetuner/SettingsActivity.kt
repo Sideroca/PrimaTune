@@ -210,6 +210,11 @@ class SettingsActivity : AppCompatActivity() {
         val c = Skin.colors(this)
         Skin.applyWindow(this, c)
         Skin.apply(window.decorView, c)
+        // 标题下划线：accent 短条（圆头），随主题
+        findViewById<View>(R.id.tvTitleUnderline)?.apply {
+            background = Skin.shapeDp(this@SettingsActivity, c.acc, null, 3f, 100, 0f)
+            tag = "bg:keep"
+        }
         Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, c.bg)
         // 坞与保存键不在 Skin 的"角色"体系里 → 必须在 Skin.apply 之后显式上色，才不会被它盖掉
         styleDock(c)
