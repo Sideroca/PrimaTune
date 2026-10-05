@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 页面切换：柔和过渡（淡入 + 轻微上移），替代系统默认的"猛地推过来"（用户 2026-10-05 选 B） -->
+    <style name="NavAnim" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/nav_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/nav_hold</item>
+        <item name="android:activityCloseEnterAnimation">@anim/nav_back_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/nav_back_exit</item>
+    </style>
+
     <style name="Theme.VoiceTuner" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowAnimationStyle">@style/NavAnim</item>
         <!-- 弹窗背后的遮罩统一调浅（系统默认约 0.6，显得发黑） -->
         <item name="android:backgroundDimAmount">0.28</item>
         <item name="android:windowBackground">@color/launch_bg</item>

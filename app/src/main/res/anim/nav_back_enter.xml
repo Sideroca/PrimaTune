@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 返回时，旧页面重新出现：只淡入，不位移 -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="200"
+    android:fromAlpha="0.0"
+    android:toAlpha="1.0" />
