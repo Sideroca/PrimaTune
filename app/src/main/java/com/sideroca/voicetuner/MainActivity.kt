@@ -362,7 +362,7 @@ class MainActivity : AppCompatActivity() {
         val bR = (pal?.btnRadius ?: 12).toFloat()
         // 「生成」主行动按钮：提亮提纯实色 + 按"白字线"配的字色（未列入的配色回退给 Skin 照常处理）
         if (dv != null) {
-            btnGenerate.background = Skin.shapeDp(this, dv.gen, null, bR, 100, 0f)
+            btnGenerate.background = genButtonBg(dv.gen, bR)
             btnGenerate.tag = "bg:keep"
             btnGenerate.setTextColor(if (dv.genText != 0) dv.genText else (pal?.text ?: c.txt))
         } else {
@@ -2639,8 +2639,24 @@ class MainActivity : AppCompatActivity() {
      * 玻璃按键底（候选 B，与「保存」同语言）：accent 面 16% + accent 描边 42% + 主题 btnRadius。
      * 半径取 11dp 而不是 bg_btn 的 10dp —— 刻意避开 Skin 的"圆角猜角色"，免得换肤把它重绘掉。
      */
-    private fun glassBg(): android.graphics.drawable.Drawable {
-        val c = Skin.colors(this)
+    /**
+     * ⑭「生成」按钮底：提亮提纯实色 + **顶内光**（规范 14.1 质感：只允许"受光"，
+     * 顶边 ~7% 高度一条 `rgba(255,252,244,.60)` 渐隐高光），让按键像"被光照到"。
+     */
+    private fun genButtonBg(color: Int, radiusDp: Float): android.graphics.drawable.Drawable {
+        val base = Skin.shapeDp(this, color, null, radiusDp, 100, 0f)
+        val light = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * resources.displayMetrics.density
+            setColors(
+                intArrayOf(0x99FFFCF4.toInt(), 0x00FFFCF4.toInt(), 0x00FFFCF4.toInt()),
+                floatArrayOf(0f, 0.07f, 1f)
+            )
+        }
+        return android.graphics.drawable.LayerDrawable(arrayOf(base, light))
+    }
+
+    private fun glassBg(): android.graphics.drawable.Drawable {        val c = Skin.colors(this)
         val r = (Palettes.byId(store.themeId)?.btnRadius ?: 11).toFloat()
         val face = (c.acc and 0x00FFFFFF) or (0x29 shl 24)     // ~16%
         val stroke = (c.acc and 0x00FFFFFF) or (0x6B shl 24)   // ~42%
