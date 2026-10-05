@@ -756,14 +756,22 @@ class MainActivity : AppCompatActivity() {
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val v = super.getView(position, convertView, parent)
-            (v as? TextView)?.setTextColor(Skin.colors(parent.context).txt)
+            // ⚠️ 打 "r:txt" 角色标记：否则换主题后 Skin 认不出它的字色角色 → 字色**停在旧主题**
+            //（症状：深色主题下格式那行仍是黑字）
+            (v as? TextView)?.let {
+                it.setTextColor(Skin.colors(parent.context).txt)
+                it.tag = "r:txt"
+            }
             pressFx(v, parent)
             return v
         }
 
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
             val v = super.getDropDownView(position, convertView, parent)
-            (v as? TextView)?.setTextColor(Skin.colors(parent.context).txt)
+            (v as? TextView)?.let {
+                it.setTextColor(Skin.colors(v.context).txt)
+                it.tag = "r:txt"
+            }
             // 下拉卡片里的每一项也给点按反馈：水波 + 留痕（留痕画在它所在的那个列表上）
             TapFx.press(v, Skin.colors(v.context).acc, rootAtTouch = { (v.parent as? View) })
             return v
