@@ -691,6 +691,15 @@
                             android:text="恢复默认（壁纸与浓度）"
                             android:textColor="@color/dim"
                             android:textSize="14sp" />
+
+                        <!-- 记录字号：只影响记录卡的标题/信息/详情（小按钮不动）。用户 2026-10-05 -->
+                        <TextView style="@style/VtLabel" android:text="记录字号（只影响记录卡的标题 / 信息 / 详情，小按钮不动）" />
+                        <LinearLayout
+                            android:id="@+id/llFontScale"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="horizontal" />
                     </LinearLayout>
 
                     <!-- 指示符颜色（与壁纸模块对调后放到后面） -->

@@ -246,6 +246,11 @@ class Store(context: Context) {
         get() = prefs.getInt("cardAlpha", 100)
         set(v) { prefs.edit().putInt("cardAlpha", v).apply() }
 
+    /** 记录字号（%）：只作用在记录卡的标题/信息/详情——小按钮不动（用户 2026-10-05）。 */
+    var recordFontPct: Int
+        get() = prefs.getInt("recFontPct", 100)
+        set(v) { prefs.edit().putInt("recFontPct", v.coerceIn(90, 130)).apply() }
+
     /** 翻译目标语言（中文/英语/…） */
     var trTarget: String
         get() = prefs.getString("trTarget", "中文") ?: "中文"

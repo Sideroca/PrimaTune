@@ -978,6 +978,7 @@ class MainActivity : AppCompatActivity() {
      * 依据 `TtsProviders.formats`（单一数据源）。
      */
     private fun rebuildFormats() {
+        if (!::spFormat.isInitialized) return        // 同上：可能被早于 findViewById 的调用链碰到
         val sup = TtsProviders.byId(store.providerId)?.formats ?: formats.map { it.key }
         val sub = formats.filter { it.key in sup }.ifEmpty { formats }
         val keep = fmtList.getOrNull(spFormat.selectedItemPosition)?.key
@@ -1213,6 +1214,8 @@ class MainActivity : AppCompatActivity() {
      * 顺手刷新：模型名 / 置灰状态 / 格式下拉。API 密钥已收进设置页，主页不再暴露。
      */
     private fun renderProviderChips() {
+        // reloadFromStore() 可能在 findViewById 之前就调到 syncVoiceUi() → 这里防 lateinit 崩（历史踩过）
+        if (!::llProvChips.isInitialized) return
         llProvChips.removeAllViews()
         val c = Skin.colors(this)
         var row: LinearLayout? = null
@@ -1886,6 +1889,9 @@ class MainActivity : AppCompatActivity() {
         Skin.apply(llHistory, Skin.colors(this))
     }
 
+    /** 记录卡字号缩放：只作用在**标题 / 信息 / 详情**上（小按钮一律不动，用户 2026-10-05） */
+    private fun recScale(base: Float): Float = base * store.recordFontPct / 100f
+
     private fun buildRow(take: Take): View {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.VERTICAL
@@ -1904,7 +1910,7 @@ class MainActivity : AppCompatActivity() {
         val title = TextView(this)
         title.text = take.text
         title.setTextColor(cTxt)
-        title.textSize = 14f
+        title.textSize = recScale(14f)
         title.maxLines = 2
         title.ellipsize = android.text.TextUtils.TruncateAt.END
         title.setPadding(0, dp(10), dp(20), 0)     // 顶部 10dp 移到标题上；右侧只让 20dp
@@ -1946,7 +1952,7 @@ class MainActivity : AppCompatActivity() {
                 " · 时长 " + fmtDur(take.durationMs) +
                 " · " + take.text.length + " 字"        // 时长在左、字数最右
         meta.setTextColor(cDim)
-        meta.textSize = 12f
+        meta.textSize = recScale(12f)
         meta.setPadding(0, dp(3), dp(12), dp(6))
         row.addView(meta)
 
@@ -1956,7 +1962,7 @@ class MainActivity : AppCompatActivity() {
         detail.text = "语速 " + fmtNum(take.rate) + " · 音调 " + fmtNum(take.pitch) +
                 " · 音量 " + take.volume + " · 模型 " + modelShown + " · 🎲 " + take.seed
         detail.setTextColor(cTxt)                  // 与正文一致（不再发灰"隐形"）
-        detail.textSize = 13f
+        detail.textSize = recScale(13f)
         detail.setPadding(0, 0, dp(12), dp(2))
         detail.visibility = View.GONE
         row.addView(detail)

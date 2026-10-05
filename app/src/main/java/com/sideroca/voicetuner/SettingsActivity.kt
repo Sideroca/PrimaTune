@@ -59,6 +59,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etEntryName: EditText
     private lateinit var llTips: LinearLayout
     private lateinit var etRecSearch: EditText
+    private lateinit var llFontScale: LinearLayout
     private lateinit var llRecTop: LinearLayout
     private lateinit var etLlmBase: EditText
     private lateinit var etLlmKey: EditText
@@ -135,6 +136,7 @@ class SettingsActivity : AppCompatActivity() {
         etEntryName = findViewById(R.id.etEntryName)
         llTips = findViewById(R.id.llTips)
         etRecSearch = findViewById(R.id.etRecSearch)
+        llFontScale = findViewById(R.id.llFontScale)
         llRecTop = findViewById(R.id.llRecTop)
         etLlmBase = findViewById(R.id.etLlmBase)
         etLlmKey = findViewById(R.id.etLlmKey)
@@ -193,6 +195,7 @@ class SettingsActivity : AppCompatActivity() {
             renderPalettes()
             renderIndicatorColors()
             bindWallpaper()
+            renderFontScaleChips()
             buildVoices()
             buildRecords()
             bindAbout()
@@ -665,6 +668,38 @@ class SettingsActivity : AppCompatActivity() {
     private var recOnlyFav = false
 
     /** 记录页 = 顶部筛选（搜索框在布局里，这里只建 chip）＋ 列表；两者分开建，搜索时不重建顶部 */
+    /** 记录卡字号缩放：只作用在**标题 / 信息 / 详情**上（小按钮一律不动，用户 2026-10-05） */
+    private fun recScale(base: Float): Float = base * store.recordFontPct / 100f
+
+    /** 记录字号档位芯片（放在「壁纸属性」卡底部） */
+    private fun renderFontScaleChips() {
+        llFontScale.removeAllViews()
+        val c = Skin.colors(this)
+        for ((pct, label) in listOf(90 to "小", 100 to "标准", 115 to "大", 130 to "特大")) {
+            val on = store.recordFontPct == pct
+            val tv = TextView(this)
+            tv.text = label
+            tv.textSize = 12.5f
+            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
+            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
+            tv.setTextColor(if (on) 0xFFFFFFFF.toInt() else c.dim)
+            tv.tag = "bg:keep"
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                store.recordFontPct = pct
+                renderFontScaleChips()
+                renderRecList()          // 立刻按新字号重排记录
+                Toast.makeText(this, "记录字号：" + label + "（" + pct + "%）", Toast.LENGTH_SHORT).show()
+            }
+            tv.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { rightMargin = dp(8f) }
+            llFontScale.addView(tv)
+        }
+    }
+
     private fun buildRecords() {
         buildRecTop()
         renderRecList()
@@ -836,7 +871,7 @@ class SettingsActivity : AppCompatActivity() {
             val a = TextView(this)
             a.text = t.text
             a.setTextColor(c.txt)
-            a.textSize = 14f
+            a.textSize = recScale(14f)
             a.maxLines = 2
             a.ellipsize = android.text.TextUtils.TruncateAt.END
             a.setPadding(0, 0, dp(20f), 0)
@@ -885,7 +920,7 @@ class SettingsActivity : AppCompatActivity() {
             b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " +
                     t.format + " · 时长 " + durStr + " · " + t.text.length + " 字"
             b.setTextColor(c.dim)
-            b.textSize = 11.5f
+            b.textSize = recScale(11.5f)
             b.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(3f) }
@@ -897,7 +932,7 @@ class SettingsActivity : AppCompatActivity() {
             d2.text = "语速 " + t.rate + " · 音调 " + t.pitch + " · 音量 " + t.volume +
                     " · 模型 " + modelShown + " · 🎲 " + t.seed
             d2.setTextColor(c.txt)                 // 与正文一致（不再发灰"隐形"）
-            d2.textSize = 13f
+            d2.textSize = recScale(13f)
             d2.visibility = View.GONE
             d2.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
