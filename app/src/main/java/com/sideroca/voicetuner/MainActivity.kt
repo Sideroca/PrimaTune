@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
     private lateinit var llTransBlocks: LinearLayout
-    private lateinit var llProvChips: LinearLayout
+    private lateinit var etProvMain: android.widget.AutoCompleteTextView
     /** 多版本翻译：生成时逐个跑（译版在上、原文在下）；非空时 generate() 用它当文本 */
     private val genQueue = ArrayDeque<String>()
     private var genTextOverride: String? = null
@@ -404,7 +404,8 @@ class MainActivity : AppCompatActivity() {
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
         llTransBlocks = findViewById(R.id.llTransBlocks)
-        llProvChips = findViewById(R.id.llProvChips)
+        etProvMain = findViewById(R.id.etProvMain)
+        setupProviderField()
         btnYi = findViewById(R.id.btnYi)
         btnRun = findViewById(R.id.btnRun)
         btnRole = findViewById(R.id.btnRole)
@@ -816,7 +817,7 @@ class MainActivity : AppCompatActivity() {
 
         fun refresh() {
             for (tv in rows) {
-                val nm = tv.text.toString().removePrefix("✓ ").removePrefix("　 ")
+                val nm = tv.tag as? String ?: ""
                 val on = draft.contains(nm)
                 tv.text = (if (on) "✓ " else "　 ") + nm
                 tv.setTextColor(if (on) c.acc else c.txt)
@@ -825,13 +826,15 @@ class MainActivity : AppCompatActivity() {
 
         for (name in TransClient.targetNames()) {
             val tv = TextView(this)
+            // ⚠️ 名字存进 tag —— **不能从 tv.text 反推**：初始为空 → 每行只剩空格 → 弹窗整页空白（bug）
+            tv.tag = name
             tv.textSize = 15f
             tv.setPadding(dp(4), dp(11), dp(4), dp(11))
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener {
-                val nm = tv.text.toString().removePrefix("✓ ").removePrefix("　 ")
+                val nm = tv.tag as? String ?: return@setOnClickListener
                 if (draft.contains(nm)) draft.remove(nm) else draft.add(nm)
                 refresh()
             }
@@ -1206,50 +1209,32 @@ class MainActivity : AppCompatActivity() {
             tvVoiceNote.text = cur?.note ?: ""
         }
         renderChips()
-        renderProviderChips()
+        syncProviderField()
     }
 
-    /**
-     * 主页「TTS 厂商」芯片：**点一下即切换**（与设置页共用同一份 `store.providerId`）。
-     * 顺手刷新：模型名 / 置灰状态 / 格式下拉。API 密钥已收进设置页，主页不再暴露。
-     */
-    private fun renderProviderChips() {
-        // reloadFromStore() 可能在 findViewById 之前就调到 syncVoiceUi() → 这里防 lateinit 崩（历史踩过）
-        if (!::llProvChips.isInitialized) return
-        llProvChips.removeAllViews()
-        val c = Skin.colors(this)
-        var row: LinearLayout? = null
-        TtsProviders.all.forEachIndexed { i, p ->
-            if (i % 2 == 0) {
-                row = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                }
-                llProvChips.addView(row)
-            }
-            val on = p.id == store.providerId
-            val tv = TextView(this)
-            tv.text = p.name
-            tv.textSize = 11.5f
-            tv.setPadding(dp(11), dp(6), dp(11), dp(6))
-            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
-            tv.setTextColor(if (on) 0xFFFFFFFF.toInt() else c.dim)
-            tv.tag = "bg:keep"
-            tv.isClickable = true
-            tv.isFocusable = true
-            fx(tv)
-            tv.setOnClickListener {
-                store.providerId = p.id
+    /** 主页「TTS 厂商」：**填空 ＋ 下拉**（点一下弹可选清单；也可直接打字筛）——不再摆一堆芯片 */
+    private fun setupProviderField() {
+        if (!::etProvMain.isInitialized) return
+        etProvMain.setAdapter(ContainsAdapter(this, TtsProviders.all.map { TtsProviders.display(it) }))
+        etProvMain.threshold = 0
+        etProvMain.setOnClickListener { etProvMain.showDropDown() }
+        etProvMain.setOnFocusChangeListener { _, has -> if (has) etProvMain.showDropDown() }
+        etProvMain.setOnItemClickListener { _, _, _, _ ->
+            val id = TtsProviders.idOf(etProvMain.text.toString())
+            if (TtsProviders.byId(id) != null) {
+                store.providerId = id
                 setModelField(store.lastModel)
                 syncVoiceUi()
                 rebuildFormats()
             }
-            row!!.addView(tv, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { rightMargin = dp(6); bottomMargin = dp(6) })
         }
+    }
+
+    /** 把当前厂商写进那个填空栏（false = 不触发筛选） */
+    private fun syncProviderField() {
+        if (!::etProvMain.isInitialized) return
+        val p = TtsProviders.byId(store.providerId)
+        etProvMain.setText(if (p == null) "" else TtsProviders.display(p), false)
     }
 
     private fun selectedVoiceId(): String =

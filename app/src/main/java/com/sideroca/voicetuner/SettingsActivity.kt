@@ -1141,7 +1141,8 @@ class SettingsActivity : AppCompatActivity() {
      *  用户 2026-10-04：先下移 15%，后要求「集体上移 8%」→ 现为 7%。 */
     private fun applyPageShift() {
         val host = findViewById<android.widget.FrameLayout>(R.id.pageHost) ?: return
-        val shift = (resources.displayMetrics.heightPixels * 0.07f).toInt()
+        // 用户 2026-10-05：内容上移到"主标题与卡片的一半距离" → 7% 的一半 = 3.5%
+        val shift = (resources.displayMetrics.heightPixels * 0.035f).toInt()
         host.setPadding(host.paddingLeft, shift, host.paddingRight, host.paddingBottom)
     }
 

@@ -37,14 +37,28 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="🎛️ 语音调控台"
-                android:textColor="@color/txt"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎛️ 玲珑调音"
+                    android:textColor="@color/txt"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="Prima Tune"
+                    android:textColor="@color/dim"
+                    android:textSize="11sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/btnSettings"
@@ -385,13 +399,12 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <TextView style="@style/VtLabel" android:text="TTS 厂商（点一下即切换）" />
-                <LinearLayout
-                    android:id="@+id/llProvChips"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:orientation="vertical" />
+                <TextView style="@style/VtLabel" android:text="TTS 厂商（点一下选，或直接打字筛）" />
+                <AutoCompleteTextView
+                    android:id="@+id/etProvMain"
+                    style="@style/VtInput"
+                    android:completionThreshold="0"
+                    android:hint="如 阿里云百炼 / Fish Audio…" />
 
                 <TextView style="@style/VtLabel" android:text="模型不支持的参数会自动置灰" />
 
