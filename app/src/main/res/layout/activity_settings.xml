@@ -764,11 +764,19 @@
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="提示" />
 
+                        <!-- 提示内容（分组 + 分隔线；由代码按主题排版）——「使用提示 / 关于」放前面 -->
+                        <LinearLayout
+                            android:id="@+id/llTips"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+
+                        <!-- 「检查更新」按用户要求挪到**第 3 格**（使用提示 → 关于 → 检查更新） -->
                         <TextView
                             android:id="@+id/btnCheckUpdate"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
+                            android:layout_marginTop="14dp"
                             android:background="@drawable/bg_btn"
                             android:clickable="true"
                             android:focusable="true"
@@ -777,13 +785,6 @@
                             android:text="检查更新"
                             android:textColor="@color/txt"
                             android:textSize="14sp" />
-
-                        <!-- 提示内容（分组 + 分隔线；由代码按主题排版） -->
-                        <LinearLayout
-                            android:id="@+id/llTips"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
                     </LinearLayout>
 
                     <!-- 开发者联系与支持（仿闪译；整块点一下复制） -->

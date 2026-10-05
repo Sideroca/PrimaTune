@@ -1403,9 +1403,8 @@ class SettingsActivity : AppCompatActivity() {
     /** 开发者联系与支持：整块点一下复制（仿闪译；只提 DeepSeek，不提 GLM） */
     private fun bindAbout() {
         val tv = findViewById<TextView>(R.id.tvDevInfo)
-        tv.text = """开发者联系与支持
-
-QQ：2093523014（邮箱同号）
+        // 标题由布局里的 label 提供 → 正文**不要再写一遍**（否则叠出两行「开发者联系与支持」，图3 的 bug）
+        tv.text = """QQ：2093523014（邮箱同号）
 任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，
 尤其是 deepseek-v4.1-flash
 
