@@ -398,6 +398,15 @@ class MainActivity : AppCompatActivity() {
         etInstr = findViewById(R.id.etInstr)
         llChips = findViewById(R.id.llChips)
         etSeed = findViewById(R.id.etSeed)
+        // 文本一变（含被清空）→ **骰子清空**：下次生成重新拿随机种子，让模型"自由发挥"（用户 2026-10-05）
+        //（放在 etSeed 初始化之后挂，避免启动路径上 watcher 先触发、lateinit 还没就绪）
+        etText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (::etSeed.isInitialized && etSeed.text.isNotEmpty()) etSeed.setText("")
+            }
+        })
         btnDice = findViewById(R.id.btnDice)
         sbRate = findViewById(R.id.sbRate)
         Ratchet.attach(sbRate, 5) { onParamChanged() }   // 语速：0.05 一档
