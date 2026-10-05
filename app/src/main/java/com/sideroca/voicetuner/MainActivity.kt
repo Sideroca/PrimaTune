@@ -192,6 +192,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivVoiceInd: VoiceIndicatorView
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
+    private lateinit var llTransBlocks: LinearLayout
+    /** 多版本翻译：生成时逐个跑（译版在上、原文在下）；非空时 generate() 用它当文本 */
+    private val genQueue = ArrayDeque<String>()
+    private var genTextOverride: String? = null
     private lateinit var btnYi: TextView
     private lateinit var btnRun: TextView
     private lateinit var btnRole: TextView
@@ -398,6 +402,7 @@ class MainActivity : AppCompatActivity() {
         ivVoiceInd = findViewById(R.id.ivVoiceInd)
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
+        llTransBlocks = findViewById(R.id.llTransBlocks)
         btnYi = findViewById(R.id.btnYi)
         btnRun = findViewById(R.id.btnRun)
         btnRole = findViewById(R.id.btnRole)
@@ -497,7 +502,7 @@ class MainActivity : AppCompatActivity() {
         btnTranslate.tag = "bg:keep"
         fx(btnTranslate, findViewById(R.id.llRoot))
         btnTranslate.setOnClickListener { translateText() }
-        tvTransTarget.setOnClickListener { pickTransTarget() }
+        tvTransTarget.setOnClickListener { pickTransLangs() }
         syncTransUi()
 
         // 悬浮「译」：判定 48dp、字形小而浅；位置 = 文本框✕所在竖线 × 屏幕竖直中心
@@ -518,9 +523,8 @@ class MainActivity : AppCompatActivity() {
         btnRole.setTextColor(Skin.colors(this).dim)
         fx(btnRole, findViewById(R.id.llRoot))
         btnRole.setOnClickListener { openRoleDialog() }
-        btnYi.setOnClickListener {
-            if (etText.text.toString().trim().isEmpty()) pickTransTarget() else translateText()
-        }
+        // 「译」：直接按"高级参数里选好的语言"翻译（不再看文本框空不空——那正是旧机制的病根）
+        btnYi.setOnClickListener { translateText() }
     }
 
     /** 润色：把文本框内容交给 LLM 润色成"适合朗读的稿子"，原地替换 */
@@ -535,26 +539,151 @@ class MainActivity : AppCompatActivity() {
         llmRewrite(false, text)
     }
 
-    /** 翻译：配了 LLM 就走 LLM（质量好），否则退回免费源 */
+    /**
+     * 翻译（新机制 · 2026-10-05 用户定稿）：
+     *   高级参数里**多选语言** → 系统判定源语言 → 翻成"所选语言里除源语言之外的"。
+     *   · 勾 2 种 = 互译：只出一版，**原地替换**；
+     *   · 勾 3 种＋ = 多版本：**译版堆在上、原文压在最下**（每块右上角 ✕，可单独删）。
+     *   · 配了 LLM 且只出一版时，优先走 LLM（质量好）。
+     */
     private fun translateText() {
         val text = etText.text.toString().trim()
         if (text.isEmpty()) { toast("请先输入文本"); return }
-        if (store.llmKey.isNotBlank()) { llmRewrite(true, text); return }
+        val langs = store.transLangList()
+        if (langs.isEmpty()) { toast("请先在「高级参数 → 翻译语言」里选至少一种"); return }
+
+        val src = detectLangName(text)
+        var targets = if (src.isNotEmpty() && langs.contains(src)) langs.filter { it != src } else langs
+        if (targets.isEmpty()) targets = langs
+
+        clearTransBlocks()
         tvStatus.text = "翻译中…"
         btnTranslate.isEnabled = false
-        TransClient.translate(text, store.trTarget, store.trLastSource, store.transEmail) { out, err, src ->
-            ui {
-                btnTranslate.isEnabled = true
-                if (out != null) {
-                    src?.let { store.trLastSource = it }
-                    etText.setText(out)
-                    tvStatus.text = "✅ 已翻译成" + store.trTarget
-                } else {
-                    tvStatus.text = "❌ " + (err ?: "翻译失败")
-                    toast(err ?: "翻译失败")
+
+        if (targets.size <= 1) {
+            val t = targets.first()
+            store.trTarget = t
+            if (store.llmKey.isNotBlank()) { btnTranslate.isEnabled = true; llmRewrite(true, text); return }
+            TransClient.translate(text, t, store.trLastSource, store.transEmail) { out, err, s ->
+                ui {
+                    btnTranslate.isEnabled = true
+                    if (out != null) {
+                        s?.let { store.trLastSource = it }
+                        etText.setText(out)
+                        tvStatus.text = "✅ 已翻译成" + t
+                    } else {
+                        tvStatus.text = "❌ " + (err ?: "翻译失败"); toast(err ?: "翻译失败")
+                    }
+                }
+            }
+        } else {
+            TransClient.translateMany(text, targets, store.transEmail, store.trLastSource) { map, err ->
+                ui {
+                    btnTranslate.isEnabled = true
+                    if (map == null || map.isEmpty()) {
+                        tvStatus.text = "❌ " + (err ?: "翻译失败"); toast(err ?: "翻译失败")
+                    } else {
+                        buildTransBlocks(map)
+                        tvStatus.text = "✅ 已翻成 " + map.keys.joinToString(" · ") + "（译版在上 · 原文在下）"
+                    }
                 }
             }
         }
+    }
+
+    /** 源语言判定：假名/谚文/西里尔/阿拉伯/泰文优先，其次比"中文字数 vs 拉丁字母数" */
+    private fun detectLangName(s: String): String {
+        var cjk = 0; var kana = 0; var hangul = 0; var cyr = 0; var arab = 0; var thai = 0; var latin = 0
+        for (ch in s) {
+            val code = ch.code
+            when {
+                code in 0x3040..0x30FF -> kana++
+                code in 0xAC00..0xD7AF -> hangul++
+                code in 0x0400..0x04FF -> cyr++
+                code in 0x0600..0x06FF -> arab++
+                code in 0x0E00..0x0E7F -> thai++
+                code in 0x4E00..0x9FFF -> cjk++
+                (code in 65..90) || (code in 97..122) -> latin++
+            }
+        }
+        if (kana > 0) return "日语"
+        if (hangul > 0) return "韩语"
+        if (cyr > 0) return "俄语"
+        if (arab > 0) return "阿拉伯语"
+        if (thai > 0) return "泰语"
+        return if (cjk > 0 && cjk >= latin) "中文" else if (latin > 0) "英语" else ""
+    }
+
+    /** 清掉所有"译版块" */
+    private fun clearTransBlocks() {
+        llTransBlocks.removeAllViews()
+        llTransBlocks.visibility = View.GONE
+    }
+
+    /** 收集"译版块"里的文本（从上到下）—— 给「生成＝全部生成」用 */
+    private fun collectTransBlockTexts(): List<String> {
+        val out = ArrayList<String>()
+        for (i in 0 until llTransBlocks.childCount) {
+            val blk = llTransBlocks.getChildAt(i) as? LinearLayout ?: continue
+            val frame = blk.getChildAt(0) as? android.widget.FrameLayout ?: continue
+            val et = frame.getChildAt(0) as? EditText ?: continue
+            et.text.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+        }
+        return out
+    }
+
+    /** 建"译版块"：每块 = 输入框 ＋ 右上角 ✕（删这一版）；块与块／原文之间有一条随主题的灰线 */
+    private fun buildTransBlocks(map: LinkedHashMap<String, String>) {
+        clearTransBlocks()
+        val c = Skin.colors(this)
+        val d = resources.displayMetrics.density
+        for ((lang, txt) in map) {
+            val blk = LinearLayout(this)
+            blk.orientation = LinearLayout.VERTICAL
+            blk.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+
+            val frame = android.widget.FrameLayout(this)
+            val et = EditText(this)
+            et.setText(txt)
+            et.hint = lang + " · 译版"
+            et.setTextColor(c.txt)
+            et.setHintTextColor(c.hint)
+            et.textSize = 15f
+            et.gravity = Gravity.TOP or Gravity.START
+            et.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            et.minLines = 2
+            et.setPadding(dp(10), dp(10), dp(28), dp(10))
+            et.background = Skin.shapeDp(this, c.card2, c.line, 10f, 100, 1f)
+            et.tag = "bg:keep"
+            frame.addView(et, android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+
+            val x = TextView(this)
+            x.text = "✕"
+            x.textSize = 13f
+            x.setTextColor(c.dim)
+            x.gravity = Gravity.TOP or Gravity.END
+            x.setPadding(0, dp(6), dp(9), 0)
+            x.isClickable = true
+            x.isFocusable = true
+            x.layoutParams = android.widget.FrameLayout.LayoutParams(dp(40), dp(40), Gravity.TOP or Gravity.END)
+            x.setOnClickListener { llTransBlocks.removeView(blk) }   // 点 ✕：连这条灰线一起删掉
+            frame.addView(x)
+            blk.addView(frame)
+
+            val div = View(this)
+            div.setBackgroundColor((c.line and 0x00FFFFFF) or (0x99 shl 24))
+            blk.addView(
+                div,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (1 * d).toInt()).apply { topMargin = dp(6) }
+            )
+
+            llTransBlocks.addView(blk)
+        }
+        llTransBlocks.visibility = View.VISIBLE
     }
 
     /** 走 LLM：translate=true 翻译 / false 润色 */
@@ -661,7 +790,8 @@ class MainActivity : AppCompatActivity() {
 
     /** 刷新翻译相关文案（目标语言） */
     private fun syncTransUi() {
-        tvTransTarget.text = "→ " + store.trTarget
+        val ls = store.transLangList()
+        tvTransTarget.text = if (ls.isEmpty()) "" else ls.joinToString(" · ")
     }
 
     /**
@@ -669,47 +799,68 @@ class MainActivity : AppCompatActivity() {
      * 注意：不能用 setSingleChoiceItems —— 它的列表项吃系统 textColorPrimary（近白），
      * 在浅色主题的弹窗底板上会**看不见字**（实测）。这里改成自带主题色的自定义行。
      */
-    private fun pickTransTarget() {
+    /**
+     * 「翻译语言」**多选**弹窗（点高级参数里那个字段打开）。
+     * 勾几种决定行为：2 种＝互译；3 种＋＝多版本（译版在上、原文压底）。
+     */
+    private fun pickTransLangs() {
         val c = Skin.colors(this)
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
         box.setPadding(dp(18), dp(6), dp(18), dp(6))
-        var dlg: AlertDialog? = null
+        val draft = LinkedHashSet(store.transLangList())
+        val rows = ArrayList<TextView>()
+
+        fun refresh() {
+            for (tv in rows) {
+                val nm = tv.text.toString().removePrefix("✓ ").removePrefix("　 ")
+                val on = draft.contains(nm)
+                tv.text = (if (on) "✓ " else "　 ") + nm
+                tv.setTextColor(if (on) c.acc else c.txt)
+            }
+        }
+
         for (name in TransClient.targetNames()) {
-            val on = name == store.trTarget
             val tv = TextView(this)
-            // 顺序：名字在前、对号在后
-            tv.text = name + if (on) "  ✓" else ""
-            tv.setTextColor(if (on) c.acc else c.txt)
             tv.textSize = 15f
-            tv.setPadding(dp(4), dp(12), dp(4), dp(12))
+            tv.setPadding(dp(4), dp(11), dp(4), dp(11))
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener {
-                store.trTarget = name
-                syncTransUi()
-                dlg?.dismiss()
+                val nm = tv.text.toString().removePrefix("✓ ").removePrefix("　 ")
+                if (draft.contains(nm)) draft.remove(nm) else draft.add(nm)
+                refresh()
             }
+            rows.add(tv)
             box.addView(tv)
         }
+        refresh()
+
         val sc = ScrollView(this)
         sc.addView(box)
-        dlg = AlertDialog.Builder(this).setTitle("翻译成").setView(sc).setNegativeButton("取消", null).create()
-        val dd = dlg
-        dd.setOnShowListener {
-            skinDialog(dd)
-            // 别铺满整屏：列表限高，窗口收紧 —— 这样"点窗口外的阴影"才真的在窗口外（能关闭）
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("翻译语言（可多选）")
+            .setView(sc)
+            .setPositiveButton("确定") { _, _ ->
+                store.transLangs = draft.joinToString(",")
+                syncTransUi()
+                toast("翻译语言：" + (if (draft.isEmpty()) "未选" else draft.joinToString(" · ")))
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        dlg.setOnShowListener {
+            skinDialog(dlg)
             sc.layoutParams = android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 300).toInt()
             )
-            dd.window?.setLayout(
+            dlg.window?.setLayout(
                 (resources.displayMetrics.widthPixels * 0.72).toInt(),
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         }
-        dd.setCanceledOnTouchOutside(true)
-        dd.show()
+        dlg.setCanceledOnTouchOutside(true)
+        dlg.show()
     }
 
     /** 高级参数展开/收起：180ms 高度过渡（原来瞬变） */
@@ -882,7 +1033,7 @@ class MainActivity : AppCompatActivity() {
             setAdvanced(show, animate = true)
             store.advExpanded = show
         }
-        btnGenerate.setOnClickListener { generate(null) }
+        btnGenerate.setOnClickListener { startGenerateAll() }
         btnCancel.setOnClickListener {
             if (busy) {
                 client.cancel()
@@ -1191,6 +1342,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 生成
+    /** 「生成」入口：若文本框上方有译版块 → **全部生成**（译版在上、原文在下）；没有则照常生成原文 */
+    private fun startGenerateAll() {
+        val blocks = collectTransBlockTexts()
+        val original = etText.text.toString().trim()
+        genQueue.clear()
+        if (blocks.isEmpty()) {
+            genTextOverride = null
+            generate(null)
+            return
+        }
+        genQueue.addAll(blocks)
+        genQueue.add(original)
+        toast("将生成 " + genQueue.size + " 版")
+        nextGenerate()
+    }
+
+    /** 从队列取下一条来生成；队列空则收工 */
+    private fun nextGenerate() {
+        if (genQueue.isEmpty()) {
+            genTextOverride = null
+            return
+        }
+        genTextOverride = genQueue.removeFirst()
+        generate(null)
+    }
+
     private fun generate(seedOverride: Int?) {
         if (busy) {
             toast("正在合成中，请稍候…")
@@ -1203,7 +1380,8 @@ class MainActivity : AppCompatActivity() {
             revealApiKeyField()
             return
         }
-        val text = etText.text.toString().trim()
+        // 「生成＝全部生成」：多版本时逐个跑；文本来自队列（译版在上、原文在下）
+        val text = (genTextOverride ?: etText.text.toString()).trim()
         if (text.isEmpty()) {
             toast("请先输入文本")
             return
@@ -1428,7 +1606,8 @@ class MainActivity : AppCompatActivity() {
                 " · 音调 " + fmtNum(take.pitch) + " · 音量 " + take.volume +
                 " · 🎲 " + take.seed + " · 时长 " + fmtDur(take.durationMs)
         renderHistory()
-        startPlayback(take)
+        // 多版本：一条生成完 → 接着生成下一条（最后一条才自动播放，避免互相打断）
+        if (genQueue.isNotEmpty()) nextGenerate() else startPlayback(take)
     }
 
     private fun finishBusy() {
