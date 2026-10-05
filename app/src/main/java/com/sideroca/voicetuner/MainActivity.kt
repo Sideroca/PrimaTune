@@ -2260,7 +2260,7 @@ class MainActivity : AppCompatActivity() {
         box.setPadding(dp(20), dp(8), dp(20), dp(4))
 
         val tvTip = TextView(this)
-        tvTip.text = "样本要求：干净人声、无背景音乐/杂音；可一次选多个文件（数量不限，App 自动合并）；支持 wav / mp3 / m4a 等。"
+        tvTip.text = "样本建议：干净人声、无背景音乐/杂音；可一次选多个文件（数量不限，App 自动拼接）；支持 wav / mp3 / m4a 等。"
         tvTip.setTextColor(cDim)
         tvTip.textSize = 12f
         box.addView(tvTip)
