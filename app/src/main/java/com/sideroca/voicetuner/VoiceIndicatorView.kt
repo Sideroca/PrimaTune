@@ -69,24 +69,28 @@ class VoiceIndicatorView @JvmOverloads constructor(
         val w = width.toFloat()
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
-        line.strokeWidth = 1.3f * resources.displayMetrics.density
         val cx = w / 2f
         val cy = h / 2f
         val halfW = w / 2f * 0.94f * (1f - 2f * inset)
         val halfH = h / 2f * 0.62f * amp
-        path.reset()
         val ph = phase * (2.0 * Math.PI).toFloat()
-        for (i in xs.indices) {
-            val px = cx + xs[i] * halfW
-            // 生成中：每个折点带相位差地上下摆
-            val k = if (busy) (0.55f + 0.45f * kotlin.math.sin(ph + i * 0.9f)) else 1f
-            // ⚠️ 光乘 ys 不行：ys 两端本来就是 0（水平段），只有中间起伏 → 看着像"只有中间在动"。
-            // 这里再叠一层**整条线的行波**，两端也跟着上下走，才是"整条都在动"。
-            val wob = if (busy) halfH * 0.55f * kotlin.math.sin(ph * 1.25f + i * 0.85f) else 0f
-            val py = cy + ys[i] * halfH * k + wob
-            if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        if (busy) {
+            // 「生成中」＝ G · 干涉波：两条**反相**正弦交叉流动；整数个波长 → 走完一圈无缝循环
+            // （用户 2026-10-05 选定 G；静态/入场/退场仍是下面那条"心电"折线）
+            val d = resources.displayMetrics.density
+            line.strokeWidth = 1.15f * d
+            drawWave(canvas, cx, cy, halfW, halfH, ph, indicatorColor, 255)
+            drawWave(canvas, cx, cy, halfW, halfH, ph + Math.PI.toFloat(), indicatorColor, 105)
+        } else {
+            line.strokeWidth = 1.3f * resources.displayMetrics.density
+            path.reset()
+            for (i in xs.indices) {
+                val px = cx + xs[i] * halfW
+                val py = cy + ys[i] * halfH
+                if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            canvas.drawPath(path, line)
         }
-        canvas.drawPath(path, line)
         // 正在燃烧的两端：一点余烬
         if (inset > 0.01f && inset < 0.49f) {
             for (s in intArrayOf(-1, 1)) {
@@ -99,6 +103,23 @@ class VoiceIndicatorView @JvmOverloads constructor(
         }
     }
 
+    /** 画一条正弦（G·干涉波用）。offset 传 π 即为反相的一条。 */
+    private fun drawWave(canvas: Canvas, cx: Float, cy: Float, halfW: Float, halfH: Float, offset: Float, col: Int, a: Int) {
+        path.reset()
+        val n = 48
+        for (i in 0..n) {
+            val u = i.toFloat() / n
+            val x = cx - halfW + 2f * halfW * u
+            // 24dp 下 1 个波长最清楚；整数 → 无缝
+            val y = cy + halfH * kotlin.math.sin((2.0 * Math.PI * u).toFloat() + offset)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        line.color = col
+        line.alpha = a
+        canvas.drawPath(path, line)
+        line.alpha = 255
+    }
+
     /** 生成中：一直动（连续摆动，无限循环） */
     fun startBusy() {
         stop()
@@ -109,7 +130,7 @@ class VoiceIndicatorView @JvmOverloads constructor(
         line.color = indicatorColor
         busy = true
         val a = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1200
+            duration = 1800          // 一圈 1.8s（用户 2026-10-05：原 1.2s 太快）
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
             addUpdateListener { phase = it.animatedValue as Float; invalidate() }

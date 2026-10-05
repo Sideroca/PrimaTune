@@ -178,23 +178,25 @@ class SettingsActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-        setupIconWorkshop()      // 必须放在上面几个 findViewById 之后（否则 lateinit 未初始化 → 崩）
-
-        buildCatChips()
-        renderPalettes()
-        renderIndicatorColors()
+        // 首帧先行：当前页（模型 / 语音）需要的同步建；**其它页的重活延后一拍再建**
+        // —— 修「主页 → 设置页 先卡一下、再猛地推过来」（用户 2026-10-05）
         bindInterface()
-        bindWallpaper()
-
         buildDock()
         buildProviders()
-        buildVoices()
-        buildRecords()
-        bindAbout()
         btnSaveAll.setOnClickListener { saveAll() }
         applyThemeTab()
         selectPage(0)
         applyPageShift()
+        window.decorView.post {
+            setupIconWorkshop()      // 必须放在 findViewById 之后（否则 lateinit 未初始化 → 崩）
+            buildCatChips()
+            renderPalettes()
+            renderIndicatorColors()
+            bindWallpaper()
+            buildVoices()
+            buildRecords()
+            bindAbout()
+        }
     }
 
     override fun onResume() {
