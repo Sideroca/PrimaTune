@@ -407,7 +407,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.maxLines = 1
             tv.isSelected = sel
             tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) c.acc else c.line, 96f, 100, 1f)
+            tv.background = Skin.shapeDp(this, if (sel) c.sel else c.card2, if (sel) c.sel else c.line, 96f, 100, 1f)
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
@@ -694,7 +694,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.maxLines = 1
             tv.isSelected = on
             tv.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 96f, 100, 1f)
+            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 96f, 100, 1f)
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
@@ -718,7 +718,7 @@ class SettingsActivity : AppCompatActivity() {
         pick.isSelected = recVoiceId != null
         pick.setPadding(dp(14f), dp(7f), dp(14f), dp(7f))
         pick.background = Skin.shapeDp(
-            this, if (recVoiceId != null) c.acc else c.card2,
+            this, if (recVoiceId != null) c.sel else c.card2,
             if (recVoiceId != null) c.acc else c.line, 96f, 100, 1f
         )
         pick.setTextColor(if (recVoiceId != null) c.onAcc else c.dim)
@@ -1126,7 +1126,7 @@ class SettingsActivity : AppCompatActivity() {
             tv.setPadding(dp(12), dp(6), dp(12), dp(6))
             val sel = id == cat
             tv.isSelected = sel
-            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) null else c.line, 96f)   // 96 避开 Skin 的 chip 角色(100dp)，否则被重绘成浅色
+            tv.background = Skin.shapeDp(this, if (sel) c.sel else c.card2, if (sel) null else c.line, 96f)   // 96 避开 Skin 的 chip 角色(100dp)，否则被重绘成浅色
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true
@@ -1740,7 +1740,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             val sel = key == curIconStyle
             tv.isSelected = sel
             tv.setPadding(dp(13f), dp(7f), dp(13f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (sel) c.acc else c.card2, if (sel) c.acc else c.line, 96f, 100, 1f)
+            tv.background = Skin.shapeDp(this, if (sel) c.sel else c.card2, if (sel) c.sel else c.line, 96f, 100, 1f)
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true; tv.isFocusable = true
             fx(tv)
@@ -1858,7 +1858,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         listOf(btnTabVoice to voice, btnTabPolish to !voice).forEach { (tv, on) ->
             tv.isSelected = on
             tv.background = Skin.shapeDp(
-                this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 12f, 100, 1f
+                this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 12f, 100, 1f
             )
             // ⚠️ 圆角 12dp 恰好命中 Skin 的 bg_btn_primary 角色 → 换肤会把**两个都**刷成实心主色
             //（所以之前出现"两个都绿"）→ 打 tag 声明别动它；换主题时由 applyLook 重新上色
@@ -1939,7 +1939,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tv.isSelected = on
             tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
             // 圆角 96→8dp：原来近圆（药丸），用户要更方正的长方形；8 同时避开 Skin 的魔法半径
-            tv.background = Skin.shapeDp(this, if (on) c.acc else c.card2, if (on) c.acc else c.line, 8f, 100, 1f)
+            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
             tv.setTextColor(if (on) c.onAcc else c.dim)
             tv.isClickable = true
             tv.isFocusable = true

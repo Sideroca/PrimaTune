@@ -30,6 +30,10 @@ object Skin {
         val light: Boolean, val cardAlphaPct: Int, val isOriginal: Boolean,
         // ⑭ 色彩派生：主行动按钮（bg_btn_primary 角色）用的"提亮提纯"实色；其余派生量见下
         val gen: Int = acc,
+        /** "选取色"：选取类控件（芯片/页签）的选中填充。
+         *  依据伊顿面积比——**大面积宜降彩度**，故取"中间调"：色相不动、彩度夹在 0.55~0.92、明度 0.44。
+         *  只对《规范》⑭ 列入的 26 套浅色传统色生效；其余配色沿用 accent。 */
+        val sel: Int = acc,
         val ball: Int = acc, val spark: Int = acc, val sparkBg: Int = 0
     ) {
         /** 按钮上的文字颜色（亮底自动切深字） */
@@ -63,10 +67,21 @@ object Skin {
                     cardAlphaPct = cardAlphaPct,
                     isOriginal = false,
                     gen = Palettes.derivOf(p.id)?.gen ?: p.accent,
+                    sel = selOf(p),
                     ball = Palettes.derivOf(p.id)?.ball ?: p.accent,
                     spark = Palettes.derivOf(p.id)?.spark ?: p.accent,
                     sparkBg = Palettes.derivOf(p.id)?.sparkBg ?: 0
                 )
+            }
+
+            /** "选取色"＝中间调（色相不动、彩度夹 0.55~0.92、明度 0.44）；仅 26 套浅色传统色启用。 */
+            private fun selOf(p: Pal): Int {
+                if (Palettes.derivOf(p.id) == null) return p.accent
+                val hsl = FloatArray(3)
+                androidx.core.graphics.ColorUtils.colorToHSL(p.accent, hsl)
+                hsl[1] = hsl[1].coerceIn(0.55f, 0.92f)
+                hsl[2] = 0.44f
+                return androidx.core.graphics.ColorUtils.HSLToColor(hsl)
             }
 
             fun mix(a: Int, b: Int, t: Float): Int {
