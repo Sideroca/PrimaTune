@@ -59,14 +59,14 @@ jobs:
           set -e
           APK=app/build/outputs/apk/release/PrimaTune.apk
           # 有旧发布就覆盖上传（避免"删了建不回来"的空窗）
+          V=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          TITLE="玲珑调音 · Prima Tune · v$V · 最新构建"
+          NOTES=$(printf '**版本：v%s** ｜ 每次推送自动更新。\n\n点下方 **Assets → PrimaTune.apk** 直接下载安装（签名固定，覆盖安装即可）。\n\n固定直链（收藏它，永远最新）：\n`https://github.com/Sideroca/PrimaTune/releases/latest/download/PrimaTune.apk`' "$V")
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest "$APK" --clobber
-            gh release edit latest --latest
+            gh release edit latest --latest --title "$TITLE" --notes "$NOTES"
           else
-            gh release create latest "$APK" \
-              --title "语音调控台 · 最新构建（latest）" \
-              --notes "每次推送自动更新。直接点 Assets 里的 PrimaTune.apk 下载安装（覆盖安装即可）。" \
-              --latest
+            gh release create latest "$APK" --title "$TITLE" --notes "$NOTES" --latest
           fi
           # 把 latest 标签指向本次提交（失败不致命）
           git tag -f latest "$GITHUB_SHA"
