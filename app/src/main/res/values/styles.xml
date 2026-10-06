@@ -7,11 +7,12 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
-        <!-- 内距：左右/下 6dp、**上 3dp**（+ 首标签上距 2dp ⇒ 顶距 5dp，用户 2026-10-06 指定） -->
-        <item name="android:paddingStart">6dp</item>
-        <item name="android:paddingEnd">6dp</item>
-        <item name="android:paddingTop">3dp</item>
-        <item name="android:paddingBottom">6dp</item>
+        <!-- ⚠️ 只收"上边"！左右 12dp（用户 2026-10-06：我只要求往上移，左右被压到 6dp 太逼仄了）
+             顶距 = 这里的 paddingTop 5dp（卡片里第一个元素的上边距会被 LayoutFix 清零，不再叠加） -->
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">10dp</item>
         <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtLabel">
@@ -19,8 +20,9 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/dim</item>
         <item name="android:textSize">13sp</item>
-        <!-- 上边距 10→5→2dp：卡片里"内距 + 标签上距"叠起来太远（用户 2026-10-05 两次要求再收紧） -->
-        <item name="android:layout_marginTop">2dp</item>
+        <!-- 恢复 10dp：这是"卡片中间那些标签"的上边距（我一度压到 2dp 太紧）；
+             卡片里**第一个**元素的上边距由 LayoutFix 清零，所以顶距仍是 5dp -->
+        <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtInput">
         <item name="android:layout_width">match_parent</item>
