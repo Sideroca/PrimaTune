@@ -44,12 +44,12 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- 品牌图标：24dp（与 20sp 中文行齐平，**不再超出第 1 行**）；顶对齐到中文那一行 -->
+                <!-- 品牌图标：20dp（比 20sp 中文行略小，和旧 emoji 观感接近、不再越界） -->
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_gravity="top"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="3dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_brand" />
 
@@ -100,7 +100,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="2dp"
                 android:baselineAligned="false"
                 android:clipChildren="false"
                 android:clipToPadding="false"

@@ -7,8 +7,11 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
-        <!-- 内距 14→11→9→7→6dp：用户 2026-10-05/06 三次要求"再接近边缘一点"（高度变矮可接受） -->
-        <item name="android:padding">6dp</item>
+        <!-- 内距：左右/下 6dp、**上 3dp**（+ 首标签上距 2dp ⇒ 顶距 5dp，用户 2026-10-06 指定） -->
+        <item name="android:paddingStart">6dp</item>
+        <item name="android:paddingEnd">6dp</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingBottom">6dp</item>
         <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtLabel">
