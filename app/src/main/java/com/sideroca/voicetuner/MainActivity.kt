@@ -196,6 +196,8 @@ class MainActivity : AppCompatActivity() {
     /** 多版本翻译：生成时逐个跑（译版在上、原文在下）；非空时 generate() 用它当文本 */
     private val genQueue = ArrayDeque<String>()
     private var genTextOverride: String? = null
+    /** 多版本翻译：所有译版都写进「合成文本」框（每行一版）；这里留一份清单给「生成＝全部生成」用 */
+    private val transVersions = mutableListOf<String>()
     private lateinit var btnYi: TextView
     private lateinit var btnRun: TextView
     private lateinit var btnRole: TextView
@@ -438,6 +440,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 if (::etSeed.isInitialized && etSeed.text.isNotEmpty()) etSeed.setText("")
+                if (transVersions.isNotEmpty() && s?.toString() != transVersions.joinToString("\n")) transVersions.clear()
             }
         })
         btnDice = findViewById(R.id.btnDice)
@@ -554,7 +557,7 @@ class MainActivity : AppCompatActivity() {
      * 翻译（新机制 · 2026-10-05 用户定稿）：
      *   高级参数里**多选语言** → 系统判定源语言 → 翻成"所选语言里除源语言之外的"。
      *   · 勾 2 种 = 互译：只出一版，**原地替换**；
-     *   · 勾 3 种＋ = 多版本：**译版堆在上、原文压在最下**（每块右上角 ✕，可单独删）。
+     *   · 勾 3 种＋ = 多版本：**所有译版都写进「合成文本」这一个框**（每行一版）；「生成」逐个生成。
      *   · 配了 LLM 且只出一版时，优先走 LLM（质量好）。
      */
     private fun translateText() {
@@ -580,6 +583,7 @@ class MainActivity : AppCompatActivity() {
                     btnTranslate.isEnabled = true
                     if (out != null) {
                         s?.let { store.trLastSource = it }
+                        transVersions.clear()
                         etText.setText(out)
                         tvStatus.text = getString(R.string.trans_done, t)
                     } else {
@@ -594,7 +598,9 @@ class MainActivity : AppCompatActivity() {
                     if (map == null || map.isEmpty()) {
                         tvStatus.text = "❌ " + (err ?: getString(R.string.trans_failed)); toast(err ?: getString(R.string.trans_failed))
                     } else {
-                        buildTransBlocks(map)
+                        transVersions.clear()
+                        transVersions.addAll(map.values)
+                        etText.setText(transVersions.joinToString("\n"))
                         tvStatus.text = getString(R.string.trans_multi_done, map.keys.joinToString(" · "))
                     }
                 }
@@ -629,73 +635,6 @@ class MainActivity : AppCompatActivity() {
     private fun clearTransBlocks() {
         llTransBlocks.removeAllViews()
         llTransBlocks.visibility = View.GONE
-    }
-
-    /** 收集"译版块"里的文本（从上到下）—— 给「生成＝全部生成」用 */
-    private fun collectTransBlockTexts(): List<String> {
-        val out = ArrayList<String>()
-        for (i in 0 until llTransBlocks.childCount) {
-            val blk = llTransBlocks.getChildAt(i) as? LinearLayout ?: continue
-            val frame = blk.getChildAt(0) as? android.widget.FrameLayout ?: continue
-            val et = frame.getChildAt(0) as? EditText ?: continue
-            et.text.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
-        }
-        return out
-    }
-
-    /** 建"译版块"：每块 = 输入框 ＋ 右上角 ✕（删这一版）；块与块／原文之间有一条随主题的灰线 */
-    private fun buildTransBlocks(map: LinkedHashMap<String, String>) {
-        clearTransBlocks()
-        val c = Skin.colors(this)
-        val d = resources.displayMetrics.density
-        for ((lang, txt) in map) {
-            val blk = LinearLayout(this)
-            blk.orientation = LinearLayout.VERTICAL
-            blk.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-            val frame = android.widget.FrameLayout(this)
-            val et = EditText(this)
-            et.setText(txt)
-            // 不标语言、不写"译版"——用户自己看得出，加了反而让卡片拥挤（用户 2026-10-05）
-            et.hint = ""
-            et.setTextColor(c.txt)
-            et.setHintTextColor(c.hint)
-            et.textSize = 15f
-            et.gravity = Gravity.TOP or Gravity.START
-            et.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            et.minLines = 2
-            et.setPadding(dp(10), dp(10), dp(28), dp(10))
-            et.background = Skin.shapeDp(this, c.card2, c.line, 10f, 100, 1f)
-            et.tag = "bg:keep"
-            frame.addView(et, android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-
-            val x = TextView(this)
-            x.text = "✕"
-            x.textSize = 13f
-            x.setTextColor(c.dim)
-            x.gravity = Gravity.TOP or Gravity.END
-            x.setPadding(0, dp(6), dp(9), 0)
-            x.isClickable = true
-            x.isFocusable = true
-            x.layoutParams = android.widget.FrameLayout.LayoutParams(dp(40), dp(40), Gravity.TOP or Gravity.END)
-            x.setOnClickListener { llTransBlocks.removeView(blk) }   // 点 ✕：连这条灰线一起删掉
-            frame.addView(x)
-            blk.addView(frame)
-
-            val div = View(this)
-            div.setBackgroundColor((c.line and 0x00FFFFFF) or (0x99 shl 24))
-            blk.addView(
-                div,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (1 * d).toInt()).apply { topMargin = dp(6) }
-            )
-
-            llTransBlocks.addView(blk)
-        }
-        llTransBlocks.visibility = View.VISIBLE
     }
 
     /** 走 LLM：translate=true 翻译 / false 润色 */
@@ -1402,20 +1341,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 生成
-    /** 「生成」入口：若文本框上方有译版块 → **全部生成**（译版在上、原文在下）；没有则照常生成原文 */
+    /** 「生成」入口：若文本框里是「多版本译文」（每行一版）→ **逐个生成**；否则照常生成整段 */
     private fun startGenerateAll() {
-        val blocks = collectTransBlockTexts()
         val original = etText.text.toString().trim()
         genQueue.clear()
-        if (blocks.isEmpty()) {
-            genTextOverride = null
-            generate(null)
+        if (transVersions.size >= 2 && original == transVersions.joinToString("\n").trim()) {
+            genQueue.addAll(transVersions)
+            toast(getString(R.string.will_gen, genQueue.size))
+            nextGenerate()
             return
         }
-        genQueue.addAll(blocks)
-        genQueue.add(original)
-        toast(getString(R.string.will_gen, genQueue.size))
-        nextGenerate()
+        transVersions.clear()
+        genTextOverride = null
+        generate(null)
     }
 
     /** 从队列取下一条来生成；队列空则收工 */
