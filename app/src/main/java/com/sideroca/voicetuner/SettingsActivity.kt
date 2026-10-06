@@ -218,6 +218,14 @@ class SettingsActivity : AppCompatActivity() {
         renderIconStyleChips()
         buildTips()
         selectCfgTab(cfgTabVoice)      // 换主题后页签配色也跟着重刷
+        // ⚠️ 「代码建一次」的芯片/色球都打了 bg:keep（换肤引擎不碰）→ **必须在这里重建**，
+        //    否则换主题后它们停在旧色、要点第二下才刷新（用户 2026-10-06 报的 bug）
+        if (pageBuilt[2]) {
+            buildCatChips()
+            renderPalettes()
+            renderIndicatorColors()
+            renderFontScaleChips()
+        }
     }
 
     // ---------------------------------------------------------------- 分页 + 坞
