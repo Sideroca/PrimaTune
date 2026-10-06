@@ -1757,8 +1757,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 内置图标样式（App 自身图标 + 桌面入口都能用） */
     private val iconStyles = listOf(
         "default" to "紫·默认",
-        "a" to "银环比",
-        "b" to "白方框",
+        "a" to "旋钮",          // 原「银环比」→ 旋钮图（用户 2026-10-06）
+        "b" to "玫瑰",          // 原「白方框」→ 红玫瑰（方形图，取景时点一下即可完整框住）
         "c" to "调音台"
     )
     private var curIconStyle = "default"
