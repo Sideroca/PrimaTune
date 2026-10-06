@@ -340,6 +340,16 @@ class Store(context: Context) {
         get() = prefs.getString("appIconStyle", "default") ?: "default"
         set(v) { prefs.edit().putString("appIconStyle", v).apply() }
 
+    /** 是否已完成"首次安装的语言选择"（选过就不再出现，更新也不重置） */
+    var langChosen: Boolean
+        get() = prefs.getBoolean("langChosen", false)
+        set(v) { prefs.edit().putBoolean("langChosen", v).apply() }
+
+    /** 界面语言："" = 跟随系统；否则 zh / en / ja / ko */
+    var lang: String
+        get() = prefs.getString("lang", "") ?: ""
+        set(v) { prefs.edit().putString("lang", v).apply() }
+
     /** 主界面「高级参数」是否展开（记忆上次状态） */
     var advExpanded: Boolean
         get() = prefs.getBoolean("advExpanded", false)

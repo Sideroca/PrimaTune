@@ -36,7 +36,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.10"
-                android:text="模型"
+                android:text="@string/label_model"
                 android:textColor="@color/txt"
                 android:textSize="30sp"
                 android:textStyle="bold" />
@@ -82,7 +82,7 @@
                             android:gravity="center"
                             android:paddingHorizontal="30dp"
                             android:paddingVertical="9dp"
-                            android:text="语音"
+                            android:text="@string/llm_tab_voice"
                             android:textSize="14sp" />
 
                         <TextView
@@ -93,7 +93,7 @@
                             android:gravity="center"
                             android:paddingHorizontal="30dp"
                             android:paddingVertical="9dp"
-                            android:text="润色"
+                            android:text="@string/llm_tab_polish"
                             android:textSize="14sp" />
                     </LinearLayout>
 
@@ -108,7 +108,7 @@
                         <TextView
                             style="@style/VtLabel"
                             android:layout_marginTop="0dp"
-                            android:text="厂商（输入关键字即匹配）" />
+                            android:text="@string/label_llm_provider" />
 
                         <AutoCompleteTextView
                             android:id="@+id/etProvider"
@@ -122,14 +122,14 @@
                         <TextView
                             android:id="@+id/tvBaseUrlLabel"
                             style="@style/VtLabel"
-                            android:text="Base URL（已自动填好，一般不用改；走代理/中转才动）"
+                            android:text="@string/label_base_url"
                             android:visibility="gone" />
 
                         <AutoCompleteTextView
                             android:id="@+id/etBaseUrl"
                             style="@style/VtInput"
                             android:completionThreshold="0"
-                            android:hint="https://你的域名/v1"
+                            android:hint="@string/hint_base_url"
                             android:importantForAutofill="no"
                             android:inputType="textUri"
                             android:singleLine="true"
@@ -138,7 +138,7 @@
                         <TextView
                             android:id="@+id/tvPathLabel"
                             style="@style/VtLabel"
-                            android:text="端点路径（留空 = 按形态默认）"
+                            android:text="@string/label_path"
                             android:visibility="gone" />
 
                         <EditText
@@ -153,7 +153,7 @@
                         <TextView
                             android:id="@+id/tvAuthLabel"
                             style="@style/VtLabel"
-                            android:text="鉴权头（{key} 替换成你的 Key）"
+                            android:text="@string/label_auth"
                             android:visibility="gone" />
 
                         <EditText
@@ -168,7 +168,7 @@
                         <TextView
                             android:id="@+id/tvKeyLabel"
                             style="@style/VtLabel"
-                            android:text="API Key（当前厂商；仅保存在本机）" />
+                            android:text="@string/label_api_key2" />
                         <AutoCompleteTextView
                             android:id="@+id/etKey"
                             style="@style/VtInput"
@@ -180,7 +180,7 @@
                         <TextView
                             android:id="@+id/tvWsLabel"
                             style="@style/VtLabel"
-                            android:text="业务空间 ID" />
+                            android:text="@string/label_ws" />
                         <EditText
                             android:id="@+id/etWs"
                             style="@style/VtInput"
@@ -188,7 +188,7 @@
                             android:importantForAutofill="no"
                             android:inputType="text"
                             android:singleLine="true" />
-                        <TextView style="@style/VtLabel" android:text="默认 model" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_default_model" />
                         <AutoCompleteTextView
                         android:id="@+id/etModel"
                         style="@style/VtInput"
@@ -211,7 +211,7 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="📋 粘贴剪贴板"
+                                android:text="@string/btn_paste"
                                 android:textColor="@color/txt"
                                 android:textSize="13sp" />
                             <TextView
@@ -224,14 +224,14 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="保存接口设置"
+                                android:text="@string/btn_save_api"
                                 android:textColor="@color/txt"
                                 android:textSize="13sp" />
                         </LinearLayout>
                     </LinearLayout>
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="模型（可对接多家语音合成）" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_llm_model" />
 
                         <LinearLayout
                             android:id="@+id/llProviders"
@@ -254,12 +254,12 @@
                             <TextView
                                 style="@style/VtLabel"
                                 android:layout_marginTop="0dp"
-                                android:text="润色 / 翻译用的 LLM（点厂商芯片即自动填好）" />
+                                android:text="@string/label_llm_title" />
 
                             <AutoCompleteTextView
                                 android:id="@+id/etLlmProvider"
                                 style="@style/VtInput"
-                                android:hint="厂商（输入关键字即匹配；点一下可选）"
+                                android:hint="@string/hint_llm_provider"
                                 android:importantForAutofill="no"
                                 android:inputType="text"
                                 android:singleLine="true" />
@@ -267,7 +267,7 @@
                             <EditText
                                 android:id="@+id/etLlmBase"
                                 style="@style/VtInput"
-                                android:hint="Base URL（OpenAI 兼容）"
+                                android:hint="@string/hint_llm_base"
                                 android:importantForAutofill="no"
                                 android:inputType="textUri"
                                 android:singleLine="true" />
@@ -275,7 +275,7 @@
                             <EditText
                                 android:id="@+id/etLlmKey"
                                 style="@style/VtInput"
-                                android:hint="API Key（只存本机）"
+                                android:hint="@string/hint_llm_key"
                                 android:importantForAutofill="no"
                                 android:inputType="textVisiblePassword"
                                 android:singleLine="true" />
@@ -284,7 +284,7 @@
                                 android:id="@+id/etLlmModel"
                                 style="@style/VtInput"
                                 android:completionThreshold="0"
-                                android:hint="模型名（点一下可选）"
+                                android:hint="@string/hint_llm_model"
                                 android:importantForAutofill="no"
                                 android:inputType="text"
                                 android:singleLine="true" />
@@ -292,12 +292,12 @@
                             <EditText
                                 android:id="@+id/etLlmMaxTokens"
                                 style="@style/VtInput"
-                                android:hint="token 预算 max_tokens（留空 = 不限）"
+                                android:hint="@string/hint_llm_tokens"
                                 android:importantForAutofill="no"
                                 android:inputType="number"
                                 android:singleLine="true" />
 
-                            <TextView style="@style/VtLabel" android:text="思考档位（按厂商自动换成真实参数）" />
+                            <TextView style="@style/VtLabel" android:text="@string/label_llm_level" />
                             <LinearLayout
                                 android:id="@+id/llLlmLevels"
                                 android:layout_width="match_parent"
@@ -308,12 +308,12 @@
                             <EditText
                                 android:id="@+id/etLlmTemp"
                                 style="@style/VtInput"
-                                android:hint="温度 temperature（0~2，留空 = 默认）"
+                                android:hint="@string/hint_llm_temp"
                                 android:importantForAutofill="no"
                                 android:inputType="numberDecimal"
                                 android:singleLine="true" />
 
-                            <TextView style="@style/VtLabel" android:text="润色用的系统提示词（可改）" />
+                            <TextView style="@style/VtLabel" android:text="@string/label_polish_prompt" />
                             <EditText
                                 android:id="@+id/etLlmPrompt"
                                 style="@style/VtInput"
@@ -322,7 +322,7 @@
                                 android:inputType="textMultiLine"
                                 android:minLines="5" />
 
-                            <TextView style="@style/VtLabel" android:text="翻译用的系统提示词（可改）" />
+                            <TextView style="@style/VtLabel" android:text="@string/label_trans_prompt" />
                             <EditText
                                 android:id="@+id/etTransPrompt"
                                 style="@style/VtInput"
@@ -331,16 +331,16 @@
                                 android:inputType="textMultiLine"
                                 android:minLines="4" />
 
-                            <TextView style="@style/VtLabel" android:text="翻译 API 邮箱（可选）" />
+                            <TextView style="@style/VtLabel" android:text="@string/label_trans_email" />
                             <EditText
                                 android:id="@+id/etTransEmail"
                                 style="@style/VtInput"
-                                android:hint="填了 MyMemory 免费额度 5千 → 5万 字符/天"
+                                android:hint="@string/hint_trans_email"
                                 android:importantForAutofill="no"
                                 android:inputType="textEmailAddress"
                                 android:singleLine="true" />
 
-                            <TextView style="@style/VtLabel" android:text="补充说明（可选。例：这个音色是《明日方舟》的艾雅法拉）" />
+                            <TextView style="@style/VtLabel" android:text="@string/label_llm_extra" />
                             <EditText
                                 android:id="@+id/etLlmExtra"
                                 style="@style/VtInput"
@@ -359,7 +359,7 @@
                                 <TextView
                                     android:id="@+id/btnLlmTest"
                                     style="@style/VtMiniBtn"
-                                    android:text="测试连接" />
+                                    android:text="@string/btn_llm_test" />
 
                                 <TextView
                                     android:id="@+id/tvLlmTest"
@@ -391,7 +391,7 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="音色管理" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_voice_mgmt" />
                         <LinearLayout
                             android:id="@+id/llVoices"
                             android:layout_width="match_parent"
@@ -418,12 +418,12 @@
 
                     <!-- 快捷图标工坊：App 图标样式 + 桌面入口（仿闪译） -->
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="App 图标与桌面入口" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_icon" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="快捷图标工坊"
+                            android:text="@string/sec_icon_workshop"
                             android:textColor="@color/dim"
                             android:textSize="13sp" />
                         <TextView
@@ -432,7 +432,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="样式 → 点选即换 App 图标；满意后「创建桌面入口」钉一个独立入口到桌面（需先允许本应用的「桌面快捷方式」权限，否则不会弹创建框）。"
+                            android:text="@string/note_icon"
                             android:textColor="@color/hint"
                             android:textSize="11.5sp" />
 
@@ -443,7 +443,7 @@
                             android:layout_marginTop="10dp"
                             android:scaleType="fitCenter" />
 
-                        <TextView style="@style/VtLabel" android:text="样式" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_style" />
                         <LinearLayout
                             android:id="@+id/llIconStyles"
                             android:layout_width="match_parent"
@@ -466,7 +466,7 @@
                                 android:focusable="true"
                                 android:gravity="center"
                                 android:padding="12dp"
-                                android:text="创建桌面入口"
+                                android:text="@string/btn_pin_entry"
                                 android:textColor="#FFFFFF"
                                 android:textSize="14sp" />
                             <TextView
@@ -480,7 +480,7 @@
                                 android:focusable="true"
                                 android:gravity="center"
                                 android:padding="12dp"
-                                android:text="还原成默认图标"
+                                android:text="@string/btn_icon_reset"
                                 android:textColor="@color/dim"
                                 android:textSize="14sp" />
                         </LinearLayout>
@@ -490,14 +490,14 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="14dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="或用你自己的图片 + 名字：选图 → 取景（挑照片哪一块）→ 创建桌面独立入口（原应用图标可拖进文件夹隐藏）："
+                            android:text="@string/note_custom_icon"
                             android:textColor="@color/dim"
                             android:textSize="11.5sp" />
 
                         <EditText
                             android:id="@+id/etEntryName"
                             style="@style/VtInput"
-                            android:hint="桌面入口名称"
+                            android:hint="@string/hint_entry_name"
                             android:importantForAutofill="no"
                             android:inputType="text"
                             android:singleLine="true" />
@@ -512,7 +512,7 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:padding="12dp"
-                            android:text="选图并创建桌面入口"
+                            android:text="@string/btn_pin_custom"
                             android:textColor="#FFFFFF"
                             android:textSize="14sp" />
 
@@ -521,14 +521,14 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="若点「创建」后没有弹窗：系统设置 → 应用管理 → 玲珑调音 → 权限管理 →「桌面快捷方式」→ 允许，再试一次。"
+                            android:text="@string/note_shortcut_perm"
                             android:textColor="@color/hint"
                             android:textSize="11sp" />
                     </LinearLayout>
 
                     <!-- 分类按钮：常驻，不随下面两张卡切换而消失（否则进了"壁纸属性"就回不来） -->
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="主题配色（点选即换）" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_theme" />
                         <LinearLayout
                             android:id="@+id/llCats"
                             android:layout_width="match_parent"
@@ -551,7 +551,7 @@
                     <LinearLayout
                         android:id="@+id/cardWallpaper"
                         style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="主界面壁纸" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_wp_main" />
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -567,7 +567,7 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="选择图片"
+                                android:text="@string/btn_pick_image"
                                 android:textColor="@color/txt"
                                 android:textSize="13sp" />
                             <TextView
@@ -580,7 +580,7 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="清除"
+                                android:text="@string/btn_clear_wp"
                                 android:textColor="@color/dim"
                                 android:textSize="13sp" />
                             <TextView
@@ -590,12 +590,12 @@
                                 android:layout_marginStart="10dp"
                                 android:layout_weight="1"
                                 android:gravity="end"
-                                android:text="未设置"
+                                android:text="@string/wp_unset"
                                 android:textColor="@color/dim"
                                 android:textSize="12sp" />
                         </LinearLayout>
                         <LinearLayout style="@style/VtSliderRow">
-                            <TextView style="@style/VtSliderLabel" android:text="遮罩" />
+                            <TextView style="@style/VtSliderLabel" android:text="@string/label_scrim" />
                             <SeekBar
                                 android:id="@+id/sbScrimMain"
                                 android:layout_width="0dp"
@@ -608,7 +608,7 @@
                                 android:text="35%" />
                         </LinearLayout>
 
-                        <TextView style="@style/VtLabel" android:text="设置页壁纸" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_wp_page" />
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -624,7 +624,7 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="选择图片"
+                                android:text="@string/btn_pick_image"
                                 android:textColor="@color/txt"
                                 android:textSize="13sp" />
                             <TextView
@@ -637,7 +637,7 @@
                                 android:focusable="true"
                                 android:paddingHorizontal="14dp"
                                 android:paddingVertical="8dp"
-                                android:text="清除"
+                                android:text="@string/btn_clear_wp"
                                 android:textColor="@color/dim"
                                 android:textSize="13sp" />
                             <TextView
@@ -647,12 +647,12 @@
                                 android:layout_marginStart="10dp"
                                 android:layout_weight="1"
                                 android:gravity="end"
-                                android:text="未设置"
+                                android:text="@string/wp_unset"
                                 android:textColor="@color/dim"
                                 android:textSize="12sp" />
                         </LinearLayout>
                         <LinearLayout style="@style/VtSliderRow">
-                            <TextView style="@style/VtSliderLabel" android:text="遮罩" />
+                            <TextView style="@style/VtSliderLabel" android:text="@string/label_scrim" />
                             <SeekBar
                                 android:id="@+id/sbScrimPage"
                                 android:layout_width="0dp"
@@ -665,7 +665,7 @@
                                 android:text="35%" />
                         </LinearLayout>
                         <LinearLayout style="@style/VtSliderRow">
-                            <TextView style="@style/VtSliderLabel" android:text="卡片" />
+                            <TextView style="@style/VtSliderLabel" android:text="@string/label_card" />
                             <SeekBar
                                 android:id="@+id/sbCardAlpha"
                                 android:layout_width="0dp"
@@ -688,12 +688,12 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:padding="11dp"
-                            android:text="恢复默认（壁纸与浓度）"
+                            android:text="@string/btn_wp_reset"
                             android:textColor="@color/dim"
                             android:textSize="14sp" />
 
                         <!-- 记录字号：只影响记录卡的标题/信息/详情（小按钮不动）。用户 2026-10-05 -->
-                        <TextView style="@style/VtLabel" android:text="记录字号（只影响记录卡的标题 / 信息 / 详情，小按钮不动）" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_font_scale" />
                         <LinearLayout
                             android:id="@+id/llFontScale"
                             android:layout_width="match_parent"
@@ -706,7 +706,7 @@
                     <LinearLayout
                         android:id="@+id/cardIndicator"
                         style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="当前音色指示符颜色" />
+                        <TextView style="@style/VtLabel" android:text="@string/label_indicator" />
                         <LinearLayout
                             android:id="@+id/llIndicator"
                             android:layout_width="match_parent"
@@ -742,7 +742,7 @@
                         <EditText
                             android:id="@+id/etRecSearch"
                             style="@style/VtInput"
-                            android:hint="搜索：关键词 / 角色 / 日期（如 10-02）"
+                            android:hint="@string/hint_rec_search"
                             android:importantForAutofill="no"
                             android:inputType="text"
                             android:singleLine="true" />
@@ -771,7 +771,7 @@
                     android:padding="14dp">
 
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="提示" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_tips" />
 
                         <!-- 提示内容（分组 + 分隔线；由代码按主题排版）——「使用提示 / 关于」放前面 -->
                         <LinearLayout
@@ -791,14 +791,14 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:padding="11dp"
-                            android:text="检查更新"
+                            android:text="@string/btn_check_update"
                             android:textColor="@color/txt"
                             android:textSize="14sp" />
                     </LinearLayout>
 
                     <!-- 开发者联系与支持（仿闪译；整块点一下复制） -->
                     <LinearLayout style="@style/VtCard">
-                        <TextView style="@style/VtLabel" android:text="开发者联系与支持" />
+                        <TextView style="@style/VtLabel" android:text="@string/sec_dev" />
 
                         <TextView
                             android:id="@+id/tvDevInfo"
@@ -814,7 +814,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
-                            android:text="点一下复制"
+                            android:text="@string/dev_copy_hint"
                             android:textColor="@color/dim"
                             android:textSize="12sp" />
                     </LinearLayout>

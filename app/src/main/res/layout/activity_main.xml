@@ -84,7 +84,7 @@
                 android:focusable="true"
                 android:paddingHorizontal="14dp"
                 android:paddingVertical="8dp"
-                android:text="设置"
+                android:text="@string/btn_settings"
                 android:textColor="@color/dim"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -157,13 +157,13 @@
                     style="@style/VtMiniBtn"
                     android:layout_marginTop="0dp"
                     android:layout_marginEnd="0dp"
-                    android:text="＋ 建音色" />
+                    android:text="@string/btn_create_voice" />
             </LinearLayout>
 
             <EditText
                 android:id="@+id/etCustomVoice"
                 style="@style/VtInput"
-                android:hint="粘贴完整音色 ID"
+                android:hint="@string/hint_custom_voice"
                 android:importantForAutofill="no"
                 android:inputType="text"
                 android:singleLine="true"
@@ -177,7 +177,7 @@
                 android:textColor="@color/dim"
                 android:textSize="12sp" />
 
-            <TextView style="@style/VtLabel" android:text="文本" />
+            <TextView style="@style/VtLabel" android:text="@string/label_text" />
 
             <!-- 多版本翻译：译版堆在**上面**（每块右上角有 ✕），原文永远压在下面（用户 2026-10-05） -->
             <LinearLayout
@@ -198,7 +198,7 @@
                     android:layout_marginTop="0dp"
                     android:paddingEnd="24dp"
                     android:gravity="top|start"
-                    android:hint="要合成的文本…"
+                    android:hint="@string/hint_input_text"
                     android:importantForAutofill="no"
                     android:inputType="textMultiLine"
                     android:minLines="3" />
@@ -240,7 +240,7 @@
                     android:focusable="true"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp"
-                    android:text="角色提示词"
+                    android:text="@string/btn_role"
                     android:textColor="@color/dim"
                     android:textSize="12.5sp" />
 
@@ -251,7 +251,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="情绪 / 风格指令（≤128 字）"
+                    android:text="@string/label_instruction"
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
 
@@ -259,25 +259,25 @@
                     android:id="@+id/btnRun"
                     android:layout_width="36dp"
                     android:layout_height="30dp"
-                    android:contentDescription="润色文本框内容"
+                    android:contentDescription="@string/cd_polish"
                     android:gravity="center"
-                    android:text="润"
+                    android:text="@string/btn_polish"
                     android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/btnYi"
                     android:layout_width="36dp"
                     android:layout_height="30dp"
-                    android:contentDescription="翻译文本框内容"
+                    android:contentDescription="@string/cd_translate"
                     android:gravity="center"
-                    android:text="译"
+                    android:text="@string/btn_translate_icon"
                     android:textSize="11sp" />
             </LinearLayout>
 
             <EditText
                 android:id="@+id/etInstr"
                 style="@style/VtInput"
-                android:hint="如：语气自信从容，句间有停顿，语速偏慢"
+                android:hint="@string/hint_instruction"
                 android:importantForAutofill="no"
                 android:inputType="textMultiLine"
                 android:minLines="2" />
@@ -308,7 +308,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="种子"
+                    android:text="@string/label_seed"
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
 
@@ -319,7 +319,7 @@
                     android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input"
-                    android:hint="留空 = 每次随机"
+                    android:hint="@string/hint_seed"
                     android:importantForAutofill="no"
                     android:inputType="number"
                     android:padding="9dp"
@@ -343,7 +343,7 @@
             </LinearLayout>
 
             <LinearLayout style="@style/VtSliderRow">
-                <TextView style="@style/VtSliderLabel" android:text="语速" />
+                <TextView style="@style/VtSliderLabel" android:text="@string/label_rate" />
                 <SeekBar
                     android:id="@+id/sbRate"
                     android:layout_width="0dp"
@@ -357,7 +357,7 @@
             </LinearLayout>
 
             <LinearLayout style="@style/VtSliderRow">
-                <TextView style="@style/VtSliderLabel" android:text="音调" />
+                <TextView style="@style/VtSliderLabel" android:text="@string/label_pitch" />
                 <SeekBar
                     android:id="@+id/sbPitch"
                     android:layout_width="0dp"
@@ -371,7 +371,7 @@
             </LinearLayout>
 
             <LinearLayout style="@style/VtSliderRow">
-                <TextView style="@style/VtSliderLabel" android:text="音量" />
+                <TextView style="@style/VtSliderLabel" android:text="@string/label_volume" />
                 <SeekBar
                     android:id="@+id/sbVol"
                     android:layout_width="0dp"
@@ -403,7 +403,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:paddingVertical="6dp"
-                android:text="高级参数 ▸"
+                android:text="@string/adv_toggle"
                 android:textColor="@color/dim"
                 android:textSize="14sp" />
 
@@ -414,14 +414,14 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <TextView style="@style/VtLabel" android:text="TTS 厂商（点一下选，或直接打字筛）" />
+                <TextView style="@style/VtLabel" android:text="@string/label_provider" />
                 <AutoCompleteTextView
                     android:id="@+id/etProvMain"
                     style="@style/VtInput"
                     android:completionThreshold="0"
-                    android:hint="如 阿里云百炼 / Fish Audio…" />
+                    android:hint="@string/hint_provider" />
 
-                <TextView style="@style/VtLabel" android:text="模型不支持的参数会自动置灰" />
+                <TextView style="@style/VtLabel" android:text="@string/note_gated" />
 
                 <!-- 输出格式：**一行** —— 左「输出格式」，右当前值 + 下拉（用户 2026-10-05：不要那句长提示） -->
                 <LinearLayout
@@ -434,7 +434,7 @@
                     <TextView
                         style="@style/VtLabel"
                         android:layout_marginTop="0dp"
-                        android:text="输出格式" />
+                        android:text="@string/label_format" />
 
                     <Spinner
                         android:id="@+id/spFormat"
@@ -444,14 +444,14 @@
                         android:layout_weight="1" />
                 </LinearLayout>
 
-                <TextView style="@style/VtLabel" android:text="API 密钥（sk-ws-…；仅存本机，改完即生效）" android:visibility="gone" />
+                <TextView style="@style/VtLabel" android:text="@string/label_api_key" android:visibility="gone" />
 
                 <AutoCompleteTextView
                     android:id="@+id/etApiKey"
                     style="@style/VtInput"
                     android:visibility="gone"
                     android:completionThreshold="0"
-                    android:hint="sk-ws-…（点一下可看用过的密钥）"
+                    android:hint="@string/hint_api_key"
                     android:importantForAutofill="no"
                     android:inputType="textVisiblePassword"
                     android:singleLine="true" />
@@ -461,12 +461,12 @@
                 <EditText
                     android:id="@+id/etModel"
                     style="@style/VtInput"
-                    android:hint="模型 ID（如 cosyvoice-v3.5-plus）"
+                    android:hint="@string/hint_model"
                     android:importantForAutofill="no"
                     android:inputType="text"
                     android:singleLine="true" />
 
-                <TextView style="@style/VtLabel" android:text="语言（点击选择，可多选）" />
+                <TextView style="@style/VtLabel" android:text="@string/label_langhints" />
 
                 <TextView
                     android:id="@+id/etLangHints"
@@ -474,7 +474,7 @@
                     android:clickable="true"
                     android:ellipsize="end"
                     android:focusable="true"
-                    android:hint="点击选择语言…（中文 / 英语 / 日语…）"
+                    android:hint="@string/hint_langhints"
                     android:maxLines="1" />
 
                 <TextView style="@style/VtLabel" android:text="hot_fix（JSON）" />
@@ -488,7 +488,7 @@
                     android:inputType="textMultiLine"
                     android:minLines="2" />
 
-                <TextView style="@style/VtLabel" android:text="额外参数（JSON，按厂商合并进请求体）" />
+                <TextView style="@style/VtLabel" android:text="@string/label_extra" />
 
                 <EditText
                     android:id="@+id/etExtra"
@@ -505,12 +505,12 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:checked="true"
-                    android:text="SSML 模式（enable_ssml）"
+                    android:text="@string/label_ssml"
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
 
                 <!-- 翻译：目标语言**多选**（勾 2 种＝互译；勾 3 种＋＝多版本：译版在上、原文压底） -->
-                <TextView style="@style/VtLabel" android:text="翻译语言（多选 · 点右边选择）" />
+                <TextView style="@style/VtLabel" android:text="@string/label_trans_langs" />
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -521,7 +521,7 @@
                     <TextView
                         android:id="@+id/btnTranslate"
                         style="@style/VtMiniBtn"
-                        android:text="翻译" />
+                        android:text="@string/rec_translate" />
 
                     <TextView
                         android:id="@+id/tvTransTarget"
@@ -532,7 +532,7 @@
                         android:clickable="true"
                         android:ellipsize="end"
                         android:focusable="true"
-                        android:hint="点此选择（可多选）"
+                        android:hint="@string/hint_trans_target"
                         android:maxLines="1"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="8dp"
@@ -554,7 +554,7 @@
             android:focusable="true"
             android:gravity="center"
             android:padding="11dp"
-            android:text="✨ 智能填参（自动选厂商 · 写风格指令 · 纠错表）"
+            android:text="@string/btn_smartfill"
             android:textColor="@color/dim"
             android:textSize="13.5sp" />
 
@@ -569,7 +569,7 @@
             android:focusable="true"
             android:gravity="center"
             android:padding="15dp"
-            android:text="生成"
+            android:text="@string/btn_generate"
             android:textColor="#FFFFFF"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -584,7 +584,7 @@
             android:focusable="true"
             android:gravity="center"
             android:padding="11dp"
-            android:text="取消"
+            android:text="@string/common_cancel"
             android:textColor="@color/dim"
             android:textSize="14sp"
             android:visibility="gone" />
@@ -606,7 +606,7 @@
             <TextView
                 style="@style/VtLabel"
                 android:layout_marginTop="2dp"
-                android:text="本次结果" />
+                android:text="@string/label_result" />
 
             <TextView
                 android:id="@+id/tvResultInfo"
@@ -630,17 +630,17 @@
                     <TextView
                         android:id="@+id/btnPlay"
                         style="@style/VtMiniBtn"
-                        android:text="▶ 播放" />
+                        android:text="@string/rec_play" />
 
                     <TextView
                         android:id="@+id/btnShare"
                         style="@style/VtMiniBtn"
-                        android:text="分享" />
+                        android:text="@string/rec_share" />
 
                     <TextView
                         android:id="@+id/btnExport"
                         style="@style/VtMiniBtn"
-                        android:text="下载" />
+                        android:text="@string/rec_download" />
                 </LinearLayout>
             </HorizontalScrollView>
         </LinearLayout>
@@ -668,7 +668,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="本地记录"
+                        android:text="@string/label_history"
                         android:textColor="@color/dim"
                         android:textSize="13sp" />
 
@@ -698,7 +698,7 @@
                     android:focusable="true"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp"
-                    android:text="清空"
+                    android:text="@string/clear_ok"
                     android:textColor="@color/dim"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -716,7 +716,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v1.9.2 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v1.10 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

@@ -37,6 +37,7 @@ class CropActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Loc.apply(this)          // 界面语言（per-app locale）
         val slot = intent.getStringExtra(EXTRA_SLOT) ?: "main"
         val uriStr = intent.getStringExtra(EXTRA_URI).orEmpty()
 

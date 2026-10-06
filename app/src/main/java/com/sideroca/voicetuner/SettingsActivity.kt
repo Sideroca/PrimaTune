@@ -92,6 +92,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Loc.apply(this)          // 界面语言（per-app locale）
         setContentView(R.layout.activity_settings)
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
         LayoutFix.flattenCardFirstTop(window.decorView, dp(7f))
@@ -232,8 +233,8 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 分页 + 坞
 
-    private val pageTitles = listOf("模型", "音色", "主题", "记录", "关于")
-    private val dockDefs = listOf("模型", "音色", "主题", "记录", "关于")
+    private val pageTitles = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
+    private val dockDefs = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
     /** 坞图标：手绘矢量（统一 24dp 画布/线宽），跨机型一致、跟主题变色 */
     private val dockIconRes = intArrayOf(
         R.drawable.ic_tab_model, R.drawable.ic_tab_voice, R.drawable.ic_tab_theme,
@@ -500,7 +501,7 @@ class SettingsActivity : AppCompatActivity() {
             nm.textSize = 15f
             head.addView(nm, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             val act = TextView(this)
-            act.text = "删除"
+            act.text = getString(R.string.common_delete)
             act.setTextColor(dangerColor())
             act.textSize = 14f
             act.setPadding(dp(14f), dp(6f), dp(4f), dp(6f))
@@ -510,9 +511,9 @@ class SettingsActivity : AppCompatActivity() {
             act.setOnClickListener {
                 // 删除 = 直接从列表移除（内置的记入本机隐藏表，不再有「已隐藏」区）
                 val dd = androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("删除这个音色？")
-                    .setMessage("「" + name + "」将从音色列表移除。")
-                    .setPositiveButton("删除") { _, _ ->
+                    .setTitle(getString(R.string.vc_del_title))
+                    .setMessage(getString(R.string.mgr_del_msg, name))
+                    .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                         if (builtIn) {
                             val h = store.hiddenVoices; h.add(id); store.hiddenVoices = h
                         } else {
@@ -522,7 +523,7 @@ class SettingsActivity : AppCompatActivity() {
                         }
                         buildVoices(); buildProviders()
                     }
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(getString(R.string.common_cancel), null)
                     .create()
                 dd.setOnShowListener {
                     skinDialog(dd)
@@ -549,7 +550,7 @@ class SettingsActivity : AppCompatActivity() {
         store.loadCustomVoices().forEach { addRow(it.name, it.id, false) }
         if (llVoices.childCount == 0) {
             val tv = TextView(this)
-            tv.text = "还没有音色：在主页用「＋ 建音色」上传样本，或粘贴自定义音色 ID。"
+            tv.text = getString(R.string.vc_empty2)
             tv.setTextColor(c.hint)
             tv.textSize = 12.5f
             tv.setPadding(0, dp(10f), 0, dp(2f))
@@ -566,7 +567,7 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
     private fun exportHistory(t: Take) {
         val f = store.fileOf(t)
-        if (!f.exists()) { Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show(); return }
+        if (!f.exists()) { Toast.makeText(this, getString(R.string.file_missing), Toast.LENGTH_SHORT).show(); return }
         pendingSaveFile2 = f
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -576,15 +577,15 @@ class SettingsActivity : AppCompatActivity() {
         try {
             startActivityForResult(i, REQ_SAVE2)
         } catch (e: Exception) {
-            Toast.makeText(this, "无法打开保存对话框：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.save_dlg_fail, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
     /** 记录页「翻译」：翻这条记录的正文（配了 LLM 走 LLM，否则走免费源），结果弹窗可复制 */
     private fun translateHistory(t: Take) {
         val src = t.text.trim()
-        if (src.isEmpty()) { Toast.makeText(this, "这条记录没有正文", Toast.LENGTH_SHORT).show(); return }
-        Toast.makeText(this, "翻译中…", Toast.LENGTH_SHORT).show()
+        if (src.isEmpty()) { Toast.makeText(this, getString(R.string.rec_no_text), Toast.LENGTH_SHORT).show(); return }
+        Toast.makeText(this, getString(R.string.st_translating), Toast.LENGTH_SHORT).show()
         if (store.llmKey.isNotBlank()) {
             val sys = store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT }
                 .replace("{target}", store.trTarget)
@@ -592,13 +593,13 @@ class SettingsActivity : AppCompatActivity() {
                 store.llmBaseUrl, store.llmKey, store.llmModel, sys, src,
                 store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
             ) { out, err ->
-                runOnUiThread { if (out != null) showTranslated(out) else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show() }
+                runOnUiThread { if (out != null) showTranslated(out) else Toast.makeText(this, err ?: getString(R.string.trans_failed), Toast.LENGTH_SHORT).show() }
             }
         } else {
             TransClient.translate(src, store.trTarget, store.trLastSource, store.transEmail) { out, err, s2 ->
                 runOnUiThread {
                     if (out != null) { s2?.let { store.trLastSource = it }; showTranslated(out) }
-                    else Toast.makeText(this, err ?: "翻译失败", Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(this, err ?: getString(R.string.trans_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -614,13 +615,13 @@ class SettingsActivity : AppCompatActivity() {
         val sc = ScrollView(this)
         sc.addView(tv)
         val d = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("翻译成" + store.trTarget)
+            .setTitle(getString(R.string.trans_into, store.trTarget))
             .setView(sc)
-            .setPositiveButton("复制") { _, _ ->
+            .setPositiveButton(getString(R.string.common_copy)) { _, _ ->
                 Clip.copy(this, out, "trans")
                 store.pendingFillId = ""
             }
-            .setNegativeButton("关闭", null)
+            .setNegativeButton(getString(R.string.common_close), null)
             .create()
         d.setOnShowListener {
             skinDialog(d)
@@ -640,7 +641,7 @@ class SettingsActivity : AppCompatActivity() {
         try {
             val f = store.fileOf(t)
             if (!f.exists()) {
-                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.file_missing), Toast.LENGTH_SHORT).show()
                 return
             }
             // 复制成"好名字"再分享（否则对方收到的是 vt_1759…_abc.wav）
@@ -660,9 +661,9 @@ class SettingsActivity : AppCompatActivity() {
                 clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(i, "分享到"))
+            startActivity(Intent.createChooser(i, getString(R.string.share_to)))
         } catch (e: Exception) {
-            Toast.makeText(this, "分享失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.share_fail, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -675,7 +676,7 @@ class SettingsActivity : AppCompatActivity() {
             AudioFocus.request(this) { }
             val f = store.fileOf(t)
             if (!f.exists()) {
-                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.file_missing), Toast.LENGTH_SHORT).show()
                 return
             }
             recPlayer = android.media.MediaPlayer().apply {
@@ -694,7 +695,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "播放失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.play_fail, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -709,7 +710,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun renderFontScaleChips() {
         llFontScale.removeAllViews()
         val c = Skin.colors(this)
-        for ((pct, label) in listOf(90 to "小", 100 to "标准", 115 to "大", 130 to "特大")) {
+        for ((pct, label) in listOf(90 to getString(R.string.font_small), 100 to getString(R.string.font_std), 115 to getString(R.string.font_large), 130 to getString(R.string.font_xl))) {
             val on = store.recordFontPct == pct
             val tv = TextView(this)
             tv.text = label
@@ -725,7 +726,7 @@ class SettingsActivity : AppCompatActivity() {
                 store.recordFontPct = pct
                 renderFontScaleChips()
                 renderRecList()          // 立刻按新字号重排记录
-                Toast.makeText(this, "记录字号：" + label + "（" + pct + "%）", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.font_toast, label, pct), Toast.LENGTH_SHORT).show()
             }
             tv.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -743,7 +744,7 @@ class SettingsActivity : AppCompatActivity() {
         VoiceCatalog.builtIn.firstOrNull { it.second == id }?.first
             ?: store.loadCustomVoices().firstOrNull { it.id == id }?.name
             ?: store.loadTakes().firstOrNull { it.voiceId == id }?.voiceName
-            ?: "自定义音色"
+            ?: getString(R.string.voice_custom)
 
     private fun buildRecTop() {
         llRecTop.removeAllViews()
@@ -775,12 +776,12 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val r1 = chipRow()
-        addChip(r1, "全部", !recOnlyFav && recVoiceId == null) {
+        addChip(r1, getString(R.string.rec_all), !recOnlyFav && recVoiceId == null) {
             recOnlyFav = false; recVoiceId = null; buildRecords()
         }
         // 中间：一个「选择」按钮 → 下拉选音色（原来是把人名全摊成一行 chip，太挤）
         val pick = TextView(this)
-        pick.text = if (recVoiceId == null) "选择 ▾" else recVoiceName(recVoiceId!!) + " ▾"
+        pick.text = if (recVoiceId == null) getString(R.string.rec_pick) else recVoiceName(recVoiceId!!) + " ▾"
         pick.textSize = 12.5f
         pick.isSingleLine = true
         pick.maxLines = 1
@@ -798,7 +799,7 @@ class SettingsActivity : AppCompatActivity() {
         r1.addView(pick, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { rightMargin = dp(8f) })
-        addChip(r1, "★ 收藏（" + favs.size + "）", recOnlyFav) {
+        addChip(r1, getString(R.string.rec_fav, favs.size), recOnlyFav) {
             recOnlyFav = true; recVoiceId = null; buildRecords()
         }
         llRecTop.addView(r1)
@@ -830,7 +831,7 @@ class SettingsActivity : AppCompatActivity() {
             }
             listBox.addView(tv)
         }
-        row("全部音色", null)
+        row(getString(R.string.rec_all_voices), null)
         for (id in ids) row(recVoiceName(id), id)
         val sc = ScrollView(this)
         sc.isVerticalScrollBarEnabled = false
@@ -874,10 +875,10 @@ class SettingsActivity : AppCompatActivity() {
         if (takes.isEmpty()) {
             val tv = TextView(this)
             tv.text = when {
-                q.isNotEmpty() -> "没有匹配的记录（换个关键词或日期试试）"
-                recOnlyFav -> "还没有收藏的记录（点记录右边的星星即可收藏）"
-                recVoiceId != null -> "该音色暂无记录"
-                else -> "暂无记录"
+                q.isNotEmpty() -> getString(R.string.rec_empty_search)
+                recOnlyFav -> getString(R.string.rec_empty_fav)
+                recVoiceId != null -> getString(R.string.rec_empty_voice)
+                else -> getString(R.string.rec_empty)
             }
             tv.setTextColor(c.dim)
             tv.textSize = 13f
@@ -926,9 +927,9 @@ class SettingsActivity : AppCompatActivity() {
             // 同样的删除 ✕：不做点按特效
             x.setOnClickListener {
                 val dd = androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("删除这条记录？")
+                    .setTitle(getString(R.string.rec_del_title))
                     .setMessage(t.text.take(60))
-                    .setPositiveButton("删除") { _, _ ->
+                    .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                         val list = store.loadTakes()
                         list.removeAll { it.id == t.id }
                         store.saveTakes(list)
@@ -939,7 +940,7 @@ class SettingsActivity : AppCompatActivity() {
                         }
                         buildRecords()
                     }
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(getString(R.string.common_cancel), null)
                     .create()
                 dd.setOnShowListener { skinDialog(dd) }
                 dd.show()
@@ -950,9 +951,9 @@ class SettingsActivity : AppCompatActivity() {
             // 常驻信息：时间 · 音色 · 格式 · 字数
             val b = TextView(this)
             val durStr = if (t.durationMs > 0)
-                String.format(java.util.Locale.US, "%.1f 秒", t.durationMs / 1000.0) else "未知"
-            b.text = fmt.format(java.util.Date(t.createdAt)) + " · " + t.voiceName + " · " +
-                    t.format + " · 时长 " + durStr + " · " + t.text.length + " 字"
+                String.format(java.util.Locale.US, getString(R.string.rec_sec), t.durationMs / 1000.0)
+            else getString(R.string.rec_unknown)
+            b.text = getString(R.string.rec_meta, fmt.format(java.util.Date(t.createdAt)), t.voiceName, t.format, durStr, t.text.length)
             b.setTextColor(c.dim)
             b.textSize = recScale(11.5f)
             b.layoutParams = LinearLayout.LayoutParams(
@@ -963,8 +964,7 @@ class SettingsActivity : AppCompatActivity() {
             // 收起时隐藏的「属性」：语速 / 音调 / 音量 / 模型 / 种子
             val d2 = TextView(this)
             val modelShown = if (t.model.isBlank()) store.lastModel else t.model
-            d2.text = "语速 " + t.rate + " · 音调 " + t.pitch + " · 音量 " + t.volume +
-                    " · 模型 " + modelShown + " · 🎲 " + t.seed
+            d2.text = getString(R.string.rec_detail, t.rate, t.pitch, t.volume, modelShown, t.seed)
             d2.setTextColor(c.txt)                 // 与正文一致（不再发灰"隐形"）
             d2.textSize = recScale(13f)
             d2.visibility = View.GONE
@@ -988,7 +988,7 @@ class SettingsActivity : AppCompatActivity() {
 
             // 顺序按用户要求：▶播放 · 下载 · 分享 · ★收藏 · 回填（最右）
             val play = TextView(this)
-            play.text = "▶ 播放"
+            play.text = getString(R.string.rec_play)
             play.setTextColor(c.dim)
             play.textSize = 11.5f
             play.setPadding(0, dp(6f), dp(12f), dp(2f))
@@ -999,7 +999,7 @@ class SettingsActivity : AppCompatActivity() {
             bar2.addView(play)
 
             val down = TextView(this)
-            down.text = "下载"
+            down.text = getString(R.string.rec_download)
             down.setTextColor(c.dim)
             down.textSize = 11.5f
             down.setPadding(0, dp(6f), dp(12f), dp(2f))
@@ -1010,7 +1010,7 @@ class SettingsActivity : AppCompatActivity() {
             bar2.addView(down)
 
             val share = TextView(this)
-            share.text = "分享"
+            share.text = getString(R.string.rec_share)
             share.setTextColor(c.dim)
             share.textSize = 11.5f
             share.setPadding(0, dp(6f), dp(12f), dp(2f))
@@ -1039,7 +1039,7 @@ class SettingsActivity : AppCompatActivity() {
                 val fav = t.id in store.favTakes
                 starIcon.colorSolid = c.dim
                 starIcon.filled = fav
-                starLabel.text = "收藏"
+                starLabel.text = getString(R.string.rec_star)
                 starLabel.setTextColor(c.dim)
             }
             refreshStar()
@@ -1054,7 +1054,7 @@ class SettingsActivity : AppCompatActivity() {
 
             // 回填（最右）：把这条记录回填到**主页**的表单（跨页交接，回去即生效）
             val fill = TextView(this)
-            fill.text = "回填"
+            fill.text = getString(R.string.rec_fill)
             fill.setTextColor(c.dim)
             fill.textSize = 11.5f
             fill.setPadding(0, dp(6f), 0, dp(2f))
@@ -1063,14 +1063,14 @@ class SettingsActivity : AppCompatActivity() {
             fx(fill)
             fill.setOnClickListener {
                 store.pendingFillId = t.id
-                toast("已回填到主页")
+                toast(getString(R.string.toast_backfilled))
                 finish()          // 回主页 → onResume 里自动应用
             }
             bar2.addView(fill)
 
             // 翻译（最右）：翻这条记录的正文，结果弹出来可复制（配了 LLM 走 LLM）
             val tr = TextView(this)
-            tr.text = "翻译"
+            tr.text = getString(R.string.rec_translate)
             tr.setTextColor(c.dim)
             tr.textSize = 11.5f
             tr.setPadding(dp(12f), dp(6f), dp(4f), dp(2f))
@@ -1103,18 +1103,18 @@ class SettingsActivity : AppCompatActivity() {
         store.transPrompt = etTransPrompt.text.toString()
         store.transEmail = etTransEmail.text.toString().trim()
         buildProviders()
-        Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.toast_saved), Toast.LENGTH_SHORT).show()
     }
 
     // ---------------------------------------------------------------- 当前音色指示符颜色
     private val indicatorOptions = listOf(
-        "亮蓝" to "#2E8FFF",
-        "樱花粉" to "#FFAFC5",
-        "极光绿" to "#2FE39B",
-        "极光紫" to "#A56BFF",
-        "雾蓝灰" to "#8AA0B6",
-        "橙光橙" to "#FF8A3D",
-        "银白灰" to "#D3DAE3"
+        getString(R.string.ind_blue) to "#2E8FFF",
+        getString(R.string.ind_pink) to "#FFAFC5",
+        getString(R.string.ind_green) to "#2FE39B",
+        getString(R.string.ind_purple) to "#A56BFF",
+        getString(R.string.ind_gray) to "#8AA0B6",
+        getString(R.string.ind_orange) to "#FF8A3D",
+        getString(R.string.ind_silver) to "#D3DAE3"
     )
 
     private fun renderIndicatorColors() {
@@ -1185,9 +1185,9 @@ class SettingsActivity : AppCompatActivity() {
         llCats.removeAllViews()
         val c = Skin.colors(this)
         val defs = listOf(
-            "modern" to "现代经典 18",
-            "chinese" to "🏮 中国传统色 46",
-            "attrs" to "壁纸属性"
+            "modern" to getString(R.string.cat_modern),
+            "chinese" to getString(R.string.cat_chinese),
+            "attrs" to getString(R.string.cat_attrs)
         )
         for ((id, label) in defs) {
             val tv = TextView(this)
@@ -1233,7 +1233,7 @@ class SettingsActivity : AppCompatActivity() {
         for (p in shown) llPalettes.addView(palRow(p, c))
         if (list.size > 20) {
             val more = TextView(this)
-            more.text = if (palShowAll) "收起（只显示前 20 套）" else "显示全部（共 " + list.size + " 套）"
+            more.text = if (palShowAll) getString(R.string.collapse20) else getString(R.string.show_all_n, list.size)
             more.setTextColor(c.dim)
             more.textSize = 13f
             more.gravity = Gravity.CENTER
@@ -1293,6 +1293,10 @@ class SettingsActivity : AppCompatActivity() {
             buildCatChips()
             renderPalettes()
             renderIndicatorColors()
+            // 换肤必须重刷所有"代码建过"的页（模型/音色/记录）——否则停在旧色（规范 ⑯.1）
+            if (pageBuilt[0]) buildProviders()
+            if (pageBuilt[1]) buildVoices()
+            if (pageBuilt[3]) buildRecords()
             pageTheme.scrollTo(0, keepY)
         }
         return row
@@ -1314,14 +1318,14 @@ class SettingsActivity : AppCompatActivity() {
             val clip = cm?.primaryClip
             if (clip != null && clip.itemCount > 0) {
                 etKey.setText(clip.getItemAt(0).coerceToText(this).toString().trim())
-                toast("已粘贴到 API Key")
+                toast(getString(R.string.toast_pasted_key))
             } else {
-                toast("剪贴板为空")
+                toast(getString(R.string.toast_clip_empty))
             }
         }
         findViewById<TextView>(R.id.btnSaveKey).setOnClickListener {
             saveProviderFields()
-            toast("已保存")
+            toast(getString(R.string.toast_saved))
         }
     }
 
@@ -1389,7 +1393,7 @@ class SettingsActivity : AppCompatActivity() {
         if (model.isNotEmpty() || p.models.isEmpty()) {
             if (p.models.isNotEmpty() || saved.isBlank()) etModel.setText(model)
         }
-        etModel.hint = if (p.models.isEmpty()) "填服务商文档里的模型名" else "该厂商的模型 ID"
+        etModel.hint = if (p.models.isEmpty()) getString(R.string.hint_model_provider) else getString(R.string.hint_model_default)
 
         // 业务空间那栏：百炼 = workspace；MiniMax = GroupId（同一栏复用）
         val needGroup = isBailian || p.shape == "minimax"
@@ -1398,9 +1402,9 @@ class SettingsActivity : AppCompatActivity() {
             visibility = View.VISIBLE
             alpha = if (needGroup) 1f else 0.4f
             text = when {
-                isBailian -> "业务空间 ID"
-                p.shape == "minimax" -> "GroupId（MiniMax 需要）"
-                else -> "业务空间 ID（" + p.name + " 不需要，已停用）"
+                isBailian -> getString(R.string.label_ws)
+                p.shape == "minimax" -> getString(R.string.groupid_hint)
+                else -> getString(R.string.ws_disabled, p.name)
             }
         }
         etWs.apply {
@@ -1467,7 +1471,7 @@ class SettingsActivity : AppCompatActivity() {
                 alpha = if (needKey) 1f else 0.4f
             }
         }
-        findViewById<TextView>(R.id.tvKeyLabel).text = "API Key（" + p.name + "；仅保存在本机）"
+        findViewById<TextView>(R.id.tvKeyLabel).text = getString(R.string.key_label, p.name)
     }
 
     /** 开发者联系与支持：整块点一下复制（仿闪译；只提 DeepSeek，不提 GLM） */
@@ -1495,7 +1499,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     )
                 )
             } catch (e: Exception) {
-                toast("打不开浏览器：" + (e.message ?: ""))
+                toast(getString(R.string.open_browser_fail, e.message ?: ""))
             }
         }
 
@@ -1503,7 +1507,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val doCopy = {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             cm?.setPrimaryClip(android.content.ClipData.newPlainText("dev", tv.text))
-            toast("已复制开发者联系与支持")
+            toast(getString(R.string.toast_dev_copied))
         }
         fx(tv); fx(hint); fx(findViewById(R.id.btnCheckUpdate))
         tv.setOnClickListener { doCopy() }
@@ -1586,7 +1590,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             store.wpMain = ""
             store.wpMainCrop = ""
             refreshWpStates()
-            toast("已清除主界面壁纸")
+            toast(getString(R.string.toast_wp_main_cleared))
         }
         findViewById<TextView>(R.id.btnWpPage).setOnClickListener { pick("page") }
         findViewById<TextView>(R.id.btnWpPageClear).setOnClickListener {
@@ -1595,7 +1599,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             store.wpPageCrop = ""
             refreshWpStates()
             applyLook()
-            toast("已清除设置页壁纸")
+            toast(getString(R.string.toast_wp_page_cleared))
         }
         findViewById<TextView>(R.id.btnWpReset).setOnClickListener {
             Wp.clear(this, "main")
@@ -1615,7 +1619,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tvCardAlpha.text = "100%"
             refreshWpStates()
             applyLook()
-            toast("已恢复默认")
+            toast(getString(R.string.toast_reset))
         }
         tvWpMainState.setOnClickListener { if (store.wpMain.isNotEmpty()) startRecrop("main") }
         tvWpPageState.setOnClickListener { if (store.wpPage.isNotEmpty()) startRecrop("page") }
@@ -1640,7 +1644,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     private fun startRecrop(slot: String) {
         val src = Wp.sourceFile(this, slot)
         if (!src.exists()) {
-            toast("未保留原图，请重新选一张")
+            toast(getString(R.string.toast_need_image))
             pick(slot)
             return
         }
@@ -1659,14 +1663,14 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val mainSet = store.wpMain.isNotEmpty() && File(store.wpMain).exists()
         val pageSet = store.wpPage.isNotEmpty() && File(store.wpPage).exists()
         tvWpMainState.text = when {
-            !mainSet -> "未设置"
-            Wp.sourceFile(this, "main").exists() -> "已设置 · 点此重裁"
-            else -> "已设置"
+            !mainSet -> getString(R.string.wp_unset)
+            Wp.sourceFile(this, "main").exists() -> getString(R.string.wp_set_recrop)
+            else -> getString(R.string.wp_set)
         }
         tvWpPageState.text = when {
-            !pageSet -> "未设置"
-            Wp.sourceFile(this, "page").exists() -> "已设置 · 点此重裁"
-            else -> "已设置"
+            !pageSet -> getString(R.string.wp_unset)
+            Wp.sourceFile(this, "page").exists() -> getString(R.string.wp_set_recrop)
+            else -> getString(R.string.wp_set)
         }
     }
 
@@ -1696,9 +1700,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     contentResolver.openOutputStream(uri)?.use { out ->
                         f.inputStream().use { it.copyTo(out) }
                     }
-                    Toast.makeText(this, "已保存：" + f.name, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.saved_file, f.name), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(this, "保存失败：" + (e.message ?: ""), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_save_fail, e.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
             pendingSaveFile2 = null
@@ -1732,9 +1736,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         // ①' 图标取景回来 → 用裁好的图钉一个桌面入口
         if (requestCode == REQ_CROP_ICON) {
             val path = data?.getStringExtra(CropActivity.EXTRA_PATH).orEmpty()
-            if (path.isEmpty()) { toast("没有拿到截取结果"); return }
+            if (path.isEmpty()) { toast(getString(R.string.toast_no_crop)); return }
             val bmp = try { android.graphics.BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
-            if (bmp == null) { toast("图片读取失败"); return }
+            if (bmp == null) { toast(getString(R.string.toast_image_fail)); return }
             val label = data?.getStringExtra(CropActivity.EXTRA_NAME).orEmpty().trim()
                 .ifEmpty { etEntryName.text.toString().trim() }
                 .ifEmpty { getString(R.string.app_name_launcher) }
@@ -1757,19 +1761,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             }
             refreshWpStates()
             applyLook()
-            toast("壁纸已应用（已截取）")
+            toast(getString(R.string.toast_wp_applied))
         } else {
-            toast("没有拿到截取结果")
+            toast(getString(R.string.toast_no_crop))
         }
     }
 
     // ---------------------------------------------------------------- 快捷图标工坊（仿闪译）
     /** 内置图标样式（App 自身图标 + 桌面入口都能用） */
     private val iconStyles = listOf(
-        "default" to "紫·默认",
-        "a" to "旋钮",          // 原「银环比」→ 旋钮图（用户 2026-10-06）
-        "b" to "玫瑰",          // 原「白方框」→ 红玫瑰（方形图，取景时点一下即可完整框住）
-        "c" to "调音台"
+        "default" to getString(R.string.icon_style_default),
+        "a" to getString(R.string.icon_style_a),          // 原「银环比」→ 旋钮图（用户 2026-10-06）
+        "b" to getString(R.string.icon_style_b),          // 原「白方框」→ 红玫瑰（方形图，取景时点一下即可完整框住）
+        "c" to getString(R.string.icon_style_c)
     )
     private var curIconStyle = "default"
 
@@ -1840,8 +1844,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         if (key != "default") {
             renderIconStyleChips()
             updateIconPreview()
-            if (tell) toast("已选素材：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key) +
-                "（点「创建桌面入口」自己截取）")
+            if (tell) toast(getString(R.string.selected_material, iconStyles.firstOrNull { it.first == key }?.second ?: key) +
+                getString(R.string.icon_cut_hint))
             return
         }
         val aliases = mapOf(
@@ -1864,7 +1868,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         renderIconStyleChips()
         updateIconPreview()
         if (tell) {
-            toast("已切换 App 图标：" + (iconStyles.firstOrNull { it.first == key }?.second ?: key))
+            toast(getString(R.string.icon_switched, iconStyles.firstOrNull { it.first == key }?.second ?: key))
             // 关掉旧 alias 会让系统结束当前任务（看起来像"闪退回桌面"）→ 立刻用新别名把 App 拉回前台
             try {
                 val cn = android.content.ComponentName(packageName, packageName + (aliases[key] ?: ".IconStyleDefault"))
@@ -1881,7 +1885,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 创建桌面入口：走"取景"让用户自己截一张（素材 = 当前样式），截完再钉上去 */
     private fun pinEntry() {
         if (etEntryName.text.toString().trim().isEmpty()) {
-            toast("可以先填个「桌面入口名称」，截完再钉")
+            toast(getString(R.string.toast_pin_name_hint))
         }
         startActivityForResult(
             Intent(this, CropActivity::class.java)
@@ -1900,9 +1904,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                 .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
                 .build()
             androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(this, si, null)
-            toast("已请求钉到桌面：" + label)
+            toast(getString(R.string.pinned, label))
         } catch (e: Exception) {
-            toast("创建失败：" + (e.message ?: ""))
+            toast(getString(R.string.create_fail2, e.message ?: ""))
         }
     }
 
@@ -2031,8 +2035,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val base = etLlmBase.text.toString().trim()
         val key = etLlmKey.text.toString().trim()
         val model = etLlmModel.text.toString().trim()
-        if (base.isBlank() || key.isBlank()) { toast("先填 Base URL 和 Key"); return }
-        tvLlmTest.text = "测试中…"
+        if (base.isBlank() || key.isBlank()) { toast(getString(R.string.toast_need_base_key)); return }
+        tvLlmTest.text = getString(R.string.st_testing)
         val t0 = System.currentTimeMillis()
         applyTransFieldsQuietly()
         LlmClient.ask(base, key, model, "你是连接测试助手，只回复：ok", "ping",
@@ -2040,8 +2044,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         ) { out, err ->
             runOnUiThread {
                 val ms = System.currentTimeMillis() - t0
-                tvLlmTest.text = if (out != null) "✅ 连接成功 · " + ms + "ms · " + model
-                                 else "❌ " + (err ?: "失败")
+                tvLlmTest.text = if (out != null) getString(R.string.conn_ok, ms, model)
+                                 else "❌ " + (err ?: getString(R.string.common_fail))
             }
         }
     }
@@ -2126,20 +2130,44 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             ).apply { topMargin = dp(14f) }
             llTips.addView(v)
         }
-        label("使用提示")
-        line("1. 到模型页选厂商、填 API Key，本机系统 TTS 免 Key", c.dim)
-        line("2. 选音色；没有合适的就点 ＋ 建音色，上传样本做声音复刻", c.dim)
-        line("3. 输入文本 → 生成；记录卡可播放、回填、分享、下载", c.dim)
-        line("4. 外观在主题页：64 套配色、壁纸二次截取；App 图标与桌面入口可换图标、钉桌面入口", c.dim)
+        label(getString(R.string.tips_title))
+        line(getString(R.string.tips_1), c.dim)
+        line(getString(R.string.tips_2), c.dim)
+        line(getString(R.string.tips_3), c.dim)
+        line(getString(R.string.tips_4), c.dim)
         divider()
-        label("关于")
+        label(getString(R.string.about_title))
         val ver = try {
             packageManager.getPackageInfo(packageName, 0).versionName
         } catch (e: Exception) { "" }
-        line("玲珑调音 · Prima Tune    v" + ver, c.txt, 13f)
-        line("· 语音合成：10 家厂商 + 本机系统 TTS + 自定义渠道", c.dim)
-        line("· 音色：预制音色（默认隐藏）+ 自建（声音复刻）", c.dim)
-        line("· 数据：全部只保存在本机，不上传", c.dim)
+        line(getString(R.string.product_name) + "    v" + ver, c.txt, 13f)
+        line(getString(R.string.about_1), c.dim)
+        line(getString(R.string.about_2), c.dim)
+        line(getString(R.string.about_3), c.dim)
+        divider()
+        label(getString(R.string.lang_title))
+        val langRow = LinearLayout(this)
+        langRow.orientation = LinearLayout.HORIZONTAL
+        langRow.setPadding(0, dp(6f), 0, 0)
+        for ((name, code) in Loc.OPTIONS) {
+            val on = store.lang == code
+            val tv = TextView(this)
+            tv.text = name
+            tv.textSize = 12.5f
+            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
+            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
+            tv.setTextColor(if (on) c.onAcc else c.dim)
+            tv.tag = "bg:keep"
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener { Loc.set(this, code) }
+            tv.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { rightMargin = dp(8f) }
+            langRow.addView(tv)
+        }
+        llTips.addView(langRow)
     }
 
     /** 破坏性动作（删除）的强调色：**跟随主题**（用户 2026-10-05：不要固定的红） */

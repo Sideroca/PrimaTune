@@ -101,7 +101,7 @@ object Palettes {
     /** 14.4 逐套处方（14.3 竹青单独定稿）。白字写 0xFFFFFFFF；深字写 0（= 用该主题 text 槽） */
     val derive: Map<String, Deriv> = mapOf(
         "song" to Deriv(0xFF86CBD5.toInt(), 0xFFB4DFE4.toInt()),
-        "tea" to Deriv(0xFF8FC464.toInt(), 0xFFB5CEA1.toInt(), 0xFF2F4526.toInt(), 0xFF778D61.toInt(), 0xFFDCE2D4.toInt()),
+        "tea" to Deriv(0xFF8FC464.toInt(), 0xFFB5CEA1.toInt(), 0xFFFFFFFF.toInt(), 0xFF778D61.toInt(), 0xFFDCE2D4.toInt()),
         "ruyao_tianqing" to Deriv(0xFF86C9D5.toInt(), 0xFFB4DDE4.toInt()),
         "longquan_fenqing" to Deriv(0xFF83D8A9.toInt(), 0xFFB1E7C9.toInt()),
         "longquan_meiziqing" to Deriv(0xFF83D89F.toInt(), 0xFFB1E7C3.toInt()),

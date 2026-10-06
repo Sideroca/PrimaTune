@@ -20,7 +20,7 @@ import kotlin.math.abs
 /**
  * 换肤引擎 v1：按「角色」重绘视图树，不改布局。
  * 识别：文字按 v0.1 原色常量（E8EEF8 / 8D99AD / 6B7689 / FFFFFF），形状按几何（圆角半径 / 描边）。
- * 重绘保持几何不变 → 可重复执行；角色缓存于 view.tag（"r:xxx"），第二次起按缓存上色。
+ * 重绘保持几何不变 → 可重复执行；角色缓存于**内部表**（`setRole` 显式登记），第二次起按缓存上色。
  */
 object Skin {
 
@@ -121,6 +121,16 @@ object Skin {
         visit(root, c, root.resources.displayMetrics.density)
     }
 
+    /**
+     * 角色缓存 —— 把"某控件是什么角色"**显式**记住。
+     * 以前借用 `View.tag`（"r:xxx"）存它，会**覆盖**页面代码打的 `bg:keep`
+     * → 于是"声明别动"的底色被换肤误伤。现在独立缓存；`tag` 只留给页面代码用。
+     */
+    private val roleCache = java.util.WeakHashMap<View, String>()
+
+    /** 显式声明某控件的主题角色（页面代码用；替代原来的 `tag = "r:xxx"`）。 */
+    fun setRole(v: View, role: String) { roleCache[v] = role }
+
     // v0.1 原色常量（用于角色识别）
     private val T_TXT = 0xFFE8EEF8.toInt()
     private val T_DIM = 0xFF8D99AD.toInt()
@@ -130,6 +140,15 @@ object Skin {
     private fun visit(v: View, c: Colors, d: Float) {
         // 水波（点按特效）颜色跟主题：TapFx 装的时候写死了当时的 accent → 每次换肤重装一遍
         if (v.foreground is android.graphics.drawable.RippleDrawable) TapFx.retintRipple(v, c.acc)
+        if (v is Themed) {
+            // 自建控件：**显式**上色（实现 Themed 的控件自己决定怎么用这套色），跳过下面的"猜角色"
+            v.applyTheme(c)
+            if (v is ViewGroup) {
+                var i = 0
+                while (i < v.childCount) { visit(v.getChildAt(i), c, d); i++ }
+            }
+            return
+        }
         when (v) {
             is SeekBar -> {
                 v.progressTintList = ColorStateList.valueOf(c.acc)
@@ -165,8 +184,7 @@ object Skin {
     }
 
     private fun textRole(v: TextView): String? {
-        val tag = v.tag as? String
-        if (tag != null && tag.startsWith("r:")) return tag.substring(2)
+        roleCache[v]?.let { return it }
         val r = when (v.currentTextColor) {
             T_TXT -> "txt"
             T_DIM -> "dim"
@@ -174,7 +192,7 @@ object Skin {
             T_WHITE -> "white"
             else -> null
         }
-        if (r != null) v.tag = "r:$r"
+        if (r != null) roleCache[v] = r
         return r
     }
 
@@ -203,7 +221,7 @@ object Skin {
             near(r, 12f * d) -> role = R.drawable.bg_btn_primary
             near(r, 14f * d) -> role = R.drawable.bg_card
             near(r, 100f * d) -> role = R.drawable.bg_chip
-            near(r, 10f * d) -> role = if (v.tag == "r:row") R.drawable.bg_row else R.drawable.bg_btn
+            near(r, 10f * d) -> role = if (roleCache[v] == "row") R.drawable.bg_row else R.drawable.bg_btn
         }
         if (role == 0) role = matchByConstantState(v, gd)
         val sel = v.isSelected
@@ -258,4 +276,14 @@ object Skin {
         g.cornerRadius = radiusPx
         return g
     }
+}
+
+
+/**
+ * 自建控件实现它 → 换肤时由 [Skin] 直接调用（**显式上色**，替代"猜角色"）。
+ * 约定：`applyTheme` 只负责上色，不改布局；内部子控件若需特殊上色也在这里处理。
+ * （以后凡是"代码建的控件"，都应实现它，而不是靠打 tag 让 Skin 猜。）
+ */
+interface Themed {
+    fun applyTheme(c: Skin.Colors)
 }

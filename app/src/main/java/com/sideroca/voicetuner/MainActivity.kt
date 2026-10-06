@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
     private data class RowRef(val take: Take, val playBtn: TextView, val prog: View)
 
     private val voices = VoiceCatalog.builtIn.map { Voice(it.first, it.second, it.third) }
-    private val customLabel = "✏️ 自定义音色 ID…"
+    private val customLabel get() = getString(R.string.vc_custom)
 
     private val formats = listOf(
         Fmt("wav24", "wav24 · 推荐", "wav", 24000, null, "wav"),
@@ -239,6 +239,12 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 生命周期
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!Store(this).langChosen) {                       // 首次安装：先选语言
+            startActivity(Intent(this, WelcomeActivity::class.java))
+            finish()
+            return
+        }
+        Loc.apply(this)          // 界面语言（per-app locale）
         setContentView(R.layout.activity_main)
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
         LayoutFix.flattenCardFirstTop(window.decorView, dp(7))
@@ -256,7 +262,7 @@ class MainActivity : AppCompatActivity() {
         migrateDurationsAsync()
 
         if (store.apiKey.isBlank()) {
-            tvStatus.text = "首次使用：请点右上角「设置」填入 API Key（可从剪贴板粘贴）"
+            tvStatus.text = getString(R.string.first_run_hint)
         }
         installCrashGuard()
         showCrashIfAny()
@@ -282,7 +288,7 @@ class MainActivity : AppCompatActivity() {
             takes.firstOrNull { it.id == pendingFill }?.let {
                 fillFrom(it)
                 svRoot.smoothScrollTo(0, 0)
-                toast("已回填参数")
+                toast(getString(R.string.toast_backfill_done))
             }
         }
         // 设置页改过「默认 model」且用户没在高级参数里手改过 → 同步过来（不覆盖用户输入）
@@ -332,7 +338,7 @@ class MainActivity : AppCompatActivity() {
             setAdvanced(true, animate = false)
             store.advExpanded = true
         }
-        toast("密钥在「设置 → 模型 → 语音」里填（主页不再放密钥框）")
+        toast(getString(R.string.keys_hint))
     }
 
     /** 设置「模型」输入框并把它标记为"未被用户手改" */
@@ -535,9 +541,9 @@ class MainActivity : AppCompatActivity() {
     /** 润色：把文本框内容交给 LLM 润色成"适合朗读的稿子"，原地替换 */
     private fun polishText() {
         val text = etText.text.toString().trim()
-        if (text.isEmpty()) { toast("请先输入文本"); return }
+        if (text.isEmpty()) { toast(getString(R.string.toast_need_text)); return }
         if (store.llmKey.isBlank()) {
-            toast("请先在「设置 → 模型 → 润色」配好 LLM")
+            toast(getString(R.string.need_llm_polish))
             openSettings()
             return
         }
@@ -553,16 +559,16 @@ class MainActivity : AppCompatActivity() {
      */
     private fun translateText() {
         val text = etText.text.toString().trim()
-        if (text.isEmpty()) { toast("请先输入文本"); return }
+        if (text.isEmpty()) { toast(getString(R.string.toast_need_text)); return }
         val langs = store.transLangList()
-        if (langs.isEmpty()) { toast("请先在「高级参数 → 翻译语言」里选至少一种"); return }
+        if (langs.isEmpty()) { toast(getString(R.string.need_trans_lang)); return }
 
         val src = detectLangName(text)
         var targets = if (src.isNotEmpty() && langs.contains(src)) langs.filter { it != src } else langs
         if (targets.isEmpty()) targets = langs
 
         clearTransBlocks()
-        tvStatus.text = "翻译中…"
+        tvStatus.text = getString(R.string.st_translating)
         btnTranslate.isEnabled = false
 
         if (targets.size <= 1) {
@@ -575,9 +581,9 @@ class MainActivity : AppCompatActivity() {
                     if (out != null) {
                         s?.let { store.trLastSource = it }
                         etText.setText(out)
-                        tvStatus.text = "✅ 已翻译成" + t
+                        tvStatus.text = getString(R.string.trans_done, t)
                     } else {
-                        tvStatus.text = "❌ " + (err ?: "翻译失败"); toast(err ?: "翻译失败")
+                        tvStatus.text = "❌ " + (err ?: getString(R.string.trans_failed)); toast(err ?: getString(R.string.trans_failed))
                     }
                 }
             }
@@ -586,10 +592,10 @@ class MainActivity : AppCompatActivity() {
                 ui {
                     btnTranslate.isEnabled = true
                     if (map == null || map.isEmpty()) {
-                        tvStatus.text = "❌ " + (err ?: "翻译失败"); toast(err ?: "翻译失败")
+                        tvStatus.text = "❌ " + (err ?: getString(R.string.trans_failed)); toast(err ?: getString(R.string.trans_failed))
                     } else {
                         buildTransBlocks(map)
-                        tvStatus.text = "✅ 已翻成 " + map.keys.joinToString(" · ") + "（译版在上 · 原文在下）"
+                        tvStatus.text = getString(R.string.trans_multi_done, map.keys.joinToString(" · "))
                     }
                 }
             }
@@ -698,14 +704,14 @@ class MainActivity : AppCompatActivity() {
             store.transPrompt.ifBlank { LlmClient.DEFAULT_TRANS_PROMPT }.replace("{target}", store.trTarget)
         else
             store.llmPrompt.ifBlank { LlmClient.DEFAULT_POLISH_PROMPT }
-        tvStatus.text = if (translate) "🤖 LLM 翻译中…" else "🤖 润色中…"
+        tvStatus.text = if (translate) getString(R.string.llm_trans_busy) else getString(R.string.llm_polish_busy)
         btnTranslate.isEnabled = false
         // 润色时带上「音色 + 角色提示词」（给世界知识不足的模型补背景）；翻译则只给正文
         val userMsg = if (!translate && roleVoiceId().isNotBlank()) buildString {
             val nm = voiceNameOf(roleVoiceId())
-            if (nm.isNotBlank()) append("音色：").append(nm).append('\n')
+            if (nm.isNotBlank()) append(getString(R.string.pfx_voice)).append(nm).append('\n')
             val role = store.rolePrompt(roleVoiceId())
-            if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
+            if (role.isNotBlank()) append(getString(R.string.pfx_role)).append(role).append('\n')
             append("内容：\n").append(text)
         } else text
         LlmClient.ask(
@@ -716,10 +722,10 @@ class MainActivity : AppCompatActivity() {
                 btnTranslate.isEnabled = true
                 if (out != null) {
                     etText.setText(out)
-                    tvStatus.text = if (translate) "✅ LLM 已翻译成" + store.trTarget else "✅ 已润色"
+                    tvStatus.text = if (translate) getString(R.string.llm_trans_done, store.trTarget) else getString(R.string.llm_polish_done)
                 } else {
-                    tvStatus.text = "❌ " + (err ?: "失败")
-                    toast(err ?: "失败")
+                    tvStatus.text = "❌ " + (err ?: getString(R.string.common_fail))
+                    toast(err ?: getString(R.string.common_fail))
                 }
             }
         }
@@ -734,42 +740,42 @@ class MainActivity : AppCompatActivity() {
     private fun smartFill() {
         val text = etText.text.toString().trim()
         if (text.isEmpty()) {
-            toast("请先输入文本")
+            toast(getString(R.string.toast_need_text))
             return
         }
         if (store.llmKey.isBlank()) {
-            toast("请先在「设置 → 模型 → 提示词助手」填 Key")
+            toast(getString(R.string.need_llm_key_smart))
             openSettings()
             return
         }
-        val voice = if (voiceIsCustom) "自定义音色" else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
+        val voice = if (voiceIsCustom) getString(R.string.voice_custom) else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
         val system = store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT }
         // 当前 TTS 厂商 + 它接受的参数：**系统按当前配置自动附带**（不让模型去猜 provider）
         val prov = TtsProviders.byId(store.providerId)
         val user = buildString {
             if (prov != null) {
-                append("当前 TTS 厂商：").append(prov.name).append("（").append(prov.id).append("）\n")
+                append(getString(R.string.pfx_provider)).append(prov.name).append("（").append(prov.id).append("）\n")
                 val params = TtsModels.supportedNames(store.providerId, store.lastModel)
-                append("该厂商接受的参数：").append(if (params.isEmpty()) "（仅文本与音色）" else params.joinToString("、")).append('\n')
+                append(getString(R.string.pfx_params)).append(if (params.isEmpty()) getString(R.string.params_only_text_voice) else params.joinToString("、")).append('\n')
             }
-            append("音色：").append(voice.ifBlank { "未指定" }).append('\n')
+            append(getString(R.string.pfx_voice)).append(voice.ifBlank { getString(R.string.not_specified) }).append('\n')
             val role = store.rolePrompt(roleVoiceId())
-            if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
-            if (store.llmExtra.isNotBlank()) append("补充说明：").append(store.llmExtra).append('\n')
+            if (role.isNotBlank()) append(getString(R.string.pfx_role)).append(role).append('\n')
+            if (store.llmExtra.isNotBlank()) append(getString(R.string.pfx_extra)).append(store.llmExtra).append('\n')
             append("待合成文本：\n").append(text)
         }
-        tvStatus.text = "✨ 正在向 LLM 要参数…"
+        tvStatus.text = getString(R.string.smartfill_busy)
         btnSmartFill.isEnabled = false
         LlmClient.ask(store.llmBaseUrl, store.llmKey, store.llmModel, system, user) { out, err ->
             ui {
                 btnSmartFill.isEnabled = true
                 if (out == null) {
-                    tvStatus.text = "❌ " + (err ?: "请求失败")
-                    toast(err ?: "请求失败")
+                    tvStatus.text = "❌ " + (err ?: getString(R.string.toast_req_fail))
+                    toast(err ?: getString(R.string.toast_req_fail))
                 } else {
                     val ok = applySmartFill(out)
-                    tvStatus.text = if (ok) "✅ 已按 LLM 建议填好：厂商 / 风格指令 / 纠错表"
-                                     else "⚠️ LLM 返回没法解析：" + out.take(80)
+                    tvStatus.text = if (ok) getString(R.string.smartfill_ok)
+                                     else getString(R.string.smartfill_bad, out.take(80))
                 }
             }
         }
@@ -848,14 +854,14 @@ class MainActivity : AppCompatActivity() {
         val sc = ScrollView(this)
         sc.addView(box)
         val dlg = AlertDialog.Builder(this)
-            .setTitle("翻译语言（可多选）")
+            .setTitle(getString(R.string.trans_langs_title))
             .setView(sc)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(getString(R.string.common_ok)) { _, _ ->
                 store.transLangs = draft.joinToString(",")
                 syncTransUi()
-                toast("翻译语言：" + (if (draft.isEmpty()) "未选" else draft.joinToString(" · ")))
+                toast(getString(R.string.trans_langs_toast, if (draft.isEmpty()) getString(R.string.trans_none) else draft.joinToString(" · ")))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener {
             skinDialog(dlg)
@@ -873,7 +879,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 高级参数展开/收起：180ms 高度过渡（原来瞬变） */
     private fun setAdvanced(show: Boolean, animate: Boolean) {
-        tvAdvanced.text = if (show) "高级参数 ▾" else "高级参数 ▸"
+        tvAdvanced.text = if (show) getString(R.string.adv_expand) else getString(R.string.adv_collapse)
         if (!animate) {
             llAdvanced.visibility = if (show) View.VISIBLE else View.GONE
             return
@@ -941,11 +947,11 @@ class MainActivity : AppCompatActivity() {
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val v = super.getView(position, convertView, parent)
-            // ⚠️ 打 "r:txt" 角色标记：否则换主题后 Skin 认不出它的字色角色 → 字色**停在旧主题**
+            // ⚠️ 显式声明角色（Skin.setRole）：否则换主题后 Skin 认不出它的字色角色 → 字色**停在旧主题**
             //（症状：深色主题下格式那行仍是黑字）
             (v as? TextView)?.let {
                 it.setTextColor(Skin.colors(parent.context).txt)
-                it.tag = "r:txt"
+                Skin.setRole(it, "txt")
             }
             pressFx(v, parent)
             return v
@@ -955,7 +961,7 @@ class MainActivity : AppCompatActivity() {
             val v = super.getDropDownView(position, convertView, parent)
             (v as? TextView)?.let {
                 it.setTextColor(Skin.colors(v.context).txt)
-                it.tag = "r:txt"
+                Skin.setRole(it, "txt")
             }
             // 下拉卡片里的每一项也给点按反馈：水波 + 留痕（留痕画在它所在的那个列表上）
             TapFx.press(v, Skin.colors(v.context).acc, rootAtTouch = { (v.parent as? View) })
@@ -1011,7 +1017,7 @@ class MainActivity : AppCompatActivity() {
     /** 全部音色 = 内置（去掉已隐藏的） + 自建 */
     private fun allVoices(): List<Voice> =
         voices.filter { it.id !in hiddenVoices } +
-            customVoices.map { Voice(it.name, it.id, "自建音色（前缀 " + it.prefix + "）") }
+            customVoices.map { Voice(it.name, it.id, getString(R.string.voice_self_prefix, it.prefix)) }
 
     /** 设为某个音色（voiceId 为空/已失效时回落到第一个） */
     private fun setVoice(voiceId: String?) {
@@ -1046,7 +1052,7 @@ class MainActivity : AppCompatActivity() {
         btnCreateVoice.setOnClickListener {
             // 声音复刻目前只有百炼实现：别的厂商点了必然失败，直接拦下并说明
             if (TtsProviders.byId(store.providerId)?.canClone != true) {
-                toast("当前厂商（" + (TtsProviders.byId(store.providerId)?.name ?: "") + "）不支持声音复刻，请切到「阿里云百炼」再建音色")
+                toast(getString(R.string.clone_unsupported, TtsProviders.byId(store.providerId)?.name ?: ""))
                 return@setOnClickListener
             }
  openCreateVoice() }
@@ -1061,7 +1067,7 @@ class MainActivity : AppCompatActivity() {
             if (busy) {
                 client.cancel()
                 finishBusy()
-                tvStatus.text = "已取消"
+                tvStatus.text = getString(R.string.st_cancelled)
             }
         }
         btnPlay.setOnClickListener { currentTake?.let { toggleTake(it) } }
@@ -1087,7 +1093,7 @@ class MainActivity : AppCompatActivity() {
     private fun openRoleDialog() {
         val vid = roleVoiceId()
         if (vid.isBlank()) {
-            toast("请先选一个音色")
+            toast(getString(R.string.need_voice))
             return
         }
         val box = LinearLayout(this).apply {
@@ -1095,15 +1101,14 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(20), dp(8), dp(20), dp(4))
         }
         val who = TextView(this).apply {
-            text = "给「" + voiceNameOf(vid) + "」写人设：性格、语气、背景等。" +
-                "这段只给 AI 助手看（增强润色与写台词），不会发给 TTS。"
+            text = getString(R.string.role_desc, voiceNameOf(vid))
             setTextColor(cDim)
             textSize = 12f
         }
         box.addView(who)
         val et = EditText(this).apply {
             setText(store.rolePrompt(vid))
-            hint = "如：拉普兰德——狼群出身的赏金猎人，语气慵懒，带点挑衅与笑意"
+            hint = getString(R.string.role_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             gravity = android.view.Gravity.TOP or android.view.Gravity.START
             minLines = 3
@@ -1116,13 +1121,13 @@ class MainActivity : AppCompatActivity() {
         val sc = ScrollView(this)
         sc.addView(box)
         val dlg = AlertDialog.Builder(this)
-            .setTitle("角色提示词")
+            .setTitle(getString(R.string.role_title))
             .setView(sc)
-            .setPositiveButton("保存") { _, _ ->
+            .setPositiveButton(getString(R.string.common_save)) { _, _ ->
                 store.setRolePrompt(vid, et.text.toString().trim())
-                toast("已保存角色提示词")
+                toast(getString(R.string.role_saved))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
@@ -1137,12 +1142,12 @@ class MainActivity : AppCompatActivity() {
             setPadding(d, dp(6), d, 0)
         }
         val etId = EditText(this).apply {
-            hint = "音色 ID（从厂商网站复制的那串数字/字母）"
+            hint = getString(R.string.role_hint_id)
             setSingleLine(true)
             setText(if (voiceIsCustom) etCustomVoice.text.toString().trim() else "")
         }
         val etName = EditText(this).apply {
-            hint = "自定义名字"
+            hint = getString(R.string.custom_name_hint)
             setSingleLine(true)
             setText("")
         }
@@ -1150,17 +1155,17 @@ class MainActivity : AppCompatActivity() {
         box.addView(etName, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val dlg = AlertDialog.Builder(this)
-            .setTitle("自定义音色")
+            .setTitle(getString(R.string.voice_custom))
             .setView(box)
-            .setPositiveButton("导入") { _, _ ->
+            .setPositiveButton(getString(R.string.common_import)) { _, _ ->
                 val id = etId.text.toString().trim()
                 val nm = etName.text.toString().trim()
                 if (id.isEmpty()) {
-                    toast("音色 ID 不能为空")
+                    toast(getString(R.string.voice_id_empty))
                     return@setPositiveButton
                 }
-                val name = nm.ifEmpty { "自定义音色" }
-                // 存进"自建音色"列表（这样它能出现在下拉里，也能在「管理音色」里改名/删除）
+                val name = nm.ifEmpty { getString(R.string.voice_custom) }
+                // 存进getString(R.string.voice_self)列表（这样它能出现在下拉里，也能在「管理音色」里改名/删除）
                 if (customVoices.none { it.id == id }) {
                     customVoices.add(CustomVoice(id, name, "", System.currentTimeMillis()))
                     store.saveCustomVoices(customVoices)
@@ -1168,9 +1173,9 @@ class MainActivity : AppCompatActivity() {
                 etCustomVoice.setText(id)
                 setVoice(id)
                 syncVoiceUi()
-                toast("已加入：" + name)
+                toast(getString(R.string.toast_joined, name))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }   // 跟随主题（原来没接换肤，弹窗是默认深灰）
         dlg.show()
@@ -1205,7 +1210,7 @@ class MainActivity : AppCompatActivity() {
         tvVoice.text = if (voiceIsCustom) customLabel else (cur?.name ?: all.firstOrNull()?.name ?: "")
         if (voiceIsCustom) {
             etCustomVoice.visibility = View.VISIBLE
-            tvVoiceNote.text = "粘贴完整音色 ID"
+            tvVoiceNote.text = getString(R.string.hint_custom_voice)
         } else {
             etCustomVoice.visibility = View.GONE
             tvVoiceNote.text = cur?.note ?: ""
@@ -1250,7 +1255,7 @@ class MainActivity : AppCompatActivity() {
     private fun voiceNameOf(id: String): String =
         allVoices().firstOrNull { it.id == id }?.name
             ?: takes.firstOrNull { it.voiceId == id }?.voiceName?.takeIf { it.isNotBlank() }
-            ?: "自定义音色"
+            ?: getString(R.string.voice_custom)
 
     private fun renderChips() {
         llChips.removeAllViews()
@@ -1274,7 +1279,7 @@ class MainActivity : AppCompatActivity() {
         }
         // 清空
         val clear = TextView(this)
-        clear.text = "清空"
+        clear.text = getString(R.string.clear_ok)
         clear.setTextColor(cDim)
         clear.textSize = 13f
         clear.background = ContextCompat.getDrawable(this, R.drawable.bg_chip)
@@ -1293,7 +1298,7 @@ class MainActivity : AppCompatActivity() {
         box.setPadding(dp(20), dp(10), dp(20), dp(4))
 
         val etSearch = EditText(this)
-        etSearch.hint = "搜索语言（中文 / zh / ja…）"
+        etSearch.hint = getString(R.string.lang_search_hint)
         etSearch.inputType = InputType.TYPE_CLASS_TEXT
         etSearch.setTextColor(cTxt)
         etSearch.setHintTextColor(cDim)
@@ -1321,17 +1326,17 @@ class MainActivity : AppCompatActivity() {
         sc.addView(box)
 
         val dlg = AlertDialog.Builder(this)
-            .setTitle("选择语言（可多选）")
+            .setTitle(getString(R.string.lang_pick_title))
             .setView(sc)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(getString(R.string.common_ok)) { _, _ ->
                 langSel.clear(); langSel.addAll(draft)   // 只有“确定”才落盘
                 applyLangSel()
             }
-            .setNeutralButton("清空") { _, _ ->
+            .setNeutralButton(getString(R.string.clear_ok)) { _, _ ->
                 langSel.clear()
                 applyLangSel()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
@@ -1345,7 +1350,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (items.isEmpty()) {
             val tv = TextView(this)
-            tv.text = "没有匹配的语言"
+            tv.text = getString(R.string.lang_no_match)
             tv.setTextColor(cDim)
             tv.textSize = 13f
             tv.setPadding(0, dp(10), 0, dp(6))
@@ -1409,7 +1414,7 @@ class MainActivity : AppCompatActivity() {
         }
         genQueue.addAll(blocks)
         genQueue.add(original)
-        toast("将生成 " + genQueue.size + " 版")
+        toast(getString(R.string.will_gen, genQueue.size))
         nextGenerate()
     }
 
@@ -1425,44 +1430,44 @@ class MainActivity : AppCompatActivity() {
 
     private fun generate(seedOverride: Int?) {
         if (busy) {
-            toast("正在合成中，请稍候…")
+            toast(getString(R.string.toast_busy))
             return
         }
         val key = effectiveKey()
         if (key.isEmpty()) {
             // 主页不再放密钥框 → 引导去设置页（同时展开高级参数，能看到「TTS 厂商」）
-            toast("请先到「设置 → 模型 → 语音」填该厂商的 Key")
+            toast(getString(R.string.toast_need_key))
             revealApiKeyField()
             return
         }
         // 「生成＝全部生成」：多版本时逐个跑；文本来自队列（译版在上、原文在下）
         val text = (genTextOverride ?: etText.text.toString()).trim()
         if (text.isEmpty()) {
-            toast("请先输入文本")
+            toast(getString(R.string.toast_need_text))
             return
         }
         if (text.length > 5000) {
-            toast("文本过长（" + text.length + " 字），请分段合成")
+            toast(getString(R.string.toast_too_long, text.length))
             return
         } else if (text.length > 2000) {
-            toast("文本较长（" + text.length + " 字），若失败请分段合成")
+            toast(getString(R.string.toast_long, text.length))
         }
         val voiceId = selectedVoiceId()
         if (voiceId.isEmpty()) {
-            toast("请选择音色或输入自定义音色 ID")
+            toast(getString(R.string.toast_need_voice))
             return
         }
 
         val hotFix: JSONObject? = try {
             optionalJson(etHotfix, "hot_fix")
         } catch (e: BadJsonException) {
-            toast(e.label + " 不是合法 JSON，请检查格式")
+            toast(getString(R.string.invalid_json, e.label))
             return
         }
         val extra: JSONObject? = try {
-            optionalJson(etExtra, "额外参数")
+            optionalJson(etExtra, getString(R.string.extra_label))
         } catch (e: BadJsonException) {
-            toast(e.label + " 不是合法 JSON，请检查格式")
+            toast(getString(R.string.invalid_json, e.label))
             return
         }
 
@@ -1498,12 +1503,12 @@ class MainActivity : AppCompatActivity() {
 
         busy = true
         ivVoiceInd.startBusy()          // 生成期间：指示符持续摆动
-        KeepAliveService.start(this, "正在合成语音…（可以切到后台等）")
+        KeepAliveService.start(this, getString(R.string.keepalive_synth))
         btnGenerate.isEnabled = false
         btnGenerate.alpha = 0.55f
         btnCancel.visibility = View.VISIBLE
         svRoot.smoothScrollTo(0, 0)
-        tvStatus.text = "连接中…"
+        tvStatus.text = getString(R.string.st_connecting)
 
         var lastTick = 0L
         // P1：按厂商形态分派 —— 百炼内部再按模型分 ws/http；OpenAI 系走 OpenAI 兼容客户端
@@ -1557,11 +1562,11 @@ class MainActivity : AppCompatActivity() {
         }
         synthCall(object : SynthCallback {
             override fun onConnected() {
-                ui { tvStatus.text = "已连接…" }
+                ui { tvStatus.text = getString(R.string.st_connected) }
             }
 
             override fun onStarted() {
-                ui { tvStatus.text = "合成中…" }
+                ui { tvStatus.text = getString(R.string.st_synthesizing) }
             }
 
             override fun onProgress(receivedBytes: Int) {
@@ -1569,9 +1574,9 @@ class MainActivity : AppCompatActivity() {
                 if (now - lastTick < 80) return
                 lastTick = now
                 val s = if (fmt.format == "wav") {
-                    String.format(Locale.US, "合成中… %.1f 秒音频", receivedBytes / (2.0 * fmt.sampleRate))
+                    String.format(Locale.US, getString(R.string.st_synth_sec), receivedBytes / (2.0 * fmt.sampleRate))
                 } else {
-                    String.format(Locale.US, "合成中… %.0f KB", receivedBytes / 1024.0)
+                    String.format(Locale.US, getString(R.string.st_synth_kb), receivedBytes / 1024.0)
                 }
                 ui { tvStatus.text = s }
             }
@@ -1583,8 +1588,8 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     ui {
                         finishBusy()
-                        tvStatus.text = "❌ 保存失败"
-                        toast("保存失败：" + e.message)
+                        tvStatus.text = getString(R.string.st_failed, getString(R.string.save_failed))
+                        toast(getString(R.string.toast_save_fail, e.message))
                     }
                 }
             }
@@ -1593,8 +1598,8 @@ class MainActivity : AppCompatActivity() {
                 val friendly = Err.friendly(message)
                 ui {
                     finishBusy()
-                    tvStatus.text = "❌ " + friendly
-                    toast("合成失败：" + friendly.take(120))
+                    tvStatus.text = getString(R.string.st_failed, friendly)
+                    toast(getString(R.string.toast_fail, friendly.take(120)))
                 }
             }
         })
@@ -1650,16 +1655,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun onTakeReady(take: Take) {
         finishBusy()
-        tvStatus.text = "✅ 完成"
+        tvStatus.text = getString(R.string.st_done)
         // 骰子：**生成完毕后才**写上实际用的种子（只在该 厂商+模型 支持 seed 时；别的引擎不写，免得误导）
         if (TtsModels.supports(store.providerId, store.lastModel, "seed")) {
             etSeed.setText(take.seed.toString())
         }
         currentTake = take
         cardResult.visibility = View.VISIBLE
-        tvResultInfo.text = take.voiceName + " · " + take.format + " · 语速 " + fmtNum(take.rate) +
-                " · 音调 " + fmtNum(take.pitch) + " · 音量 " + take.volume +
-                " · 🎲 " + take.seed + " · 时长 " + fmtDur(take.durationMs)
+        tvResultInfo.text = getString(R.string.result_info, take.voiceName, take.format, fmtNum(take.rate), fmtNum(take.pitch), take.volume, take.seed, fmtDur(take.durationMs))
         renderHistory()
         // 多版本：一条生成完 → 接着生成下一条（最后一条才自动播放，避免互相打断）
         if (genQueue.isNotEmpty()) nextGenerate() else startPlayback(take)
@@ -1694,7 +1697,7 @@ class MainActivity : AppCompatActivity() {
         AudioFocus.request(this) { stopPlayback(); refreshPlayButtons() }
         val file = store.fileOf(take)
         if (!file.exists()) {
-            toast("文件不存在")
+            toast(getString(R.string.file_missing))
             return
         }
         try {
@@ -1714,7 +1717,7 @@ class MainActivity : AppCompatActivity() {
             mp.setOnErrorListener { _, what, extra ->
                 stopPlayback()
                 refreshPlayButtons()
-                toast("播放出错（$what/$extra）")
+                toast(getString(R.string.play_err, what, extra))
                 true
             }
             mp.prepare()
@@ -1728,7 +1731,7 @@ class MainActivity : AppCompatActivity() {
             mainHandler.post(progTick)
         } catch (e: Exception) {
             stopPlayback()
-            toast("播放失败：" + e.message)
+            toast(getString(R.string.play_fail, e.message ?: ""))
         }
         refreshPlayButtons()
     }
@@ -1753,9 +1756,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPlayButtons() {
         val cur = currentTake
-        btnPlay.text = if (cur != null && playingId == cur.id && player?.isPlaying == true) "⏸ 暂停" else "▶ 播放"
+        btnPlay.text = if (cur != null && playingId == cur.id && player?.isPlaying == true) getString(R.string.st_pause) else getString(R.string.rec_play)
         for (r in rowRefs) {
-            r.playBtn.text = if (playingId == r.take.id) "⏸ 暂停" else "▶ 播放"
+            r.playBtn.text = if (playingId == r.take.id) getString(R.string.st_pause) else getString(R.string.rec_play)
             r.prog.visibility = if (playingId == r.take.id) View.VISIBLE else View.GONE
         }
     }
@@ -1777,7 +1780,7 @@ class MainActivity : AppCompatActivity() {
     private fun shareTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
-            toast("文件不存在")
+            toast(getString(R.string.file_missing))
             return
         }
         val out = shareableOf(take)
@@ -1791,9 +1794,9 @@ class MainActivity : AppCompatActivity() {
                 clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "分享音频"))
+            startActivity(Intent.createChooser(intent, getString(R.string.share_audio)))
         } catch (e: Exception) {
-            toast("分享失败：" + (e.message ?: ""))
+            toast(getString(R.string.share_fail, e.message ?: ""))
         }
     }
 
@@ -1807,7 +1810,7 @@ class MainActivity : AppCompatActivity() {
     private fun exportTake(take: Take) {
         val file = store.fileOf(take)
         if (!file.exists()) {
-            toast("文件不存在")
+            toast(getString(R.string.file_missing))
             return
         }
         pendingSaveFile = file
@@ -1819,7 +1822,7 @@ class MainActivity : AppCompatActivity() {
         try {
             startActivityForResult(i, REQ_SAVE)
         } catch (e: Exception) {
-            toast("无法打开保存对话框：" + (e.message ?: ""))
+            toast(getString(R.string.save_dlg_fail, e.message ?: ""))
         }
     }
 
@@ -1838,7 +1841,7 @@ class MainActivity : AppCompatActivity() {
         val list = filterVoiceId?.let { id -> takes.filter { it.voiceId == id } } ?: takes
         if (list.isEmpty()) {
             val tv = TextView(this)
-            tv.text = if (filterVoiceId == null) "暂无记录" else "该音色暂无记录（点 ▼ 可换/取消筛选）"
+            tv.text = getString(if (filterVoiceId == null) R.string.hist_empty else R.string.hist_empty_voice)
             tv.setTextColor(cDim)
             tv.textSize = 13f
             tv.setPadding(0, dp(8), 0, 0)
@@ -1852,8 +1855,8 @@ class MainActivity : AppCompatActivity() {
         }
         if (list.size > HISTORY_PREVIEW) {
             val more = TextView(this)
-            more.text = if (historyExpanded) "收起（只显示最近 $HISTORY_PREVIEW 条）"
-            else "显示全部（共 ${list.size} 条）"
+            more.text = if (historyExpanded) getString(R.string.hist_collapse, HISTORY_PREVIEW)
+            else getString(R.string.hist_show_all, list.size)
             more.setTextColor(cDim)
             more.textSize = 13f
             more.gravity = Gravity.CENTER
@@ -1883,7 +1886,7 @@ class MainActivity : AppCompatActivity() {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.VERTICAL
         row.background = ContextCompat.getDrawable(this, R.drawable.bg_row)
-        row.tag = "r:row"
+        Skin.setRole(row, "row")
         // 上/右不再留内边距 → ✕ 的判定方块才能真正贴住卡片那两条边
         row.setPadding(dp(12), 0, 0, dp(10))
         val rlp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -1935,9 +1938,7 @@ class MainActivity : AppCompatActivity() {
         // 常驻信息：时间 · 音色 · 格式 · 字数 · 时长（🎲 与语速/音调/音量/模型都收进「属性」）
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
-        meta.text = time + " · " + take.voiceName + " · " + take.format +
-                " · 时长 " + fmtDur(take.durationMs) +
-                " · " + take.text.length + " 字"        // 时长在左、字数最右
+        meta.text = getString(R.string.rec_meta, time, take.voiceName, take.format, fmtDur(take.durationMs), take.text.length)        // 时长在左、字数最右
         meta.setTextColor(cDim)
         meta.textSize = recScale(12f)
         meta.setPadding(0, dp(3), dp(12), dp(6))
@@ -1946,8 +1947,7 @@ class MainActivity : AppCompatActivity() {
         // 「属性」收起时隐藏：语速 / 音调 / 音量 / 模型 / 种子
         val detail = TextView(this)
         val modelShown = if (take.model.isBlank()) store.lastModel else take.model
-        detail.text = "语速 " + fmtNum(take.rate) + " · 音调 " + fmtNum(take.pitch) +
-                " · 音量 " + take.volume + " · 模型 " + modelShown + " · 🎲 " + take.seed
+        detail.text = getString(R.string.rec_detail, fmtNum(take.rate), fmtNum(take.pitch), take.volume, modelShown, take.seed)
         detail.setTextColor(cTxt)                  // 与正文一致（不再发灰"隐形"）
         detail.textSize = recScale(13f)
         detail.setPadding(0, 0, dp(12), dp(2))
@@ -1962,9 +1962,9 @@ class MainActivity : AppCompatActivity() {
         hs.addView(btnRow)
         row.addView(hs)
 
-        val bPlay = smallBtn("▶ 播放")
-        val bFill = smallBtn("回填")
-        val bDown = smallBtn("下载")
+        val bPlay = smallBtn(getString(R.string.rec_play))
+        val bFill = smallBtn(getString(R.string.rec_fill))
+        val bDown = smallBtn(getString(R.string.rec_download))
         // 收藏星：手绘矢量（不再用 ☆/★ 字形——字形太小、且会被系统字体染成杂色）
         val bStar = LinearLayout(this)
         bStar.orientation = LinearLayout.HORIZONTAL
@@ -1987,12 +1987,12 @@ class MainActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { marginStart = dp(2) }              // 星与文字贴近 → 缩短整个按钮长度
         bStar.addView(starLabel)
-        val bShare = smallBtn("分享")
+        val bShare = smallBtn(getString(R.string.rec_share))
 
         bPlay.setOnClickListener { toggleTake(take) }
         bFill.setOnClickListener {
             fillFrom(take)
-            toast("已回填参数")
+            toast(getString(R.string.toast_backfill_done))
         }
         // 「属性」撤掉：正文 / 常驻信息 / 参数行 合成一个功能 —— 点哪边都展开（或收起）全文+参数
         fun toggleAll() {
@@ -2024,7 +2024,7 @@ class MainActivity : AppCompatActivity() {
             starIcon.colorSolid = Skin.Colors.mix(sc.txt, sc.card, 0.18f)
             starIcon.filled = fav         // 已收藏＝亮黄渐变（StarView 里直接画）
             // 星与文字都用与旁边按钮相同的颜色（不做"收藏专属色"）
-            starLabel.text = "收藏"                     // 恒定文字，只有星星上色/变实心
+            starLabel.text = getString(R.string.rec_star)                     // 恒定文字，只有星星上色/变实心
             starLabel.setTextColor(cTxt)                // 与「播放/回填/下载」同色（Skin 按角色统一重着色）
         }
         refreshStar()
@@ -2040,7 +2040,7 @@ class MainActivity : AppCompatActivity() {
             starIcon.animate().scaleX(1.28f).scaleY(1.28f).setDuration(90).withEndAction {
                 starIcon.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
             }.start()
-            toast(if (nowFav) "已收藏" else "已取消收藏")
+            toast(if (nowFav) getString(R.string.toast_faved) else getString(R.string.toast_unfaved))
         }
         bShare.setOnClickListener { shareTake(take) }
 
@@ -2092,9 +2092,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun confirmDelete(take: Take) {
         val dlg = AlertDialog.Builder(this)
-            .setTitle("删除这条记录？")
+            .setTitle(getString(R.string.rec_del_title))
             .setMessage(take.text.take(60))
-            .setPositiveButton("删除") { _, _ ->
+            .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                 if (playingId == take.id) stopPlayback()
                 takes.remove(take)
                 store.deleteFile(take)
@@ -2105,9 +2105,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 renderHistory()
                 refreshPlayButtons()
-                toast("已删除")
+                toast(getString(R.string.common_deleted))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
@@ -2115,13 +2115,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun confirmClearHistory() {
         if (takes.isEmpty()) {
-            toast("没有记录")
+            toast(getString(R.string.toast_no_records))
             return
         }
         val dlg = AlertDialog.Builder(this)
-            .setTitle("清空全部记录？")
-            .setMessage("将删除 " + takes.size + " 条记录及其音频文件")
-            .setPositiveButton("清空") { _, _ ->
+            .setTitle(getString(R.string.clear_title))
+            .setMessage(getString(R.string.clear_msg, takes.size))
+            .setPositiveButton(getString(R.string.clear_ok)) { _, _ ->
                 stopPlayback()
                 takes.forEach { store.deleteFile(it) }
                 takes.clear()
@@ -2132,9 +2132,9 @@ class MainActivity : AppCompatActivity() {
                 cardResult.visibility = View.GONE
                 renderHistory()
                 refreshPlayButtons()
-                toast("已清空")
+                toast(getString(R.string.toast_cleared))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
@@ -2171,9 +2171,9 @@ class MainActivity : AppCompatActivity() {
                     ?: return@setOnLongClickListener false
                 val cv = customVoices.firstOrNull { it.id == id }
                 val dlg = AlertDialog.Builder(this)
-                    .setTitle("删除这个音色？")
-                    .setMessage("「" + v.name + "」将从列表里移除。")   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
-                    .setPositiveButton("删除") { _, _ ->
+                    .setTitle(getString(R.string.vc_del_title))
+                    .setMessage(getString(R.string.vc_del_msg, v.name))   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
+                    .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                         if (cv != null) {
                             customVoices.removeAll { it.id == cv.id }
                             store.saveCustomVoices(customVoices)
@@ -2191,9 +2191,9 @@ class MainActivity : AppCompatActivity() {
                         }
                         pop?.dismiss()
                         syncVoiceUi()
-                        toast("已删除")
+                        toast(getString(R.string.common_deleted))
                     }
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(getString(R.string.common_cancel), null)
                     .create()
                 dlg.setOnShowListener { skinDialog(dlg) }   // 跟随主题
                 dlg.show()
@@ -2212,7 +2212,7 @@ class MainActivity : AppCompatActivity() {
 
         if (all.isEmpty()) {
             val hint = TextView(this)
-            hint.text = "还没有音色：用「＋ 建音色」上传样本，或用下面的「自定义音色 ID」"
+            hint.text = getString(R.string.vc_empty)
             hint.setTextColor(c.hint)
             hint.textSize = 12.5f
             hint.setPadding(dp(16), dp(10), dp(16), dp(10))
@@ -2225,7 +2225,7 @@ class MainActivity : AppCompatActivity() {
             syncVoiceUi()
             pop?.dismiss()
         }
-        addRow("管理音色…", null, c.acc) {
+        addRow(getString(R.string.vc_manage), null, c.acc) {
             pop?.dismiss()
             manageVoices()
         }
@@ -2260,7 +2260,7 @@ class MainActivity : AppCompatActivity() {
     private fun manageVoices() {
         val all = allVoices()
         if (all.isEmpty() && hiddenVoices.isEmpty()) {
-            toast("音色列表是空的")
+            toast(getString(R.string.mgr_empty))
             return
         }
         val c = Skin.colors(this)
@@ -2305,7 +2305,7 @@ class MainActivity : AppCompatActivity() {
             }
             if (rename != null) {
                 val rn = TextView(this)
-                rn.text = "改名"
+                rn.text = getString(R.string.common_rename)
                 rn.setTextColor(c.acc)
                 rn.textSize = 14f
                 rn.setPadding(dp(12), dp(8), dp(4), dp(8))
@@ -2327,12 +2327,12 @@ class MainActivity : AppCompatActivity() {
             et.setText(cv.name)
             et.setSelection(cv.name.length)
             val d = AlertDialog.Builder(this)
-                .setTitle("重命名音色")
+                .setTitle(getString(R.string.mgr_rename_title))
                 .setView(et)
-                .setPositiveButton("保存") { _, _ ->
+                .setPositiveButton(getString(R.string.common_save)) { _, _ ->
                     val nn = et.text.toString().trim()
                     if (nn.isEmpty()) {
-                        toast("名字不能为空")
+                        toast(getString(R.string.mgr_name_empty))
                     } else {
                         val idx = customVoices.indexOfFirst { it.id == cv.id }
                         if (idx >= 0) {
@@ -2340,21 +2340,21 @@ class MainActivity : AppCompatActivity() {
                             store.saveCustomVoices(customVoices)
                             fitVoiceWidth()
                             syncVoiceUi()
-                            toast("已改名为：" + nn)
+                            toast(getString(R.string.mgr_renamed, nn))
                         }
                     }
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.common_cancel), null)
                 .create()
             d.setOnShowListener { skinDialog(d) }
             d.show()
         }
 
         if (all.isNotEmpty()) {
-            section("可用音色")
+            section(getString(R.string.mgr_section_available))
             for (v in all) {
                 val custom = customVoices.firstOrNull { it.id == v.id }
-                row(v.name, "", "删除", deleteRed()) {
+                row(v.name, "", getString(R.string.common_delete), deleteRed()) {
                     if (custom != null) confirmDeleteVoice(custom) else hideVoice(v)
                 }
             }
@@ -2363,9 +2363,9 @@ class MainActivity : AppCompatActivity() {
         val sc = ScrollView(this)
         sc.addView(box)
         val d = AlertDialog.Builder(this)
-            .setTitle("管理音色")
+            .setTitle(getString(R.string.mgr_title))
             .setView(sc)
-            .setPositiveButton("完成", null)
+            .setPositiveButton(getString(R.string.common_done), null)
             .create()
         dlg = d
         d.setOnShowListener { skinDialog(d) }
@@ -2375,9 +2375,9 @@ class MainActivity : AppCompatActivity() {
     /** 删除内置音色 = 从列表移除（记进本机隐藏表）。想找回：用「自定义音色 ID」粘贴它的 ID。 */
     private fun hideVoice(v: Voice) {
         val d = AlertDialog.Builder(this)
-            .setTitle("删除音色")
-            .setMessage("「" + v.name + "」将从音色列表移除。")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(getString(R.string.mgr_del_title))
+            .setMessage(getString(R.string.mgr_del_msg, v.name))
+            .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                 hiddenVoices.add(v.id)
                 store.hiddenVoices = hiddenVoices
                 if (!voiceIsCustom && currentVoiceId == v.id) {
@@ -2385,9 +2385,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 fitVoiceWidth()
                 syncVoiceUi()
-                toast("已删除：" + v.name)
+                toast(getString(R.string.mgr_deleted, v.name))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         d.setOnShowListener {
             skinDialog(d)
@@ -2398,9 +2398,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun confirmDeleteVoice(v: CustomVoice) {
         val d = AlertDialog.Builder(this)
-            .setTitle("删除音色")
-            .setMessage("「" + v.name + "」将从本机音色列表中移除。\n云端已复刻的音色不受影响，之后可重新添加。")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(getString(R.string.mgr_del_title))
+            .setMessage(getString(R.string.mgr_del_msg2, v.name))
+            .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                 customVoices.removeAll { it.id == v.id }
                 store.saveCustomVoices(customVoices)
                 if (!voiceIsCustom && currentVoiceId == v.id) {
@@ -2408,9 +2408,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 fitVoiceWidth()
                 syncVoiceUi()
-                toast("已删除：" + v.name)
+                toast(getString(R.string.mgr_deleted, v.name))
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
         d.setOnShowListener {
             skinDialog(d)
@@ -2460,7 +2460,7 @@ class MainActivity : AppCompatActivity() {
             listBox.addView(tv)
         }
 
-        addRow("全部音色（显示所有记录）", "", null)
+        addRow(getString(R.string.filter_all), "", null)
         // 只显示音色名（ID 尾巴去掉——要看 ID 去设置页的「音色管理」）
         for (id in ids) addRow(voiceNameOf(id), "", id)
 
@@ -2499,7 +2499,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openCreateVoice() {
         if (cloneKey().isBlank()) {
-            toast("请先在「设置 → 模型」填写该厂商的 API Key")
+            toast(getString(R.string.need_key_setup))
             openSettings()
             return
         }
@@ -2512,16 +2512,16 @@ class MainActivity : AppCompatActivity() {
         box.setPadding(dp(20), dp(8), dp(20), dp(4))
 
         val tvTip = TextView(this)
-        tvTip.text = "样本建议：干净人声、无背景音乐/杂音；可一次选多个文件（数量不限，App 自动拼接）；支持 wav / mp3 / m4a 等。"
+        tvTip.text = getString(R.string.sample_tip)
         tvTip.setTextColor(cDim)
         tvTip.textSize = 12f
         box.addView(tvTip)
 
-        val btnPick = smallBtn("选择音频文件")   // 文案缩短（"可多选"上面提示里已写），好让一行放得下
+        val btnPick = smallBtn(getString(R.string.pick_audio))   // 文案缩短（"可多选"上面提示里已写），好让一行放得下
         fx(btnPick)
         btnPick.setOnClickListener { pickAudioFile() }
         // [5] 不想复刻时，也可以直接导入厂商已有的音色 ID
-        val btnImportId = smallBtn("导入音色 ID…")
+        val btnImportId = smallBtn(getString(R.string.import_voice_id))
         fx(btnImportId)
         val rowPick = LinearLayout(this)
         rowPick.orientation = LinearLayout.HORIZONTAL
@@ -2540,15 +2540,15 @@ class MainActivity : AppCompatActivity() {
         box.addView(rowPick)
 
         val tvFile = TextView(this)
-        tvFile.text = "未选择样本"
+        tvFile.text = getString(R.string.no_sample)
         tvFile.setTextColor(cDim)
         tvFile.textSize = 12f
         tvFile.setPadding(0, dp(4), 0, 0)
         box.addView(tvFile)
 
-        box.addView(labelView("前缀（用于生成音色 ID；1~10 位小写字母/数字）"))
+        box.addView(labelView(getString(R.string.prefix_label)))
         val etPrefix = EditText(this)
-        etPrefix.hint = "如 ailin2"
+        etPrefix.hint = getString(R.string.prefix_hint)
         etPrefix.inputType = InputType.TYPE_CLASS_TEXT
         etPrefix.setTextColor(cTxt)
         etPrefix.setHintTextColor(cDim)
@@ -2556,9 +2556,9 @@ class MainActivity : AppCompatActivity() {
         etPrefix.filters = arrayOf(InputFilter.LengthFilter(10))
         box.addView(etPrefix)
 
-        box.addView(labelView("显示名称（留空则用前缀）"))
+        box.addView(labelView(getString(R.string.name_label)))
         val etName = EditText(this)
-        etName.hint = "如：艾丽妮（新版）"
+        etName.hint = getString(R.string.name_hint)
         etName.inputType = InputType.TYPE_CLASS_TEXT
         etName.setTextColor(cTxt)
         etName.setHintTextColor(cDim)
@@ -2575,10 +2575,10 @@ class MainActivity : AppCompatActivity() {
         sc.addView(box)
 
         val dlg = AlertDialog.Builder(this)
-            .setTitle("建音色（声音复刻）")
+            .setTitle(getString(R.string.create_voice_title))
             .setView(sc)
-            .setPositiveButton("创建", null)
-            .setNegativeButton("取消", null)
+            .setPositiveButton(getString(R.string.common_create), null)
+            .setNegativeButton(getString(R.string.common_cancel), null)
             .create()
 
         createDlg = dlg
@@ -2615,7 +2615,7 @@ class MainActivity : AppCompatActivity() {
         try {
             startActivityForResult(intent, REQ_PICK_AUDIO)
         } catch (e: Exception) {
-            toast("没有可用的文件选择器")
+            toast(getString(R.string.toast_no_picker))
         }
     }
 
@@ -2629,9 +2629,9 @@ class MainActivity : AppCompatActivity() {
                     contentResolver.openOutputStream(uri)?.use { out ->
                         f.inputStream().use { input -> input.copyTo(out) }
                     }
-                    toast("已保存：" + f.name)
+                    toast(getString(R.string.saved_file, f.name))
                 } catch (e: Exception) {
-                    toast("保存失败：" + e.message)
+                    toast(getString(R.string.toast_save_fail, e.message ?: ""))
                 }
             }
             pendingSaveFile = null
@@ -2656,16 +2656,16 @@ class MainActivity : AppCompatActivity() {
             importSample(uris[0])
             return
         }
-        createStatus?.text = "合并中…（共 " + uris.size + " 个文件）"
+        createStatus?.text = getString(R.string.merging_n, uris.size)
         Thread {
             try {
                 val dst = File(cacheDir, "voice_merged_" + System.currentTimeMillis() + ".wav")
                 val r = AudioMerge.merge(this, uris, dst) { i, n ->
-                    ui { createStatus?.text = "合并中… " + i + "/" + n }
+                    ui { createStatus?.text = getString(R.string.merging, i, n) }
                 }
                 if (r == null || r.ok == 0) {
                     dst.delete()
-                    ui { createStatus?.text = "❌ 合并失败：没有可解析的音频文件（支持 wav / mp3 / m4a 等）" }
+                    ui { createStatus?.text = getString(R.string.merge_fail_none) }
                 } else {
                     pendingSample = dst
                     pendingSampleDurMs = r.durMs
@@ -2673,29 +2673,28 @@ class MainActivity : AppCompatActivity() {
                     // 逐条时长放后台算（原来在主线程里对每个文件解一次，文件多会卡）
                     val durs = LongArray(uris.size) { probeUriDuration(uris[it]) }
                     ui {
-                        val failNote = if (r.fail > 0) "（" + r.fail + " 个无法解析，已跳过）" else ""
+                        val failNote = if (r.fail > 0) getString(R.string.skipped_note, r.fail) else ""
                         val each = StringBuilder()
                         for (i in uris.indices) {
                             val d = durs[i]
                             if (i > 0) each.append("   ")
                             each.append("[").append(i + 1).append("] ").append(if (d > 0) fmtDur(d) else "?")
                         }
-                        createFileTv?.text = "已合并 " + r.ok + " 个文件" + failNote + " · 合计 " +
-                                fmtDur(r.durMs) + " · " + (dst.length() / 1024) + " KB\n" + each
-                        createStatus?.text = "✅ 素材就绪"
+                        createFileTv?.text = getString(R.string.merged_summary, r.ok, failNote, fmtDur(r.durMs), dst.length() / 1024) + "\n" + each
+                        createStatus?.text = getString(R.string.material_ready)
                         if ((createPrefixEt?.text?.toString() ?: "").isBlank()) {
                             createPrefixEt?.setText(suggestPrefix(displayNameOf(uris[0]) ?: "merged"))
                         }
                     }
                 }
             } catch (e: Exception) {
-                ui { createStatus?.text = "❌ 合并失败：" + (e.message ?: "") }
+                ui { createStatus?.text = getString(R.string.merge_fail, e.message ?: "") }
             }
         }.start()
     }
 
     private fun importSample(uri: Uri) {
-        createStatus?.text = "读取样本中…"
+        createStatus?.text = getString(R.string.reading_sample)
         Thread {
             var tmp: File? = null
             try {
@@ -2722,7 +2721,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val dst = File(cacheDir, "voice_sample_" + System.currentTimeMillis() + "." + ext)
                 tmp = dst
-                val ins = contentResolver.openInputStream(uri) ?: throw Exception("无法打开所选文件")
+                val ins = contentResolver.openInputStream(uri) ?: throw Exception(getString(R.string.open_file_fail))
                 ins.use { input ->
                     dst.outputStream().use { out ->
                         val buf = ByteArray(256 * 1024)
@@ -2732,7 +2731,7 @@ class MainActivity : AppCompatActivity() {
                             if (n < 0) break
                             total += n
                             if (total > MAX_SAMPLE_BYTES) {
-                                throw Exception("文件过大（超过 " + (MAX_SAMPLE_BYTES / 1024 / 1024) + " MB）")
+                                throw Exception(getString(R.string.file_too_big, MAX_SAMPLE_BYTES / 1024 / 1024))
                             }
                             out.write(buf, 0, n)
                         }
@@ -2743,9 +2742,9 @@ class MainActivity : AppCompatActivity() {
                 pendingSampleDurMs = durMs
                 pendingSampleMime = mime
                 ui {
-                    createFileTv?.text = dn + " · " + (if (durMs > 0) fmtDur(durMs) else "时长未知") +
+                    createFileTv?.text = dn + " · " + (if (durMs > 0) fmtDur(durMs) else getString(R.string.dur_unknown)) +
                             " · " + (dst.length() / 1024) + " KB"
-                    createStatus?.text = "✅ 素材就绪"
+                    createStatus?.text = getString(R.string.material_ready)
                     if ((createPrefixEt?.text?.toString() ?: "").isBlank()) {
                         createPrefixEt?.setText(suggestPrefix(dn))
                     }
@@ -2753,7 +2752,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 tmp?.delete()
                 pendingSample = null
-                ui { createStatus?.text = "❌ 读取失败：" + (e.message ?: "") }
+                ui { createStatus?.text = getString(R.string.read_fail, e.message ?: "") }
             }
         }.start()
     }
@@ -2783,37 +2782,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun doCreateVoice() {
         val sample = pendingSample ?: run {
-            createStatus?.text = "❌ 请先选择音频样本"
+            createStatus?.text = getString(R.string.fail_no_sample)
             return
         }
         if (!sample.exists()) {
-            createStatus?.text = "❌ 样本文件不存在，请重新选择"
+            createStatus?.text = getString(R.string.fail_sample_missing)
             return
         }
         if (pendingSampleDurMs > 300000) {
-            createStatus?.text = "❌ 样本超过 5 分钟，请减少素材后再来"
+            createStatus?.text = getString(R.string.fail_sample_long)
             return
         }
         val prefix = (createPrefixEt?.text?.toString() ?: "").trim().lowercase(Locale.US)
         val nonBailian = TtsProviders.byId(store.providerId)?.id != "aliyun-bailian"
         if (!nonBailian && !Regex("^[a-z0-9]{1,10}$").matches(prefix)) {
-            createStatus?.text = "❌ 前缀需为 1~10 位小写字母/数字"
+            createStatus?.text = getString(R.string.fail_prefix)
             return
         }
         val name = (createNameEt?.text?.toString() ?: "").trim().ifEmpty { prefix }
         val key = cloneKey()
         if (key.isEmpty()) {
-            createStatus?.text = "❌ 请先在「设置 → 模型」填写该厂商的 API Key"
+            createStatus?.text = getString(R.string.fail_need_key_create)
             return
         }
         val ws = store.workspace.trim().ifEmpty { "ws-9y8n1gp7w6pg23tv" }
         val model = store.lastModel.trim().ifEmpty { "cosyvoice-v3.5-plus" }
         val posBtn = createDlg?.getButton(DialogInterface.BUTTON_POSITIVE)
         posBtn?.isEnabled = false
-        createStatus?.text = "编码样本…"
+        createStatus?.text = getString(R.string.encoding_sample)
 
         // 复刻可能要好几十秒：前台服务把进程钉住，切后台也不断
-        KeepAliveService.start(this, "正在克隆音色…（可以切到后台等）")
+        KeepAliveService.start(this, getString(R.string.keepalive_clone))
 
         Thread {
             try {
@@ -2823,7 +2822,7 @@ class MainActivity : AppCompatActivity() {
                         store.providerBaseUrl(store.providerId),
                         store.providerKey(store.providerId).ifBlank { store.apiKey },
                         sample.readBytes(),
-                        name.ifBlank { "自建音色" },
+                        name.ifBlank { getString(R.string.voice_self) },
                         "private"
                     )
                     ui {
@@ -2833,14 +2832,14 @@ class MainActivity : AppCompatActivity() {
                         syncVoiceUi()
                         if (createDlg?.isShowing == true) createDlg?.dismiss()
                         KeepAliveService.stop(this)
-                        toast("音色已创建（Fish Audio）")
+                        toast(getString(R.string.fish_created))
                     }
                     return@Thread
                 }
 
                 val b64 = Base64.encodeToString(sample.readBytes(), Base64.NO_WRAP)
                 val dataUri = "data:" + pendingSampleMime + ";base64," + b64
-                ui { createStatus?.text = "上传创建中…（几秒到几十秒）" }
+                ui { createStatus?.text = getString(R.string.uploading_create) }
                 client.createVoice(key, ws, model, prefix, dataUri, onResult = { vid ->
                     ui {
                         customVoices.add(CustomVoice(vid, name, prefix, System.currentTimeMillis()))
@@ -2849,8 +2848,8 @@ class MainActivity : AppCompatActivity() {
                         syncVoiceUi()
                         if (createDlg?.isShowing == true) createDlg?.dismiss()
                         KeepAliveService.stop(this)
-                        toast("✅ 音色已创建：" + name)
-                        tvStatus.text = "✅ 音色已创建并选中：" + name
+                        toast(getString(R.string.created_ok, name))
+                        tvStatus.text = getString(R.string.created_selected, name)
                     }
                 }, onError = { msg ->
                     ui {
@@ -2862,7 +2861,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 ui {
                     KeepAliveService.stop(this)
-                    createStatus?.text = "❌ " + (e.message ?: "创建失败")
+                    createStatus?.text = "❌ " + (e.message ?: getString(R.string.create_failed))
                     posBtn?.isEnabled = true
                 }
             }
@@ -2939,7 +2938,7 @@ class MainActivity : AppCompatActivity() {
     private fun fmtNum(v: Double): String = String.format(Locale.US, "%.2f", v)
 
     private fun fmtDur(ms: Long): String =
-        if (ms <= 0) "未知" else String.format(Locale.US, "%.1f 秒", ms / 1000.0)
+        if (ms <= 0) getString(R.string.rec_unknown) else String.format(Locale.US, getString(R.string.dur_fmt), ms / 1000.0)
 
     /** 崩溃兜底：把未捕获异常写到本机，下次进来自动提示"可复制" */
     private fun installCrashGuard() {
@@ -2947,7 +2946,7 @@ class MainActivity : AppCompatActivity() {
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             try {
                 java.io.File(filesDir, "crash.txt").writeText(
-                    "时间：" + java.util.Date() + "\n" + android.util.Log.getStackTraceString(e)
+                    getString(R.string.crash_time, java.util.Date().toString()) + "\n" + android.util.Log.getStackTraceString(e)
                 )
             } catch (x: Exception) {
                 // ignore
@@ -2968,12 +2967,12 @@ class MainActivity : AppCompatActivity() {
         f.delete()
         if (text.isBlank()) return
         val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("上次运行时出了点问题")
+            .setTitle(getString(R.string.crash_title))
             .setMessage(text.take(600))
-            .setPositiveButton("复制错误信息") { _, _ ->
+            .setPositiveButton(getString(R.string.crash_copy)) { _, _ ->
                 Clip.copy(this, text, "crash")
             }
-            .setNegativeButton("知道了", null)
+            .setNegativeButton(getString(R.string.common_got_it), null)
             .create()
         dlg.setOnShowListener { skinDialog(dlg) }
         dlg.show()
