@@ -83,7 +83,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="3dp"
                 android:baselineAligned="false"
                 android:clipChildren="false"
                 android:clipToPadding="false"
@@ -408,12 +408,26 @@
 
                 <TextView style="@style/VtLabel" android:text="模型不支持的参数会自动置灰" />
 
-                <TextView style="@style/VtLabel" android:text="输出格式（各家支持不同；下拉只列当前厂商支持的）" />
-                <Spinner
-                    android:id="@+id/spFormat"
+                <!-- 输出格式：**一行** —— 左「输出格式」，右当前值 + 下拉（用户 2026-10-05：不要那句长提示） -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/VtLabel"
+                        android:layout_marginTop="0dp"
+                        android:text="输出格式" />
+
+                    <Spinner
+                        android:id="@+id/spFormat"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1" />
+                </LinearLayout>
 
                 <TextView style="@style/VtLabel" android:text="API 密钥（sk-ws-…；仅存本机，改完即生效）" android:visibility="gone" />
 
