@@ -180,35 +180,26 @@ class SettingsActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-        // 首帧先行：当前页（模型 / 语音）需要的同步建；**其它页的重活延后一拍再建**
-        // —— 修「主页 → 设置页 先卡一下、再猛地推过来」（用户 2026-10-05）
+        // 首帧只做"壳"：绑定接口 + 坞 + 保存键；**页面内容改为"用到才建"**（见 buildPage）
+        // —— 修「主页 → 设置页：开头没反应 / 中间有反应 / 后面又没反应」（用户 2026-10-06）
         bindInterface()
         buildDock()
-        buildProviders()
         btnSaveAll.setOnClickListener { saveAll() }
         applyThemeTab()
-        selectPage(0)
+        selectPage(0, animate = false)   // 第一屏交给"窗口转场"整页淡入，内容自己不再动
         applyPageShift()
-        window.decorView.post {
-            setupIconWorkshop()      // 必须放在 findViewById 之后（否则 lateinit 未初始化 → 崩）
-            buildCatChips()
-            renderPalettes()
-            renderIndicatorColors()
-            bindWallpaper()
-            renderFontScaleChips()
-            buildVoices()
-            buildRecords()
-            bindAbout()
-        }
+        // 转场结束后**空闲时逐页预建**：既不阻塞进入动画，又不会"切一页卡一下"（用户 2026-10-06 的顾虑）
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        for (p in 1..4) h.postDelayed({ if (!isFinishing && !isDestroyed) buildPage(p) }, 280L + p * 170L)
     }
 
     override fun onResume() {
         super.onResume()
         applyLook()
-        // Store = 唯一数据源：首页/本页任何增删改（音色、记录）回来即同步
-        buildVoices()
-        buildProviders()
-        buildRecords()
+        // Store = 唯一数据源：只**重建已建过的页**（没切到过的页不必建，省一次卡顿）
+        if (pageBuilt[0]) buildProviders()
+        if (pageBuilt[1]) buildVoices()
+        if (pageBuilt[3]) buildRecords()
     }
 
     private fun applyLook() {
@@ -244,6 +235,29 @@ class SettingsActivity : AppCompatActivity() {
     private var eqBars: EqBarsView? = null
     private val dockLabels = mutableListOf<TextView>()
     private var selectedPage = 0
+
+    /** 哪些页**已经建过内容**（用到才建）。一进设置页只建"模型页"，其余等你切过去才建 → 转场不卡 */
+    private val pageBuilt = BooleanArray(5)
+
+    /** 切到某页时，第一次才把它的内容建出来（一次建一页，比"一次建 5 页"轻得多） */
+    private fun buildPage(i: Int) {
+        if (i !in pageBuilt.indices || pageBuilt[i]) return
+        pageBuilt[i] = true
+        when (i) {
+            0 -> buildProviders()
+            1 -> buildVoices()
+            2 -> {
+                setupIconWorkshop()      // 合成图标位图，较重 → 只在这一页建
+                buildCatChips()
+                renderPalettes()
+                renderIndicatorColors()
+                bindWallpaper()
+                renderFontScaleChips()
+            }
+            3 -> buildRecords()
+            4 -> bindAbout()
+        }
+    }
 
     private fun dp(px: Float): Int = (px * resources.displayMetrics.density).toInt()
 
@@ -306,16 +320,26 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun selectPage(i: Int) {
+    private fun selectPage(i: Int, animate: Boolean = true) {
         selectedPage = i
+        buildPage(i)          // 用到才建（首次切到这一页才建它的内容）
         val pages = listOf(pageModel, pageVoice, pageTheme, pageRecords, pageAbout)
         val d = resources.displayMetrics.density
         pages.forEachIndexed { idx, v ->
             if (idx == i) {
                 v.visibility = View.VISIBLE
-                v.translationX = 24f * d
-                v.alpha = 0f
-                v.animate().translationX(0f).alpha(1f).setDuration(180).start()
+                if (animate) {
+                    // 页内切页：小位移 + 淡入（**只有页内切页才动**）
+                    v.translationX = 24f * d
+                    v.alpha = 0f
+                    v.animate().translationX(0f).alpha(1f).setDuration(180).start()
+                } else {
+                    // ⚠️ 进设置页的**第一屏不要自己动** —— 否则内容动画和窗口转场（整页淡入）叠一起，
+                    //    看着"有的卡片从左抖、有的元素只淡入"，很不自然（用户 2026-10-06）
+                    v.translationX = 0f
+                    v.alpha = 1f
+                    v.animate().cancel()
+                }
             } else {
                 v.visibility = View.GONE
             }
