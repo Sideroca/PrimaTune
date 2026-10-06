@@ -128,6 +128,8 @@ object Skin {
     private val T_WHITE = 0xFFFFFFFF.toInt()
 
     private fun visit(v: View, c: Colors, d: Float) {
+        // 水波（点按特效）颜色跟主题：TapFx 装的时候写死了当时的 accent → 每次换肤重装一遍
+        if (v.foreground is android.graphics.drawable.RippleDrawable) TapFx.retintRipple(v, c.acc)
         when (v) {
             is SeekBar -> {
                 v.progressTintList = ColorStateList.valueOf(c.acc)

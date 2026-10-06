@@ -62,7 +62,8 @@ object TapFx {
                     if (r != null) {
                         val a = IntArray(2); view.getLocationInWindow(a)
                         val b = IntArray(2); r.getLocationInWindow(b)
-                        spark(r, a[0] - b[0] + e.x, a[1] - b[1] + e.y, accent)
+                        // ⚠️ 星点颜色**按下这一刻现取**（不用闭包里捕获的 accent）——否则换主题后它还是旧色
+                        spark(r, a[0] - b[0] + e.x, a[1] - b[1] + e.y, Skin.colors(view.context).acc)
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
@@ -78,6 +79,14 @@ object TapFx {
 
     private fun installRipple(v: View, accent: Int) {
         if (v.foreground != null) return
+        retintRipple(v, accent)
+    }
+
+    /**
+     * **重装**水波（即使已经有 foreground 也重装）——换肤时由 `Skin.apply` 调用，
+     * 否则水波里写死的是"装上那一刻"的主题色，换主题后不会跟着变（用户 2026-10-06 报的 bug）。
+     */
+    fun retintRipple(v: View, accent: Int) {
         val color = (accent and 0x00FFFFFF) or (0x33 shl 24)          // accent @20%
         val mask = v.background?.constantState?.newDrawable()?.mutate() // 水波裁成按钮圆角形状
         v.foreground = RippleDrawable(ColorStateList.valueOf(color), null, mask)
