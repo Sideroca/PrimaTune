@@ -44,17 +44,19 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- 品牌图标：用户提供的圆形声波图（切成圆形透明 PNG，随主题背景都干净） -->
+                <!-- 品牌图标：24dp（与 20sp 中文行齐平，**不再超出第 1 行**）；顶对齐到中文那一行 -->
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="top"
+                    android:layout_marginTop="2dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_brand" />
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     android:orientation="vertical">
 
                     <TextView

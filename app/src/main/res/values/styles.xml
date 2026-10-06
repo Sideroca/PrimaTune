@@ -7,8 +7,8 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
-        <!-- 内距 14→11→9→7dp：用户 2026-10-05/06 两次要求"再接近边缘一点"（高度变矮可接受） -->
-        <item name="android:padding">7dp</item>
+        <!-- 内距 14→11→9→7→6dp：用户 2026-10-05/06 三次要求"再接近边缘一点"（高度变矮可接受） -->
+        <item name="android:padding">6dp</item>
         <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtLabel">
