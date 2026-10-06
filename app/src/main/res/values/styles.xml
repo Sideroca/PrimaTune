@@ -8,11 +8,11 @@
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
         <!-- ⚠️ 只收"上边"！左右 12dp（用户 2026-10-06：左右被压到 6dp 太逼仄）
-             顶距 = paddingTop 7dp（用户 2026-10-06 指定：5dp 太贴、改 7dp）；
+             顶距 = paddingTop 8dp（用户 2026-10-06 指定：5dp 太贴、改 8dp（2026-10-06 再 +1dp））；
              卡片里第一个元素的上边距由 LayoutFix 清零，所以顶距就是 7dp、不再叠加 -->
         <item name="android:paddingStart">12dp</item>
         <item name="android:paddingEnd">12dp</item>
-        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingTop">8dp</item>
         <item name="android:paddingBottom">10dp</item>
         <item name="android:layout_marginTop">10dp</item>
     </style>

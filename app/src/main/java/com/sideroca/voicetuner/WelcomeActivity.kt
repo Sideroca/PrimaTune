@@ -55,22 +55,50 @@ class WelcomeActivity : AppCompatActivity() {
         }
         root.addView(sub)
 
+        // 每一行 = 「固定宽度的旗盒（居中）」＋「文字」，行内垂直居中；
+        // 行宽一致 → 国旗成一列、文字成一列，彻底对齐（不再把国旗塞进同一个 TextView）
+        val listW = minOf(dp(300), resources.displayMetrics.widthPixels - dp(48))
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(listW, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        val flagBox = dp(40)
         for (l in langs) {
-            val row = TextView(this).apply {
-                text = l.flag + "    " + l.name
-                setTextColor(0xFF1F2329.toInt())
-                textSize = 17f
-                gravity = Gravity.CENTER
-                setPadding(0, dp(14), 0, dp(14))
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), 0, dp(12), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(56)
+                ).apply { topMargin = dp(10) }
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat(); setColor(0x0A1F2329)
+                }
                 isClickable = true
                 isFocusable = true
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(8) }
             }
+            val flag = TextView(this).apply {
+                text = l.flag
+                textSize = 22f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                layoutParams = LinearLayout.LayoutParams(flagBox, flagBox)
+            }
+            val name = TextView(this).apply {
+                text = l.name
+                textSize = 17f
+                gravity = Gravity.START
+                includeFontPadding = false
+                setTextColor(0xFF1F2329.toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginStart = dp(10) }
+            }
+            row.addView(flag); row.addView(name)
             row.setOnClickListener { pick(l.code) }
-            root.addView(row)
+            list.addView(row)
         }
+        root.addView(list)
         setContentView(root)
     }
 

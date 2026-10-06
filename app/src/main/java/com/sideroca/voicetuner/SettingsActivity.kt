@@ -95,7 +95,7 @@ class SettingsActivity : AppCompatActivity() {
         Loc.apply(this)          // 界面语言（per-app locale）
         setContentView(R.layout.activity_settings)
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
-        LayoutFix.flattenCardFirstTop(window.decorView, dp(7f))
+        LayoutFix.flattenCardFirstTop(window.decorView, dp(8f))
         store = Store(this)
         store.hidePresetVoicesOnce()
         // 「本机原色」已下线：老设备若存的是空主题，兜底迁移到默认竹青
@@ -2146,32 +2146,64 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         line(getString(R.string.about_3), c.dim)
         divider()
         label(getString(R.string.lang_title))
-        val langRow = LinearLayout(this)
-        langRow.orientation = LinearLayout.HORIZONTAL
-        langRow.setPadding(0, dp(6f), 0, 0)
-        for ((name, code) in Loc.OPTIONS) {
-            val on = store.lang == code
-            val tv = TextView(this)
-            tv.text = name
-            tv.textSize = 12.5f
-            tv.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            tv.background = Skin.shapeDp(this, if (on) c.sel else c.card2, if (on) c.sel else c.line, 8f, 100, 1f)
-            tv.setTextColor(if (on) c.onAcc else c.dim)
-            tv.tag = "bg:keep"
-            tv.isClickable = true
-            tv.isFocusable = true
-            fx(tv)
-            tv.setOnClickListener { Loc.set(this, code) }
-            tv.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { rightMargin = dp(8f) }
-            langRow.addView(tv)
-        }
-        llTips.addView(langRow)
+        // 语言：**下拉式**（当前值 + ▾，点开选择列表）——一排芯片放不下会被挤成竖排
+        val langPick = TextView(this)
+        val curLangName = Loc.OPTIONS.firstOrNull { it.second == store.lang }?.first ?: Loc.OPTIONS.first().first
+        langPick.text = curLangName + "  ▾"
+        langPick.textSize = 14f
+        langPick.setTextColor(c.txt)
+        langPick.setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+        langPick.background = Skin.shapeDp(this, c.card2, c.line, 10f, 100, 1f)
+        langPick.tag = "bg:keep"
+        langPick.isClickable = true
+        langPick.isFocusable = true
+        fx(langPick)
+        langPick.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(6f) }
+        langPick.setOnClickListener { showLangPick(langPick) }
+        llTips.addView(langPick)
     }
 
     /** 破坏性动作（删除）的强调色：**跟随主题**（用户 2026-10-05：不要固定的红） */
     private fun dangerColor(): Int = Skin.colors(this).acc
+
+    /** 语言选择**下拉**（与音色/筛选弹窗同一套自绘风格） */
+    private fun showLangPick(anchor: View) {
+        val c = Skin.colors(this)
+        var pop: android.widget.PopupWindow? = null
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        for ((name, code) in Loc.OPTIONS) {
+            val tv = TextView(this)
+            val on = store.lang == code
+            tv.text = (if (on) "✓ " else "　 ") + name
+            tv.setTextColor(if (on) c.acc else c.txt)
+            tv.textSize = 14f
+            tv.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener { pop?.dismiss(); Loc.set(this, code) }
+            box.addView(tv)
+        }
+        val sc = ScrollView(this)
+        sc.isVerticalScrollBarEnabled = false
+        sc.addView(box)
+        val panel = LinearLayout(this)
+        panel.orientation = LinearLayout.VERTICAL
+        panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
+        panel.setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+        panel.addView(sc)
+        val w = minOf(dp(240f), resources.displayMetrics.widthPixels - dp(32f))
+        val h = minOf(dp(300f), dp(12f) + dp(46f) * Loc.OPTIONS.size)
+        pop = android.widget.PopupWindow(panel, w, h, true)
+        pop.inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        pop.elevation = dp(8f).toFloat()
+        pop.showAsDropDown(anchor, 0, dp(2f))
+    }
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

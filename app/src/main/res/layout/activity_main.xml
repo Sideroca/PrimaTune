@@ -716,7 +716,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v1.10.1 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v1.2 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>
