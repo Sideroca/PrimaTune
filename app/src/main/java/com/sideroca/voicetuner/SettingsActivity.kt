@@ -94,7 +94,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
-        LayoutFix.flattenCardFirstTop(window.decorView, dp(5f))
+        LayoutFix.flattenCardFirstTop(window.decorView, dp(7f))
         store = Store(this)
         store.hidePresetVoicesOnce()
         // 「本机原色」已下线：老设备若存的是空主题，兜底迁移到默认竹青
