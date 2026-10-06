@@ -7,7 +7,8 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/bg_card</item>
-        <item name="android:padding">11dp</item>
+        <!-- 内距 14→11→9dp：用户 2026-10-05 反馈"大部分卡片离边还是太远"（高度变矮可接受） -->
+        <item name="android:padding">9dp</item>
         <item name="android:layout_marginTop">10dp</item>
     </style>
     <style name="VtLabel">
@@ -15,9 +16,8 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/dim</item>
         <item name="android:textSize">13sp</item>
-        <!-- 上边距 10→5dp：卡片里"内距 11 + 标签上距 10 = 21dp"太远（用户 2026-10-05）；
-             收成 5dp → 顶距 16dp，既上移又不贴边 -->
-        <item name="android:layout_marginTop">5dp</item>
+        <!-- 上边距 10→5→2dp：卡片里"内距 + 标签上距"叠起来太远（用户 2026-10-05 两次要求再收紧） -->
+        <item name="android:layout_marginTop">2dp</item>
     </style>
     <style name="VtInput">
         <item name="android:layout_width">match_parent</item>

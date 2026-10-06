@@ -10,3 +10,4 @@ captures/
 .kotlin/
 tools/*
 !tools/preflight_check.py
+!tools/publish_preview.py
