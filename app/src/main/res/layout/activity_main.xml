@@ -41,23 +41,38 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <TextView
+                <!-- 品牌图标：用户提供的圆形声波图（切成圆形透明 PNG，随主题背景都干净） -->
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_brand" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🎛️ 玲珑调音"
-                    android:textColor="@color/txt"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:letterSpacing="0.12"
-                    android:text="Prima Tune"
-                    android:textColor="@color/dim"
-                    android:textSize="11sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="玲珑调音"
+                        android:textColor="@color/txt"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.12"
+                        android:text="Prima Tune"
+                        android:textColor="@color/dim"
+                        android:textSize="11sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView
