@@ -233,8 +233,8 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 分页 + 坞
 
-    private val pageTitles = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
-    private val dockDefs = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
+    private val pageTitles get() = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
+    private val dockDefs get() = listOf(getString(R.string.tab_model), getString(R.string.tab_voice), getString(R.string.tab_theme), getString(R.string.tab_records), getString(R.string.tab_about))
     /** 坞图标：手绘矢量（统一 24dp 画布/线宽），跨机型一致、跟主题变色 */
     private val dockIconRes = intArrayOf(
         R.drawable.ic_tab_model, R.drawable.ic_tab_voice, R.drawable.ic_tab_theme,
@@ -1107,7 +1107,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     // ---------------------------------------------------------------- 当前音色指示符颜色
-    private val indicatorOptions = listOf(
+    private val indicatorOptions get() = listOf(
         getString(R.string.ind_blue) to "#2E8FFF",
         getString(R.string.ind_pink) to "#FFAFC5",
         getString(R.string.ind_green) to "#2FE39B",
@@ -1769,7 +1769,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     // ---------------------------------------------------------------- 快捷图标工坊（仿闪译）
     /** 内置图标样式（App 自身图标 + 桌面入口都能用） */
-    private val iconStyles = listOf(
+    private val iconStyles get() = listOf(
         "default" to getString(R.string.icon_style_default),
         "a" to getString(R.string.icon_style_a),          // 原「银环比」→ 旋钮图（用户 2026-10-06）
         "b" to getString(R.string.icon_style_b),          // 原「白方框」→ 红玫瑰（方形图，取景时点一下即可完整框住）
