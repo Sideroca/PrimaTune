@@ -27,7 +27,7 @@
     <string name="rec_empty">No records yet</string>
     <string name="rec_unknown">Unknown</string>
     <string name="rec_sec">%.1f s</string>
-    <string name="rec_meta">%1$s · %2$s · %3$s · %4$s · %5$d chars</string>
+    <string name="rec_meta">%1$s · %2$s · %3$s · %4$s · %5$d words</string>
     <string name="rec_detail">Speed %1$s · Pitch %2$s · Volume %3$d · Model %4$s · 🎲 %5$d</string>
     <string name="rec_play">▶ Play</string>
     <string name="rec_download">Download</string>

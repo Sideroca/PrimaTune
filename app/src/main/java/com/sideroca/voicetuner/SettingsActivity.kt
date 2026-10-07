@@ -953,7 +953,7 @@ class SettingsActivity : AppCompatActivity() {
             val durStr = if (t.durationMs > 0)
                 String.format(java.util.Locale.US, getString(R.string.rec_sec), t.durationMs / 1000.0)
             else getString(R.string.rec_unknown)
-            b.text = getString(R.string.rec_meta, fmt.format(java.util.Date(t.createdAt)), t.voiceName, t.format, durStr, t.text.length)
+            b.text = getString(R.string.rec_meta, fmt.format(java.util.Date(t.createdAt)), t.voiceName, t.format, durStr, charCount(t.text))
             b.setTextColor(c.dim)
             b.textSize = recScale(11.5f)
             b.layoutParams = LinearLayout.LayoutParams(

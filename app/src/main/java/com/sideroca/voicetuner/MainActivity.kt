@@ -1894,7 +1894,7 @@ class MainActivity : AppCompatActivity() {
         // 常驻信息：时间 · 音色 · 格式 · 字数 · 时长（🎲 与语速/音调/音量/模型都收进「属性」）
         val meta = TextView(this)
         val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
-        meta.text = getString(R.string.rec_meta, time, take.voiceName, take.format, fmtDur(take.durationMs), take.text.length)        // 时长在左、字数最右
+        meta.text = getString(R.string.rec_meta, time, take.voiceName, take.format, fmtDur(take.durationMs), charCount(take.text))        // 时长在左、字数最右
         meta.setTextColor(cDim)
         meta.textSize = recScale(12f)
         meta.setPadding(0, dp(3), dp(12), dp(6))
