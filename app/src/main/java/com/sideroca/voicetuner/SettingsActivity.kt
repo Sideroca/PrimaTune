@@ -534,6 +534,17 @@ class SettingsActivity : AppCompatActivity() {
             head.addView(act)
             box.addView(head)
 
+            // 「提示词」：给这个音色写角色人设（喂给 AI，不发给 TTS）——写在音色页，方便**逐个音色提前写好**
+            val roleBtn = TextView(this)
+            roleBtn.text = if (store.rolePrompt(id).isNotBlank()) getString(R.string.role_edit) + " ✓" else getString(R.string.role_edit)
+            roleBtn.setTextColor(c.acc)
+            roleBtn.textSize = 14f
+            roleBtn.setPadding(dp(12f), dp(6f), dp(4f), dp(6f))
+            roleBtn.isClickable = true
+            roleBtn.isFocusable = true
+            fx(roleBtn)
+            roleBtn.setOnClickListener { openRolePromptDialog(id, name) }
+            head.addView(roleBtn)
             val idv = TextView(this)
             idv.text = id
             idv.setTextColor(c.hint)
@@ -2351,6 +2362,33 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         pop.elevation = dp(8f).toFloat()
         pop.showAsDropDown(anchor, 0, dp(2f))
+    }
+
+    /** 逐个音色写「角色提示词」（设置 → 音色页 用） */
+    private fun openRolePromptDialog(id: String, name: String) {
+        val c = Skin.colors(this)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20f), dp(6f), dp(20f), dp(4f)) }
+        box.addView(TextView(this).apply {
+            text = getString(R.string.role_desc, name.ifBlank { "该音色" }); setTextColor(c.dim); textSize = 12f
+        })
+        val et = EditText(this).apply {
+            setText(store.rolePrompt(id)); hint = getString(R.string.role_hint)
+            textSize = 14f; minLines = 3
+            setTextColor(c.txt); setHintTextColor(c.hint)
+            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+        }
+        box.addView(et)
+        val sc = ScrollView(this); sc.addView(box)
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(name.ifBlank { getString(R.string.role_title) })
+            .setView(sc)
+            .setPositiveButton(getString(R.string.alarm_save)) { _, _ ->
+                store.setRolePrompt(id, et.text.toString().trim())
+                buildVoices()
+                toast(getString(R.string.role_saved))
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null).create()
+        d.setOnShowListener { skinDialog(d) }; d.show()
     }
 
     private fun toast(msg: String) {
