@@ -126,6 +126,8 @@ class MainActivity : AppCompatActivity() {
     private val MAX_SAMPLE_BYTES = 15L * 1024 * 1024
     /** 本地记录首屏最多渲染多少条（其余点「显示全部」再看）——直接决定冷启动要建多少 View */
     private val HISTORY_PREVIEW = 25
+    /** 每次「显示更多」**再**追加多少条（渐进加载，避免一次建上千个 View） */
+    private val HISTORY_PAGE = 100
     private var createDlg: AlertDialog? = null
     private var createFileTv: TextView? = null
     private var createStatus: TextView? = null
@@ -174,7 +176,7 @@ class MainActivity : AppCompatActivity() {
     private var filterVoiceId: String? = null
 
     /** 本地记录是否已展开全部（默认只渲染最近 HISTORY_PREVIEW 条） */
-    private var historyExpanded = false
+    private var historyShown = HISTORY_PREVIEW
 
     /** 当前音色（自绘选择器）：voiceIsCustom = 选了「自定义音色 ID…」 */
     private var currentVoiceId: String = ""
@@ -1786,35 +1788,51 @@ class MainActivity : AppCompatActivity() {
             llHistory.addView(tv)
             return
         }
-        // 首屏只建最近 25 条：冷启动不必为几十上百条记录创建上千个 View
-        val shown = if (historyExpanded) list else list.take(HISTORY_PREVIEW)
-        for (t in shown) {
-            llHistory.addView(buildRow(t))
-        }
-        if (list.size > HISTORY_PREVIEW) {
-            val more = TextView(this)
-            more.text = if (historyExpanded) getString(R.string.hist_collapse, HISTORY_PREVIEW)
-            else getString(R.string.hist_show_all, list.size)
-            more.setTextColor(cDim)
-            more.textSize = 13f
-            more.gravity = Gravity.CENTER
-            // 判定范围 = 一整条长条（卡片整宽 × 约 42dp 高）：字小、靶大，且与相邻行/按钮不重叠
-            // 底部留白比顶部小 40%：卡片底边到文字的距离比原来近 20%
-            more.setPadding(dp(12), dp(15), dp(12), dp(9))
-            // 用**跟随主题**的水波 —— 原来用系统 selectableItemBackground，会吃系统高亮色（不跟主题）
-            more.isClickable = true
-            more.isFocusable = true
-            fx(more, llHistory)
-            more.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            more.setOnClickListener {
-                historyExpanded = !historyExpanded
-                renderHistory()
-            }
-            llHistory.addView(more)
-        }
+        // 首屏只建最近 25 条；之后每次「显示更多」**再追加 100 条**（增量，不重建已建行）——
+        // 记录成百上千条时，避免一次建出上千个 View 造成卡顿
+        historyShown = minOf(HISTORY_PREVIEW, list.size)
+        appendHistoryRange(list, 0, historyShown)
+        if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
         Skin.apply(llHistory, Skin.colors(this))
+    }
+
+    /** 追加 [from, until) 区间的记录行（增量） */
+    private fun appendHistoryRange(list: List<Take>, from: Int, until: Int) {
+        for (i in from until until) llHistory.addView(buildRow(list[i]))
+    }
+
+    /** 底部「显示更多 / 收起」行：点一次**再展开 100 条**；到底再点＝收起 */
+    private fun buildHistoryMoreRow(list: List<Take>): TextView {
+        val more = TextView(this)
+        fun refreshText() {
+            more.text = if (historyShown >= list.size) getString(R.string.hist_collapse, HISTORY_PREVIEW)
+                        else getString(R.string.hist_show_more, minOf(HISTORY_PAGE, list.size - historyShown), list.size)
+        }
+        refreshText()
+        more.setTextColor(cDim)
+        more.textSize = 13f
+        more.gravity = Gravity.CENTER
+        more.setPadding(dp(12), dp(15), dp(12), dp(9))
+        more.isClickable = true
+        more.isFocusable = true
+        fx(more, llHistory)
+        more.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        more.setOnClickListener {
+            if (historyShown >= list.size) {
+                renderHistory()                     // 「收起」→ 回到首屏 25 条
+                return@setOnClickListener
+            }
+            val idx = llHistory.indexOfChild(more)
+            val next = minOf(historyShown + HISTORY_PAGE, list.size)
+            var at = idx
+            for (i in historyShown until next) { llHistory.addView(buildRow(list[i]), at); at++ }
+            historyShown = next
+            refreshText()
+            Skin.apply(llHistory, Skin.colors(this))   // 给新行上色
+        }
+        return more
     }
 
     /** 记录卡字号缩放：只作用在**标题 / 信息 / 详情**上（小按钮一律不动，用户 2026-10-05） */
@@ -2064,7 +2082,6 @@ class MainActivity : AppCompatActivity() {
                 takes.forEach { store.deleteFile(it) }
                 takes.clear()
                 filterVoiceId = null
-                historyExpanded = false
                 store.saveTakes(takes)
                 currentTake = null
                 cardResult.visibility = View.GONE
@@ -2391,7 +2408,6 @@ class MainActivity : AppCompatActivity() {
             fx(tv)
             tv.setOnClickListener {
                 filterVoiceId = id
-                historyExpanded = false
                 renderHistory()
                 pop?.dismiss()
             }

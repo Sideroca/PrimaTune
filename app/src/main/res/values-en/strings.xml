@@ -339,4 +339,5 @@
     <string name="first_run_hint">首次使用：请点右上角「设置」填入 API Key（可从剪贴板粘贴）</string>
     <string name="role_hint">如：拉普兰德——狼群出身的赏金猎人，语气慵懒，带点挑衅与笑意</string>
     <string name="st_pause">⏸ 暂停</string>
+    <string name="hist_show_more">Show more (%1$d more · %2$d total)</string>
 </resources>

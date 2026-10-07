@@ -339,4 +339,5 @@
     <string name="first_run_hint">初回：右上の「設定」で API キーを入力してください（クリップボードから貼り付け可）</string>
     <string name="role_hint">例：ラップランド——狼群出身の賞金稼ぎ。慵懒な口調に、少しの挑発と笑み</string>
     <string name="st_pause">⏸ 一時停止</string>
+    <string name="hist_show_more">더 보기 (%1$d개 더 · 총 %2$d개)</string>
 </resources>

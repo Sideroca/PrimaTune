@@ -84,55 +84,6 @@ class CropActivity : AppCompatActivity() {
             return tv
         }
 
-        // 缩放滑条（100–400%）＋「重置适配」——《夕汀前端规范》§2.2 要求，之前漏了
-        val zoomBar = LinearLayout(this)
-        zoomBar.orientation = LinearLayout.HORIZONTAL
-        zoomBar.gravity = Gravity.CENTER_VERTICAL
-        zoomBar.setPadding((20 * d).toInt(), 0, (20 * d).toInt(), 0)
-
-        val zLabel = TextView(this)
-        zLabel.text = "缩放"
-        zLabel.textSize = 13f
-        zLabel.setTextColor(0xFFCCCCCC.toInt())
-        zoomBar.addView(zLabel)
-
-        val zSeek = SeekBar(this)
-        zSeek.max = 300                       // 0..300 → 100%..400%
-        zSeek.progress = 0
-        zoomBar.addView(
-            zSeek,
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { marginStart = (10 * d).toInt(); marginEnd = (10 * d).toInt() }
-        )
-
-        val zVal = TextView(this)
-        zVal.text = "100%"
-        zVal.textSize = 13f
-        zVal.setTextColor(0xFFFFFFFF.toInt())
-        zoomBar.addView(zVal)
-
-        val btnReset = mkBtn("重置适配") { crop.resetFit() }
-        btnReset.textSize = 13f
-        zoomBar.addView(btnReset)
-
-        var syncing = false
-        crop.onZoomChanged = { pct ->
-            syncing = true
-            zSeek.progress = (pct - 100).coerceIn(0, 300)
-            zVal.text = pct.toString() + "%"
-            syncing = false
-        }
-        zSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (syncing) return
-                val k = 1f + progress / 100f
-                zVal.text = Math.round(k * 100).toString() + "%"
-                crop.setZoomMult(k)
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-
         val bar = LinearLayout(this)
         bar.orientation = LinearLayout.HORIZONTAL
         bar.gravity = Gravity.CENTER
@@ -141,41 +92,44 @@ class CropActivity : AppCompatActivity() {
             finish()
         })
         val isIcon = slot == "icon"
+        val scrW = resources.displayMetrics.widthPixels
+        val scrH = resources.displayMetrics.heightPixels
         bar.addView(mkBtn(if (isIcon) "确定，用作图标" else "确定，用作壁纸") {
             val out0 = crop.cropped()
             if (out0 == null) {
                 setResult(Activity.RESULT_CANCELED)
                 finish()
-            } else {
-                // 图标槽位：1:1 → 烘焙成 512×512；壁纸槽位：与原有壁纸同路径（「清除」能删掉）
-                val out = if (isIcon) Bitmap.createScaledBitmap(out0, 512, 512, true) else out0
-                val f = if (isIcon) File(filesDir, "icon_custom.png") else Wp.file(this, slot)
+                return@mkBtn
+            }
+            val n = crop.normalized()
+            val name = intent.getStringExtra(EXTRA_NAME).orEmpty()
+            val f = if (isIcon) File(filesDir, "icon_custom.png") else Wp.file(this, slot)
+            // 压缩 + 保存原图都放后台线程：原来在主线程做「全尺寸 PNG」→ 卡约 2 秒
+            Thread {
                 try {
-                    FileOutputStream(f).use { out.compress(Bitmap.CompressFormat.PNG, if (isIcon) 100 else 95, it) }
+                    val out = if (isIcon) Bitmap.createScaledBitmap(out0, 512, 512, true)
+                              else Bitmap.createScaledBitmap(out0, scrW, scrH, true)   // 壁纸按屏幕分辨率
+                    FileOutputStream(f).use {
+                        out.compress(if (isIcon) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,
+                                     if (isIcon) 100 else 92, it)
+                    }
+                    if (!isIcon) Wp.saveSource(this, slot, src)   // 永久保留原图（供重新取景）
                 } catch (e: Exception) {
                     // ignore
                 }
-                // 壁纸：永久保留原图（供日后「重新取景」），并回传归一化参数
-                if (!isIcon) Wp.saveSource(this, slot, src)
-                val n = crop.normalized()
-                setResult(
-                    Activity.RESULT_OK,
-                    Intent().putExtra(EXTRA_PATH, f.absolutePath)
-                        .putExtra(EXTRA_NAME, intent.getStringExtra(EXTRA_NAME).orEmpty())
-                        .putExtra(EXTRA_NX, n[0])
-                        .putExtra(EXTRA_NY, n[1])
-                        .putExtra(EXTRA_NZ, n[2])
-                )
-                finish()
-            }
+                runOnUiThread {
+                    setResult(
+                        Activity.RESULT_OK,
+                        Intent().putExtra(EXTRA_PATH, f.absolutePath)
+                            .putExtra(EXTRA_NAME, name)
+                            .putExtra(EXTRA_NX, n[0])
+                            .putExtra(EXTRA_NY, n[1])
+                            .putExtra(EXTRA_NZ, n[2])
+                    )
+                    finish()
+                }
+            }.start()
         })
-        val zlp = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        zlp.gravity = Gravity.BOTTOM
-        zlp.bottomMargin = (84 * d).toInt()
-        root.addView(zoomBar, zlp)
-
         val blp = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )
