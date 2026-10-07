@@ -340,4 +340,25 @@
     <string name="role_hint">例：ラップランド——狼群出身の賞金稼ぎ。慵懒な口調に、少しの挑発と笑み</string>
     <string name="st_pause">⏸ 一時停止</string>
     <string name="hist_show_more">더 보기 (%1$d개 더 · 총 %2$d개)</string>
+    <string name="alarm_entry">⏰ 알람…</string>
+    <string name="alarm_title">AI 알람</string>
+    <string name="alarm_enable">사용</string>
+    <string name="alarm_time">시간</string>
+    <string name="alarm_repeat">반복</string>
+    <string name="alarm_repeat_once">한 번만</string>
+    <string name="alarm_repeat_daily">매일</string>
+    <string name="alarm_repeat_weekday">평일</string>
+    <string name="alarm_voice">음색</string>
+    <string name="alarm_prompt">프롬프트 / 설명</string>
+    <string name="alarm_prompt_hint">예: 부드러운 말투로 아침 인사를 하고 오늘 날씨를 언급</string>
+    <string name="alarm_min_chars">최소 글자 수</string>
+    <string name="alarm_count">개수</string>
+    <string name="alarm_save">저장</string>
+    <string name="alarm_saved">알람 저장됨</string>
+    <string name="alarm_need_exact">정시에 울리려면 \'정확한 알람\' 권한이 필요합니다. 허용할까요?</string>
+    <string name="alarm_grant">허용</string>
+    <string name="alarm_voice_pick">음색 선택</string>
+    <string name="alarm_need_key">먼저 \'설정 → 모델\'에서 LLM 키와 TTS를 설정하세요</string>
+    <string name="alarm_ring_text">AI가 아침 인사를 하고 있습니다</string>
+    <string name="alarm_preparing">알람 음성 준비 중…</string>
 </resources>

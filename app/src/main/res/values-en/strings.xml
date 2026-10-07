@@ -340,4 +340,25 @@
     <string name="role_hint">如：拉普兰德——狼群出身的赏金猎人，语气慵懒，带点挑衅与笑意</string>
     <string name="st_pause">⏸ 暂停</string>
     <string name="hist_show_more">Show more (%1$d more · %2$d total)</string>
+    <string name="alarm_entry">⏰ Alarm…</string>
+    <string name="alarm_title">AI alarm</string>
+    <string name="alarm_enable">Enable</string>
+    <string name="alarm_time">Time</string>
+    <string name="alarm_repeat">Repeat</string>
+    <string name="alarm_repeat_once">Once</string>
+    <string name="alarm_repeat_daily">Daily</string>
+    <string name="alarm_repeat_weekday">Weekdays</string>
+    <string name="alarm_voice">Voice</string>
+    <string name="alarm_prompt">Prompt / description</string>
+    <string name="alarm_prompt_hint">e.g. Say good morning gently and mention today\'s weather</string>
+    <string name="alarm_min_chars">Min. characters</string>
+    <string name="alarm_count">Count</string>
+    <string name="alarm_save">Save</string>
+    <string name="alarm_saved">Alarm saved</string>
+    <string name="alarm_need_exact">The exact-alarm permission is required to ring on time. Grant it?</string>
+    <string name="alarm_grant">Grant</string>
+    <string name="alarm_voice_pick">Pick a voice</string>
+    <string name="alarm_need_key">Please set an LLM key and a TTS provider in Settings → Models first</string>
+    <string name="alarm_ring_text">AI is saying good morning</string>
+    <string name="alarm_preparing">Preparing alarm speech…</string>
 </resources>

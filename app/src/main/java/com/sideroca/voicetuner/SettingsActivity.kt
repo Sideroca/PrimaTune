@@ -1327,6 +1327,25 @@ class SettingsActivity : AppCompatActivity() {
             saveProviderFields()
             toast(getString(R.string.toast_saved))
         }
+
+        // AI 闹钟入口：放在「润色」卡片里（用户 2026-10-07 指定）
+        run {
+            val btn = TextView(this)
+            btn.text = getString(R.string.alarm_entry)
+            btn.textSize = 13f
+            btn.setPadding(dp(14f), dp(11f), dp(14f), dp(11f))
+            val c0 = Skin.colors(this)
+            btn.background = Skin.shapeDp(this, c0.card2, c0.line, 10f, 100, 1f)
+            btn.tag = "bg:keep"
+            btn.isClickable = true
+            btn.isFocusable = true
+            fx(btn)
+            btn.setOnClickListener { openAlarmDialog() }
+            btn.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(12f) }
+            llPolishCfg.addView(btn)
+        }
     }
 
     /** P1：厂商选择（输入首字母即匹配）→ 切换该厂商的 Key 与模型清单 */
@@ -2197,6 +2216,135 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         panel.addView(sc)
         val w = minOf(dp(240f), resources.displayMetrics.widthPixels - dp(32f))
         val h = minOf(dp(300f), dp(12f) + dp(46f) * Loc.OPTIONS.size)
+        pop = android.widget.PopupWindow(panel, w, h, true)
+        pop.inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        pop.elevation = dp(8f).toFloat()
+        pop.showAsDropDown(anchor, 0, dp(2f))
+    }
+
+    // ---------------------------------------------------------------- AI 闹钟
+    private fun openAlarmDialog() {
+        val cfg = AlarmCfg.from(store.alarmJson)
+        var hour = cfg.hour; var minute = cfg.minute
+        var repeat = cfg.repeat
+        var voiceId = cfg.voiceId; var voiceName = cfg.voiceName
+        val c0 = Skin.colors(this)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20f), dp(6f), dp(20f), dp(4f)) }
+        fun lbl(t: String) = TextView(this).apply { text = t; textSize = 13f; setTextColor(c0.dim); setPadding(0, dp(10f), 0, dp(2f)) }
+        fun fld(t: String) = TextView(this).apply {
+            text = t; textSize = 14f; setTextColor(c0.txt)
+            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+            background = Skin.shapeDp(this@SettingsActivity, c0.card2, c0.line, 10f, 100, 1f)
+            tag = "bg:keep"; isClickable = true; isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val cbE = android.widget.CheckBox(this).apply { text = getString(R.string.alarm_enable); isChecked = cfg.enabled; setTextColor(c0.txt) }
+        box.addView(cbE)
+        box.addView(lbl(getString(R.string.alarm_time)))
+        val fTime = fld(String.format(java.util.Locale.US, "%02d:%02d", hour, minute))
+        fTime.setOnClickListener {
+            android.app.TimePickerDialog(this, { _, h, m ->
+                hour = h; minute = m; fTime.text = String.format(java.util.Locale.US, "%02d:%02d", h, m)
+            }, hour, minute, true).show()
+        }
+        box.addView(fTime)
+        box.addView(lbl(getString(R.string.alarm_repeat)))
+        fun repName(r: String) = when (r) {
+            "daily" -> getString(R.string.alarm_repeat_daily)
+            "weekday" -> getString(R.string.alarm_repeat_weekday)
+            else -> getString(R.string.alarm_repeat_once)
+        }
+        val fRep = fld(repName(repeat))
+        fRep.setOnClickListener { showRepeatPick(fRep) { r -> repeat = r; fRep.text = repName(r) } }
+        box.addView(fRep)
+        box.addView(lbl(getString(R.string.alarm_voice)))
+        val fVoice = fld(if (voiceName.isBlank()) getString(R.string.alarm_voice_pick) else voiceName)
+        fVoice.setOnClickListener {
+            val vs = VoiceCatalog.builtIn.map { it.first to it.second } + store.loadCustomVoices().map { it.name to it.id }
+            if (vs.isEmpty()) { toast("没有音色"); return@setOnClickListener }
+            val d = androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.alarm_voice_pick)
+                .setItems(vs.map { it.first }.toTypedArray()) { _, i ->
+                    voiceId = vs[i].second; voiceName = vs[i].first; fVoice.text = voiceName
+                }
+                .setNegativeButton(getString(R.string.common_cancel), null).create()
+            d.setOnShowListener { skinDialog(d) }; d.show()
+        }
+        box.addView(fVoice)
+        box.addView(lbl(getString(R.string.alarm_prompt)))
+        val etP = EditText(this).apply { hint = getString(R.string.alarm_prompt_hint); setText(cfg.prompt); textSize = 14f; minLines = 2; setTextColor(c0.txt); setHintTextColor(c0.hint) }
+        box.addView(etP)
+        box.addView(lbl(getString(R.string.alarm_min_chars)))
+        val etMin = EditText(this).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(cfg.minChars.toString()); textSize = 14f; setTextColor(c0.txt) }
+        box.addView(etMin)
+        box.addView(lbl(getString(R.string.alarm_count)))
+        val etN = EditText(this).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(cfg.count.toString()); textSize = 14f; setTextColor(c0.txt) }
+        box.addView(etN)
+        val sc = ScrollView(this); sc.addView(box)
+        val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.alarm_title).setView(sc)
+            .setPositiveButton(getString(R.string.alarm_save)) { _, _ ->
+                val c = AlarmCfg(
+                    enabled = cbE.isChecked, hour = hour, minute = minute, repeat = repeat,
+                    voiceId = voiceId, voiceName = voiceName,
+                    prompt = etP.text.toString().trim(),
+                    minChars = (etMin.text.toString().trim().toIntOrNull() ?: 80).coerceIn(1, 2000),
+                    count = (etN.text.toString().trim().toIntOrNull() ?: 1).coerceIn(1, 9)
+                )
+                store.alarmJson = c.toJson()
+                AlarmScheduler.apply(this)
+                toast(getString(R.string.alarm_saved))
+                if (c.enabled && !AlarmScheduler.canExact(this)) askExactPermission()
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null).create()
+        dlg.setOnShowListener {
+            skinDialog(dlg)
+            sc.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 380).toInt())
+        }
+        dlg.show()
+    }
+
+    private fun askExactPermission() {
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.alarm_title).setMessage(R.string.alarm_need_exact)
+            .setPositiveButton(getString(R.string.alarm_grant)) { _, _ ->
+                runCatching { startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)) }
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null).create()
+        d.setOnShowListener { skinDialog(d) }; d.show()
+    }
+
+    /** 重复方式：**短、窄**的下拉（内容少） */
+    private fun showRepeatPick(anchor: View, onPick: (String) -> Unit) {
+        val c = Skin.colors(this)
+        var pop: android.widget.PopupWindow? = null
+        val cur = AlarmCfg.from(store.alarmJson).repeat
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listOf(
+            "once" to getString(R.string.alarm_repeat_once),
+            "daily" to getString(R.string.alarm_repeat_daily),
+            "weekday" to getString(R.string.alarm_repeat_weekday)
+        ).forEach { (code, name) ->
+            val tv = TextView(this)
+            tv.text = name; tv.textSize = 14f
+            tv.setTextColor(if (cur == code) c.acc else c.txt)
+            tv.setPadding(dp(16f), dp(11f), dp(16f), dp(11f))
+            tv.isClickable = true; tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener { pop?.dismiss(); onPick(code) }
+            box.addView(tv)
+        }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Skin.shapeDp(this@SettingsActivity, c.bg, c.line, 12f)
+            setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+        }
+        panel.addView(box)
+        val w = dp(120f)                       // 窄
+        val h = dp(8f) + dp(44f) * 3           // 短
         pop = android.widget.PopupWindow(panel, w, h, true)
         pop.inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
         pop.isOutsideTouchable = true

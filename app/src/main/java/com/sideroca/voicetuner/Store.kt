@@ -93,6 +93,20 @@ class Store(context: Context) {
     private val indexFile = File(dir, "index.json")
     private val voicesFile = File(context.filesDir, "custom_voices.json")
 
+    // ---- AI 闹钟 ----
+    /** 闹钟配置（JSON；单闹钟 MVP） */
+    var alarmJson: String
+        get() = prefs.getString("alarm_json", "") ?: ""
+        set(v) { prefs.edit().putString("alarm_json", v).apply() }
+
+    var alarmSnoozeUntil: Long
+        get() = prefs.getLong("alarm_snooze", 0L)
+        set(v) { prefs.edit().putLong("alarm_snooze", v).apply() }
+
+    /** 闹钟语音缓存目录（预生成的 WAV） */
+    val alarmDir: File = File(context.filesDir, "alarm").apply { mkdirs() }
+
+
     var apiKey: String
         get() = prefs.getString("apiKey", "") ?: ""
         set(v) { prefs.edit().putString("apiKey", v).apply() }

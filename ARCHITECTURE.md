@@ -21,6 +21,7 @@ Android 原生（**Kotlin + View，无 Compose**）。**"轻内核、重前端"�
 | 存储 | `Store` | SharedPreferences + JSON 文件（**唯一数据源**） |
 | 网络 | `DashScopeClient`(WebSocket) · `QwenTtsClient` · `OpenAiCompatTts` · `ExtraTts` · `ExtraTts2` · `TransClient` · `LlmClient` · `TtsProviders` · `TtsModels` · `LlmPresets` | 各家 TTS / LLM / 翻译适配 |
 | 音频 / 图片 | `AudioMerge` · `Wp` · `CropView` · `IconStyles` | 样本合并、壁纸、取景、图标合成 |
+| **AI 闹钟** | `Alarm`(配置) · `AlarmScheduler`(精确闹钟) · `AlarmReceiver` · `AlarmService`(预生成+播放) | 提前 3h 预生成（LLM→TTS→WAV）；到点按序播放；失败兜底系统铃声 |
 | 工具 | `Loc` · `Clip` · `Err` · `Ratchet` · `LayoutFix` · `ContainsAdapter` · `UrlAdapter` · `AudioFocus` · `KeepAliveService` · `VoiceCatalog` | 语言、剪贴板、报错人话、棘轮滑条、适配器等 |
 
 ## 关键机制（**改代码前必读**）

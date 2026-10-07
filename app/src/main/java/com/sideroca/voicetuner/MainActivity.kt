@@ -1452,54 +1452,10 @@ class MainActivity : AppCompatActivity() {
 
         var lastTick = 0L
         // P1：按厂商形态分派 —— 百炼内部再按模型分 ws/http；OpenAI 系走 OpenAI 兼容客户端
-        val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
-        // 与界面展示的「生效 Key」同一套逻辑（非百炼不再借用百炼的 Key，避免两处不一致）
-        val provKey = store.providerKey(prov.id).ifBlank { if (prov.id == "aliyun-bailian") store.apiKey else "" }
-        store.addProviderKeyToHistory(prov.id, provKey)   // 用过的密钥进该厂商的历史下拉
-        val synthCall = { cb: SynthCallback ->
-            if (prov.shape == "system") {
-                ExtraTts2.system(this@MainActivity, req.text, req.rate, req.pitch, cb)
-            } else if (prov.shape == "gemini") {
-                ExtraTts2.gemini(provKey, req.model, req.voice, req.text, cb)
-            } else if (prov.shape == "mimo") {
-                ExtraTts2.mimo(
-                    store.providerBaseUrl(prov.id), provKey, req.model, req.text, cb,
-                    req.instruction, req.voice, req.seed
-                )
-            } else if (prov.shape == "elevenlabs") {
-                ExtraTts.eleven(
-                    store.providerBaseUrl(prov.id), provKey, req.voice, req.model, req.text, 0.5, 0.75, cb,
-                    req.rate, req.seed
-                )
-            } else if (prov.shape == "minimax") {
-                ExtraTts.minimax(
-                    store.providerBaseUrl(prov.id), provKey, store.workspace, req.model, req.voice,
-                    req.text, req.rate, req.pitch, req.volume, cb, req.instruction
-                )
-            } else if (prov.shape == "fish") {
-                ExtraTts.fish(
-                    store.providerBaseUrl(prov.id), provKey, req.voice, req.text, cb, req.model,
-                    req.rate, req.volume, extra, req.instruction, req.seed, fmt.format
-                )
-            } else if (prov.shape == "openai" || prov.shape == "xai") {
-                // 自定义渠道：用用户填的 Base URL
-                val eff = prov.copy(baseUrl = store.providerBaseUrl(prov.id))
-                OpenAiCompatTts.synthesize(
-                    eff, provKey, req.model, req.voice, req.text, req.instruction, cb,
-                    TtsProviders.Cfg(
-                        path = store.providerPath(prov.id),
-                        auth = store.providerAuth(prov.id),
-                        resp = store.providerResp(prov.id),
-                        extra = extra
-                    ),
-                    rate = req.rate,
-                    volume = req.volume,
-                    seed = if (prov.id == "custom") req.seed else null
-                )
-            }
-            else
-                client.synthesize(req.copy(apiKey = provKey), cb)
-        }
+        val prov0 = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
+        // 用过的密钥进该厂商的历史下拉
+        store.addProviderKeyToHistory(prov0.id, store.providerKey(prov0.id).ifBlank { if (prov0.id == "aliyun-bailian") store.apiKey else "" })
+        val synthCall = { cb: SynthCallback -> Synth.dispatch(this, store, req, extra, fmt.format, client, cb) }
         synthCall(object : SynthCallback {
             override fun onConnected() {
                 ui { tvStatus.text = getString(R.string.st_connected) }

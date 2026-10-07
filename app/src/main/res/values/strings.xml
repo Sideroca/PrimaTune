@@ -340,4 +340,25 @@
     <string name="role_hint">如：拉普兰德——狼群出身的赏金猎人，语气慵懒，带点挑衅与笑意</string>
     <string name="st_pause">⏸ 暂停</string>
     <string name="hist_show_more">显示更多（再 %1$d 条 · 共 %2$d 条）</string>
+    <string name="alarm_entry">⏰ 闹钟…</string>
+    <string name="alarm_title">AI 闹钟</string>
+    <string name="alarm_enable">启用</string>
+    <string name="alarm_time">时间</string>
+    <string name="alarm_repeat">重复</string>
+    <string name="alarm_repeat_once">一次性</string>
+    <string name="alarm_repeat_daily">每天</string>
+    <string name="alarm_repeat_weekday">工作日</string>
+    <string name="alarm_voice">音色</string>
+    <string name="alarm_prompt">提示词 / 描述</string>
+    <string name="alarm_prompt_hint">例：用温柔语气说一句早安，提一下今天的天气</string>
+    <string name="alarm_min_chars">字数下限</string>
+    <string name="alarm_count">条数</string>
+    <string name="alarm_save">保存</string>
+    <string name="alarm_saved">已保存闹钟</string>
+    <string name="alarm_need_exact">需要「精确闹钟」权限才能准点响，去授权？</string>
+    <string name="alarm_grant">去授权</string>
+    <string name="alarm_voice_pick">选择音色</string>
+    <string name="alarm_need_key">请先在「设置 → 模型」配好 LLM Key 与 TTS 厂商</string>
+    <string name="alarm_ring_text">AI 正在对你说早安</string>
+    <string name="alarm_preparing">正在准备闹钟语音…</string>
 </resources>
