@@ -2314,6 +2314,16 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             toast(getString(R.string.alarm_test_toast))
         }
         box.addView(fTest)
+        box.addView(lbl(getString(R.string.alarm_pregen_now)))
+        val preN = store.alarmDir.listFiles()?.count { it.length() > 0 } ?: 0
+        val fPre = fld(if (preN > 0) getString(R.string.alarm_prepared, preN) else getString(R.string.alarm_not_prepared))
+        fPre.setOnClickListener {
+            androidx.core.content.ContextCompat.startForegroundService(
+                this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
+            )
+            toast(getString(R.string.alarm_pregen_started))
+        }
+        box.addView(fPre)
         val sc = ScrollView(this); sc.addView(box)
         val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.alarm_title).setView(sc)

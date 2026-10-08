@@ -61,14 +61,21 @@ class AlarmService : Service() {
         when (action) {
             "pregen" -> {
                 startFg(NOTI_PREGEN, noti(getString(R.string.alarm_title), getString(R.string.alarm_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-                Thread { pregen(); stopSelf() }.start()
+                Thread {
+                    if (!generate()) runCatching {
+                        (getSystemService(NotificationManager::class.java))?.notify(
+                            NOTI_PREGEN, noti(getString(R.string.alarm_title), getString(R.string.alarm_voice_fail)))
+                    }
+                    stopSelf()
+                }.start()
             }
             "ring" -> {
-                startFg(NOTI_RING, ringNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                startPlayback()
+                stopped = false
+                startFg(NOTI_RING, ringNotification(getString(R.string.alarm_ring_text)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                startRingFlow()
             }
-            "snooze" -> { stopPlayback(); AlarmScheduler.snooze(this, 5); stopSelf() }
-            "dismiss" -> { stopPlayback(); afterRing(); stopSelf() }
+            "snooze" -> { stopped = true; stopPlayback(); AlarmScheduler.snooze(this, 5); stopSelf() }
+            "dismiss" -> { stopped = true; stopPlayback(); afterRing(); stopSelf() }
         }
         return START_NOT_STICKY
     }
@@ -99,7 +106,7 @@ class AlarmService : Service() {
             .setContentTitle(title).setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).setShowWhen(false).build()
 
-    private fun ringNotification(): Notification {
+    private fun ringNotification(text: String): Notification {
         val snooze = PendingIntent.getService(this, 7401,
             Intent(this, AlarmService::class.java).putExtra(EXTRA, "snooze"),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -109,7 +116,7 @@ class AlarmService : Service() {
         return NotificationCompat.Builder(this, CH)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("⏰ 闹钟")
-            .setContentText("AI 正在对你说早安")
+            .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
@@ -118,20 +125,29 @@ class AlarmService : Service() {
             .build()
     }
 
+    private fun updateRingNoti(text: String) {
+        runCatching {
+            (getSystemService(NotificationManager::class.java))?.notify(NOTI_RING, ringNotification(text))
+        }
+    }
+
     // ---------------------------------------------------------------- 预生成
-    private fun pregen() {
+    private fun pregen() { generate() }
+
+    /** 生成到 alarmDir；成功（≥1 段可播）返回 true。失败原因：缺 LLM Key / 没选音色 / LLM 或 TTS 出错。 */
+    private fun generate(): Boolean {
         val store = Store(this)
         val cfg = AlarmCfg.from(store.alarmJson)
         val dir = store.alarmDir
         dir.listFiles()?.forEach { it.delete() }
-        if (store.llmKey.isBlank() || cfg.voiceId.isBlank()) return      // 缺 Key/音色 → 留空 → 响铃时兜底
-        val msgs = writeMessages(store, cfg) ?: return
+        if (store.llmKey.isBlank() || cfg.voiceId.isBlank()) return false
+        val msgs = writeMessages(store, cfg) ?: return false
         var i = 0
         for (m in msgs) {
             i++
-            val out = File(dir, String.format("%02d.wav", i))
-            if (!synthToFile(store, cfg, m, out)) return
+            if (!synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))) return false
         }
+        return dir.listFiles()?.any { it.length() > 0 } ?: false
     }
 
     /** 让 LLM 写 N 条（每条 ≥ minChars 字）；不达标**重试一次** */
@@ -210,13 +226,36 @@ class AlarmService : Service() {
     }
 
     // ---------------------------------------------------------------- 播放
-    private fun startPlayback() {
+    @Volatile private var stopped = false
+
+    /**
+     * 响铃：**有预生成就直接播**；没有则**先响系统铃声（绝不静默）**，
+     * 同时**现场生成**（LLM→TTS）；生成好立刻切成 AI 人声。
+     * —— 这样**不依赖"自启动/后台"**：到点由 `setAlarmClock` 唤醒即可。
+     */
+    private fun startRingFlow() {
         acquireWake()
         val store = Store(this)
         files = store.alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
         vol = 0f
-        if (files.isEmpty()) playFallback() else { idx = 0; playCurrent() }
         handler.postDelayed(ramp, 1000)
+        if (files.isNotEmpty()) { idx = 0; playCurrent(); return }
+        playFallback()                                   // 先响铃声
+        Thread {
+            val ok = generate()
+            if (stopped) return@Thread
+            if (ok) {
+                val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
+                if (f.isNotEmpty() && !stopped) handler.post {
+                    files = f; idx = 0
+                    runCatching { player?.release() }
+                    playCurrent()
+                    updateRingNoti(getString(R.string.alarm_ring_text))
+                }
+            } else {
+                handler.post { updateRingNoti(getString(R.string.alarm_voice_fail)) }
+            }
+        }.start()
     }
 
     private fun playCurrent() {
@@ -284,6 +323,7 @@ class AlarmService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopped = true
         stopPlayback()
     }
 }

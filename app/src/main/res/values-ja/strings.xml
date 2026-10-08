@@ -366,4 +366,9 @@
     <string name="alarm_date_auto">自動（今日/明日）</string>
     <string name="alarm_test">テスト再生</string>
     <string name="alarm_test_toast">3 秒後に鳴ります…</string>
+    <string name="alarm_pregen_now">今すぐ生成</string>
+    <string name="alarm_prepared">%1$d 本 準備済み</string>
+    <string name="alarm_not_prepared">未準備</string>
+    <string name="alarm_pregen_started">生成を開始しました。数秒後にもう一度</string>
+    <string name="alarm_voice_fail">音声未準備 → システム着信音を使用</string>
 </resources>

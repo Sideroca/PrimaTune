@@ -366,4 +366,9 @@
     <string name="alarm_date_auto">自动（今天/明天）</string>
     <string name="alarm_test">测试响铃</string>
     <string name="alarm_test_toast">3 秒后响铃…</string>
+    <string name="alarm_pregen_now">立即预生成</string>
+    <string name="alarm_prepared">已准备 %1$d 段语音</string>
+    <string name="alarm_not_prepared">未准备</string>
+    <string name="alarm_pregen_started">已开始预生成，几秒后再看</string>
+    <string name="alarm_voice_fail">语音未就绪，改用系统铃声</string>
 </resources>

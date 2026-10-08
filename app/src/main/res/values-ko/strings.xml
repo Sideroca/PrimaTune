@@ -366,4 +366,9 @@
     <string name="alarm_date_auto">자동 (오늘/내일)</string>
     <string name="alarm_test">테스트 울림</string>
     <string name="alarm_test_toast">3초 후 울립니다…</string>
+    <string name="alarm_pregen_now">지금 생성</string>
+    <string name="alarm_prepared">%1$d개 준비됨</string>
+    <string name="alarm_not_prepared">준비 안 됨</string>
+    <string name="alarm_pregen_started">생성을 시작했습니다. 몇 초 후 확인하세요</string>
+    <string name="alarm_voice_fail">음성 미준비 → 시스템 벨소리 사용</string>
 </resources>
