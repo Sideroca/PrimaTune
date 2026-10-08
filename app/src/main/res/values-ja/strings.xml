@@ -300,7 +300,7 @@
     <string name="trans_langs_toast">Translation languages: %1$s</string>
     <string name="voice_self_prefix">Cloned voice (prefix %1$s)</string>
     <string name="clone_unsupported">The current provider (%1$s) does not support voice cloning. Switch to Aliyun Bailian to create a voice.</string>
-    <string name="role_desc">Persona for 「%1$s」: personality, tone, background, etc. This is only for the AI assistant (better polish and scripts); it is not sent to TTS.</string>
+    <string name="role_desc">「%1$s」の人物像（性格・口調・背景など）。これは**大規模言語モデル**専用（推敲・台本作成）で、**TTS には送信されません**。</string>
     <string name="toast_joined">Added: %1$s</string>
     <string name="will_gen">Will generate %1$d versions</string>
     <string name="invalid_json">%1$s is not valid JSON; please check the format</string>

@@ -536,7 +536,7 @@ class SettingsActivity : AppCompatActivity() {
 
             // 「提示词」：给这个音色写角色人设（喂给 AI，不发给 TTS）——写在音色页，方便**逐个音色提前写好**
             val roleBtn = TextView(this)
-            roleBtn.text = if (store.rolePrompt(id).isNotBlank()) getString(R.string.role_edit) + " ✓" else getString(R.string.role_edit)
+            roleBtn.text = getString(R.string.role_edit)
             roleBtn.setTextColor(c.acc)
             roleBtn.textSize = 14f
             roleBtn.setPadding(dp(12f), dp(6f), dp(4f), dp(6f))
