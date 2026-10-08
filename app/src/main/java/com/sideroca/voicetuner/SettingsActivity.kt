@@ -2311,13 +2311,36 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
         box.addView(fTest)
         box.addView(lbl(getString(R.string.alarm_pregen_now)))
-        val preN = store.alarmDir.listFiles()?.count { it.length() > 0 } ?: 0
-        val fPre = fld(if (preN > 0) getString(R.string.alarm_prepared, preN) else getString(R.string.alarm_not_prepared))
+        fun pregenInfo(): String {
+            val n = store.alarmDir.listFiles()?.count { it.length() > 0 && it.name != "status.txt" } ?: 0
+            val tail = runCatching {
+                val f = File(store.alarmDir, "status.txt")
+                if (f.exists()) f.readLines().lastOrNull { it.isNotBlank() }.orEmpty() else ""
+            }.getOrDefault("")
+            val head = if (n > 0) getString(R.string.alarm_prepared, n) else getString(R.string.alarm_not_prepared)
+            return if (tail.isBlank()) head else head + "\n" + tail
+        }
+        val fPre = TextView(this).apply {
+            text = pregenInfo(); textSize = 12.5f; setTextColor(c0.txt)
+            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+            background = Skin.shapeDp(this@SettingsActivity, c0.card2, c0.line, 10f, 100, 1f)
+            tag = "bg:keep"; isClickable = true; isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val hPoll = android.os.Handler(android.os.Looper.getMainLooper())
+        var tries = 0
+        val poll = object : Runnable {
+            override fun run() {
+                fPre.text = pregenInfo(); tries++
+                if (tries < 30 && !fPre.text.contains("完成") && !fPre.text.contains("失败") && !fPre.text.contains("异常")) hPoll.postDelayed(this, 3000)
+            }
+        }
         fPre.setOnClickListener {
             androidx.core.content.ContextCompat.startForegroundService(
                 this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
             )
             toast(getString(R.string.alarm_pregen_started))
+            tries = 0; hPoll.postDelayed(poll, 2000)
         }
         box.addView(fPre)
         val sc = ScrollView(this); sc.addView(box)

@@ -20,6 +20,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import org.json.JSONArray
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
@@ -46,14 +49,6 @@ class AlarmService : Service() {
     private var idx = 0
     private var vol = 0f
     private var wake: PowerManager.WakeLock? = null
-    private val ramp = object : Runnable {
-        override fun run() {
-            vol = min(1f, vol + 0.05f)
-            runCatching { player?.setVolume(vol, vol) }
-            if (vol < 1f) handler.postDelayed(this, 1000)
-        }
-    }
-
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,6 +73,15 @@ class AlarmService : Service() {
             "dismiss" -> { stopped = true; stopPlayback(); afterRing(); stopSelf() }
         }
         return START_NOT_STICKY
+    }
+
+    /** 诊断日志：写到 alarm/status.txt（卡片里能看"上次结果"） */
+    private fun status(msg: String) {
+        runCatching {
+            val f = File(Store(this).alarmDir, "status.txt")
+            if (f.length() > 20000) f.delete()
+            f.appendText(SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date()) + "  " + msg + "\n")
+        }
     }
 
     // ---------------------------------------------------------------- 前台服务
@@ -136,18 +140,33 @@ class AlarmService : Service() {
 
     /** 生成到 alarmDir；成功（≥1 段可播）返回 true。失败原因：缺 LLM Key / 没选音色 / LLM 或 TTS 出错。 */
     private fun generate(): Boolean {
-        val store = Store(this)
-        val cfg = AlarmCfg.from(store.alarmJson)
-        val dir = store.alarmDir
-        dir.listFiles()?.forEach { it.delete() }
-        if (store.llmKey.isBlank() || cfg.voiceId.isBlank()) return false
-        val msgs = writeMessages(store, cfg) ?: return false
-        var i = 0
-        for (m in msgs) {
-            i++
-            if (!synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))) return false
+        try {
+            val store = Store(this)
+            val cfg = AlarmCfg.from(store.alarmJson)
+            val dir = store.alarmDir
+            status("pregen 开始：LLM Key=${if (store.llmKey.isBlank()) "空!" else "有"}，音色=${if (cfg.voiceId.isBlank()) "空!" else cfg.voiceName.ifBlank { cfg.voiceId.take(10) }}，条数=${cfg.count}，字数下限=${cfg.minChars}，厂商=${store.providerId}，模型=${store.lastModel}")
+            dir.listFiles()?.filter { it.name != "status.txt" }?.forEach { it.delete() }
+            if (store.llmKey.isBlank()) { status("pregen 失败：没填 LLM Key（设置 → 模型 → 润色）"); return false }
+            if (cfg.voiceId.isBlank()) { status("pregen 失败：闹钟没选音色"); return false }
+            val msgs = writeMessages(store, cfg)
+            if (msgs == null) { status("pregen 失败：LLM 没写出合格文案（或超时）"); return false }
+            status("LLM 写出 ${msgs.size} 条（字数 ${msgs.map { charCount(it) }}）")
+            var i = 0
+            for (m in msgs) {
+                i++
+                if (!synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))) {
+                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${store.providerId}，模型=${store.lastModel}）")
+                    return false
+                }
+                status("TTS 第 $i 条已存盘")
+            }
+            val n = dir.listFiles()?.count { it.length() > 0 && it.name != "status.txt" } ?: 0
+            status("pregen 完成：共 $n 段")
+            return n > 0
+        } catch (e: Exception) {
+            status("pregen 异常：${e.javaClass.simpleName}: ${e.message}")
+            return false
         }
-        return dir.listFiles()?.any { it.length() > 0 } ?: false
     }
 
     /** 让 LLM 写 N 条（每条 ≥ minChars 字）；不达标**重试一次** */
@@ -236,14 +255,15 @@ class AlarmService : Service() {
     private fun startRingFlow() {
         acquireWake()
         val store = Store(this)
-        files = store.alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
-        vol = 0f
-        handler.postDelayed(ramp, 1000)
+        files = store.alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
+        vol = 1f                                      // 音量**恒定**（不做渐强）
+        status("响铃：预生成文件 ${files.size} 段")
         if (files.isNotEmpty()) { idx = 0; playCurrent(); return }   // 预生成已就绪 → 直接播 TTS
         // 没有预生成 → **现场生成**；生成好立刻播 TTS；
         // 只有"真的失败 / 超过 8 秒还没好"才退系统铃声（绝不长时间静默）
         handler.postDelayed({
             if (!stopped && player == null) {
+                status("响铃：8 秒仍无音频 → 退系统铃声")
                 playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
             }
         }, 8000)
@@ -251,15 +271,17 @@ class AlarmService : Service() {
             val ok = generate()
             if (stopped) return@Thread
             if (ok) {
-                val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
+                val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
                 if (f.isNotEmpty() && !stopped) handler.post {
                     files = f; idx = 0
                     runCatching { player?.release() }; player = null
                     playCurrent()
+                    status("响铃：已切换为生成的人声（${f.size} 段）")
                     updateRingNoti(getString(R.string.alarm_ring_text))
                 }
             } else handler.post {
                 if (!stopped && player == null) {
+                    status("响铃：现场生成失败 → 系统铃声")
                     playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
                 }
             }
@@ -301,12 +323,12 @@ class AlarmService : Service() {
                 mp.prepare(); mp.start()
                 player = mp
             }.isSuccess
-            if (ok) return
+            if (ok) { status("兜底铃声已播（type=$t）"); return }
         }
+        status("兜底铃声：系统没有可用的默认提示音 → 只能静默")
     }
 
     private fun stopPlayback() {
-        handler.removeCallbacks(ramp)
         runCatching { player?.stop() }
         runCatching { player?.release() }
         player = null
