@@ -239,8 +239,14 @@ class AlarmService : Service() {
         files = store.alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
         vol = 0f
         handler.postDelayed(ramp, 1000)
-        if (files.isNotEmpty()) { idx = 0; playCurrent(); return }
-        playFallback()                                   // 先响铃声
+        if (files.isNotEmpty()) { idx = 0; playCurrent(); return }   // 预生成已就绪 → 直接播 TTS
+        // 没有预生成 → **现场生成**；生成好立刻播 TTS；
+        // 只有"真的失败 / 超过 8 秒还没好"才退系统铃声（绝不长时间静默）
+        handler.postDelayed({
+            if (!stopped && player == null) {
+                playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
+            }
+        }, 8000)
         Thread {
             val ok = generate()
             if (stopped) return@Thread
@@ -248,12 +254,14 @@ class AlarmService : Service() {
                 val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
                 if (f.isNotEmpty() && !stopped) handler.post {
                     files = f; idx = 0
-                    runCatching { player?.release() }
+                    runCatching { player?.release() }; player = null
                     playCurrent()
                     updateRingNoti(getString(R.string.alarm_ring_text))
                 }
-            } else {
-                handler.post { updateRingNoti(getString(R.string.alarm_voice_fail)) }
+            } else handler.post {
+                if (!stopped && player == null) {
+                    playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
+                }
             }
         }.start()
     }

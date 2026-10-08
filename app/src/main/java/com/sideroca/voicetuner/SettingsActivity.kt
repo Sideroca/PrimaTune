@@ -2338,6 +2338,11 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                 )
                 store.alarmJson = c.toJson()
                 AlarmScheduler.apply(this)
+                if (c.enabled) runCatching {
+                    androidx.core.content.ContextCompat.startForegroundService(
+                        this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
+                    )
+                }
                 toast(getString(R.string.alarm_saved))
                 if (c.enabled && !AlarmScheduler.canExact(this)) askExactPermission()
             }

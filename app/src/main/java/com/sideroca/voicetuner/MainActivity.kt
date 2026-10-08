@@ -265,6 +265,14 @@ class MainActivity : AppCompatActivity() {
         renderHistory()
         migrateDurationsAsync()
         runCatching { AlarmScheduler.apply(this) }   // 已保存的闹钟：启动时补排（幂等）
+        runCatching {                                    // 闹钟：打开应用时若还没预生成好 → 补跑（前台，不受后台限制）
+            val ac = AlarmCfg.from(store.alarmJson)
+            if (ac.enabled && (store.alarmDir.listFiles()?.none { it.length() > 0 } ?: true)) {
+                androidx.core.content.ContextCompat.startForegroundService(
+                    this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
+                )
+            }
+        }
 
         if (store.apiKey.isBlank()) {
             tvStatus.text = getString(R.string.first_run_hint)
