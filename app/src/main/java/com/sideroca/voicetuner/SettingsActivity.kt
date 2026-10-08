@@ -2293,8 +2293,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(fld(pName + " · " + store.lastModel))    // 只读显示：闹钟会用哪个引擎
 
         box.addView(lbl(getString(R.string.alarm_voice)))
-        val voiceBad = voiceId.isNotBlank() && store.providerId != "aliyun-bailian" &&
-            voiceId in VoiceCatalog.builtIn.map { it.second }
+        val availIds = (if (TtsProviders.byId(store.providerId)?.shape == "dashscope" || store.providerId.isBlank())
+            visibleVoices() else store.loadCustomVoices().map { it.name to it.id }).map { it.second }
+        val voiceBad = voiceId.isNotBlank() && voiceId !in availIds
         val fVoice = fld(when {
             voiceName.isBlank() -> getString(R.string.alarm_voice_pick)
             voiceBad -> voiceName + "  " + getString(R.string.alarm_voice_mismatch)
@@ -2395,10 +2396,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 音色选择：**自绘列表**（`setItems` 的列表项吃系统文字色 → 浅色主题下"看不见"） */
     private fun showVoicePickDialog(onPick: (String, String) -> Unit) {
         val c = Skin.colors(this)
-        // ⚠️ 内置音色是百炼的 id：当前厂商不是百炼时**不能**列出来（选了必然合成失败）
+        // ⚠️ 两个约束：① 内置音色是**百炼**的 id（厂商非百炼时不能列）② 要尊重"已隐藏"（与设置→音色页**同一套来源**）
         val bailian = store.providerId.isBlank() || store.providerId == "aliyun-bailian"
-        val vs = (if (bailian) VoiceCatalog.builtIn.map { it.first to it.second } else emptyList()) +
-                 store.loadCustomVoices().map { it.name to it.id }
+        val vs = if (bailian) visibleVoices() else store.loadCustomVoices().map { it.name to it.id }
         if (vs.isEmpty()) { toast(getString(R.string.alarm_need_voice_first)); return }
         var dlg: androidx.appcompat.app.AlertDialog? = null
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4f), 0, dp(4f)) }
@@ -2471,6 +2471,13 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         pop.elevation = dp(8f).toFloat()
         pop.showAsDropDown(anchor, 0, dp(2f))
+    }
+
+    /** 当前"可见音色"＝内置(去掉已隐藏)＋自建 —— 与设置→音色页**同一套来源** */
+    private fun visibleVoices(): List<Pair<String, String>> {
+        val hidden = store.hiddenVoices
+        return VoiceCatalog.builtIn.filter { it.second !in hidden }.map { it.first to it.second } +
+               store.loadCustomVoices().map { it.name to it.id }
     }
 
     /** 逐个音色写「角色提示词」（设置 → 音色页 用） */
