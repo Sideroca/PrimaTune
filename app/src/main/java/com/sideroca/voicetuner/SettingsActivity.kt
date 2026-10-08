@@ -2273,15 +2273,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(lbl(getString(R.string.alarm_voice)))
         val fVoice = fld(if (voiceName.isBlank()) getString(R.string.alarm_voice_pick) else voiceName)
         fVoice.setOnClickListener {
-            val vs = VoiceCatalog.builtIn.map { it.first to it.second } + store.loadCustomVoices().map { it.name to it.id }
-            if (vs.isEmpty()) { toast("没有音色"); return@setOnClickListener }
-            val d = androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(R.string.alarm_voice_pick)
-                .setItems(vs.map { it.first }.toTypedArray()) { _, i ->
-                    voiceId = vs[i].second; voiceName = vs[i].first; fVoice.text = voiceName
-                }
-                .setNegativeButton(getString(R.string.common_cancel), null).create()
-            d.setOnShowListener { skinDialog(d) }; d.show()
+            showVoicePickDialog { id, name -> voiceId = id; voiceName = name; fVoice.text = name }
         }
         box.addView(fVoice)
         box.addView(lbl(getString(R.string.alarm_prompt)))
@@ -2316,6 +2308,38 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                 ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 380).toInt())
         }
         dlg.show()
+    }
+
+    /** 音色选择：**自绘列表**（`setItems` 的列表项吃系统文字色 → 浅色主题下"看不见"） */
+    private fun showVoicePickDialog(onPick: (String, String) -> Unit) {
+        val c = Skin.colors(this)
+        val vs = VoiceCatalog.builtIn.map { it.first to it.second } + store.loadCustomVoices().map { it.name to it.id }
+        if (vs.isEmpty()) { toast("没有音色"); return }
+        var dlg: androidx.appcompat.app.AlertDialog? = null
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4f), 0, dp(4f)) }
+        for ((name, id) in vs) {
+            val tv = TextView(this)
+            tv.text = name
+            tv.textSize = 15f
+            tv.setTextColor(c.txt)
+            tv.setPadding(dp(20f), dp(12f), dp(20f), dp(12f))
+            tv.isClickable = true
+            tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener { dlg?.dismiss(); onPick(id, name) }
+            box.addView(tv)
+        }
+        val sc = ScrollView(this); sc.addView(box)
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.alarm_voice_pick).setView(sc)
+            .setNegativeButton(getString(R.string.common_cancel), null).create()
+        dlg = d
+        d.setOnShowListener {
+            skinDialog(d)
+            sc.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.density * 340).toInt())
+        }
+        d.show()
     }
 
     private fun askExactPermission() {
