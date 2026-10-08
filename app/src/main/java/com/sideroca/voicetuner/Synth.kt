@@ -11,9 +11,10 @@ object Synth {
 
     fun dispatch(
         ctx: Context, store: Store, req: SynthRequest, extra: JSONObject?,
-        fmt: String, dash: DashScopeClient, cb: SynthCallback
+        fmt: String, dash: DashScopeClient, cb: SynthCallback,
+        providerId: String? = null
     ): Cancellable {
-        val prov = TtsProviders.byId(store.providerId) ?: TtsProviders.all.first()
+        val prov = TtsProviders.byId(providerId?.takeIf { it.isNotBlank() } ?: store.providerId) ?: TtsProviders.all.first()
         val provKey = store.providerKey(prov.id).ifBlank { if (prov.id == "aliyun-bailian") store.apiKey else "" }
         return when {
             prov.shape == "system" -> ExtraTts2.system(ctx, req.text, req.rate, req.pitch, cb)

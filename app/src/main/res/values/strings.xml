@@ -371,4 +371,5 @@
     <string name="alarm_not_prepared">未准备</string>
     <string name="alarm_pregen_started">已开始预生成，几秒后再看</string>
     <string name="alarm_voice_fail">语音未就绪，改用系统铃声</string>
+    <string name="alarm_need_voice_first">当前厂商还没有可用音色：先去主页「＋ 建音色」</string>
 </resources>

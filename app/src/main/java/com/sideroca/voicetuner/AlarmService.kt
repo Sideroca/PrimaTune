@@ -154,8 +154,9 @@ class AlarmService : Service() {
             var i = 0
             for (m in msgs) {
                 i++
-                if (!synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))) {
-                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${store.providerId}，模型=${store.lastModel}）")
+                val e = synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))
+                if (e != null) {
+                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${cfg.providerId.ifBlank { store.providerId }}，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）：$e")
                     return false
                 }
                 status("TTS 第 $i 条已存盘")
@@ -215,10 +216,10 @@ class AlarmService : Service() {
     }
 
     /** 把一条文本合成为 WAV 落到文件（阻塞等待回调） */
-    private fun synthToFile(store: Store, cfg: AlarmCfg, text: String, out: File): Boolean {
-        val latch = CountDownLatch(1); var ok = false
+    private fun synthToFile(store: Store, cfg: AlarmCfg, text: String, out: File): String? {   // null=成功；否则=错误原因
+        val latch = CountDownLatch(1); var ok = false; var err: String? = null
         val req = SynthRequest(
-            apiKey = "", workspace = store.workspace, model = store.lastModel, voice = cfg.voiceId,
+            apiKey = "", workspace = store.workspace, model = cfg.model.ifBlank { store.lastModel }, voice = cfg.voiceId,
             text = text, instruction = null, rate = 1.0, pitch = 1.0, volume = 50, seed = 0,
             format = "wav", sampleRate = 24000, bitRate = null, languageHints = null,
             hotFixJson = null, extraJson = null, ssml = false
@@ -235,13 +236,12 @@ class AlarmService : Service() {
                 }
                 latch.countDown()
             }
-            override fun onError(message: String) { latch.countDown() }
+            override fun onError(message: String) { err = message; latch.countDown() }
         }
-        runCatching { Synth.dispatch(this, store, req, null, "wav", DashScopeClient(), cb) }
+        runCatching { Synth.dispatch(this, store, req, null, "wav", DashScopeClient(), cb, cfg.providerId) }
+            .onFailure { err = it.message }
         latch.await(120, TimeUnit.SECONDS)
-        return ok && File(out.parentFile, out.nameWithoutExtension).let { base ->
-            File(base.path + ".wav").exists() || File(base.path + ".mp3").exists()
-        }
+        return if (ok) null else (err ?: "无响应/超时（120 秒）")
     }
 
     // ---------------------------------------------------------------- 播放

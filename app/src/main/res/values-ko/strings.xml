@@ -371,4 +371,5 @@
     <string name="alarm_not_prepared">준비 안 됨</string>
     <string name="alarm_pregen_started">생성을 시작했습니다. 몇 초 후 확인하세요</string>
     <string name="alarm_voice_fail">음성 미준비 → 시스템 벨소리 사용</string>
+    <string name="alarm_need_voice_first">이 공급자에서 쓸 음색이 없습니다. 홈에서 ＋로 만드세요</string>
 </resources>

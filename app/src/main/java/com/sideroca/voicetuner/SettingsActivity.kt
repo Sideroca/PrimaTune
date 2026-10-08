@@ -2306,8 +2306,15 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(lbl(getString(R.string.alarm_test)))
         val fTest = fld(getString(R.string.alarm_test))
         fTest.setOnClickListener {
-            AlarmScheduler.testRing(this, 3000)
             toast(getString(R.string.alarm_test_toast))
+            // 直接起服务（**绕过系统闹钟**，排除 AlarmManager / 权限干扰）
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                runCatching {
+                    androidx.core.content.ContextCompat.startForegroundService(
+                        this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "ring")
+                    )
+                }
+            }, 3000)
         }
         box.addView(fTest)
         box.addView(lbl(getString(R.string.alarm_pregen_now)))
@@ -2353,7 +2360,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     prompt = etP.text.toString().trim(),
                     minChars = (etMin.text.toString().trim().toIntOrNull() ?: 80).coerceIn(1, 2000),
                     count = (etN.text.toString().trim().toIntOrNull() ?: 1).coerceIn(1, 9),
-                    date = if (repeat == "once") date else ""
+                    date = if (repeat == "once") date else "",
+                    providerId = store.providerId, model = store.lastModel
                 )
                 store.alarmJson = c.toJson()
                 AlarmScheduler.apply(this)
@@ -2377,8 +2385,11 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 音色选择：**自绘列表**（`setItems` 的列表项吃系统文字色 → 浅色主题下"看不见"） */
     private fun showVoicePickDialog(onPick: (String, String) -> Unit) {
         val c = Skin.colors(this)
-        val vs = VoiceCatalog.builtIn.map { it.first to it.second } + store.loadCustomVoices().map { it.name to it.id }
-        if (vs.isEmpty()) { toast("没有音色"); return }
+        // ⚠️ 内置音色是百炼的 id：当前厂商不是百炼时**不能**列出来（选了必然合成失败）
+        val bailian = store.providerId.isBlank() || store.providerId == "aliyun-bailian"
+        val vs = (if (bailian) VoiceCatalog.builtIn.map { it.first to it.second } else emptyList()) +
+                 store.loadCustomVoices().map { it.name to it.id }
+        if (vs.isEmpty()) { toast(getString(R.string.alarm_need_voice_first)); return }
         var dlg: androidx.appcompat.app.AlertDialog? = null
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4f), 0, dp(4f)) }
         for ((name, id) in vs) {

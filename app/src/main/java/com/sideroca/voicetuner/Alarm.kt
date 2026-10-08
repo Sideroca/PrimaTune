@@ -21,12 +21,15 @@ data class AlarmCfg(
     /** 生成几条（按顺序播放） */
     val count: Int = 1,
     /** 一次性闹钟的日期（yyyy-MM-dd；空 = 自动今天/明天） */
-    val date: String = ""
+    val date: String = "",
+    /** 存闹钟时快照的 TTS 厂商 / 模型（避免之后改主页设置导致闹钟"串引擎"） */
+    val providerId: String = "",
+    val model: String = ""
 ) {
     fun toJson(): String = JSONObject().apply {
         put("enabled", enabled); put("hour", hour); put("minute", minute); put("repeat", repeat)
         put("voiceId", voiceId); put("voiceName", voiceName); put("prompt", prompt)
-        put("minChars", minChars); put("count", count); put("date", date)
+        put("minChars", minChars); put("count", count); put("date", date); put("providerId", providerId); put("model", model)
     }.toString()
 
     companion object {
@@ -38,7 +41,7 @@ data class AlarmCfg(
                 repeat = o.optString("repeat", "once"),
                 voiceId = o.optString("voiceId"), voiceName = o.optString("voiceName"),
                 prompt = o.optString("prompt"),
-                minChars = o.optInt("minChars", 80), count = o.optInt("count", 1), date = o.optString("date")
+                minChars = o.optInt("minChars", 80), count = o.optInt("count", 1), date = o.optString("date"), providerId = o.optString("providerId"), model = o.optString("model")
             )
         } catch (e: Exception) { AlarmCfg() }
     }

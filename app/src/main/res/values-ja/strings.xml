@@ -371,4 +371,5 @@
     <string name="alarm_not_prepared">未準備</string>
     <string name="alarm_pregen_started">生成を開始しました。数秒後にもう一度</string>
     <string name="alarm_voice_fail">音声未準備 → システム着信音を使用</string>
+    <string name="alarm_need_voice_first">このプロバイダーで使える音色がありません。ホームの「＋」で作成してください</string>
 </resources>

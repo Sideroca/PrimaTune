@@ -371,4 +371,5 @@
     <string name="alarm_not_prepared">Not prepared</string>
     <string name="alarm_pregen_started">Generating… check back in a few seconds</string>
     <string name="alarm_voice_fail">Voice not ready — using system ringtone</string>
+    <string name="alarm_need_voice_first">No usable voice for this provider — create one on the home screen (＋)</string>
 </resources>
