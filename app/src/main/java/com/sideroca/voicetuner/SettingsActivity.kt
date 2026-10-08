@@ -1346,10 +1346,7 @@ class SettingsActivity : AppCompatActivity() {
             btn.textSize = 13f
             btn.setPadding(dp(14f), dp(11f), dp(14f), dp(11f))
             val c0 = Skin.colors(this)
-            // 跟主题色：accent 玻璃（与「翻译 / 智能填参」同一款），不再是灰卡
-            btn.background = Skin.shapeDp(this, (c0.acc and 0x00FFFFFF) or (0x29 shl 24),
-                (c0.acc and 0x00FFFFFF) or (0x6B shl 24), 11f, 100, 1.5f)
-            btn.setTextColor(c0.acc)
+            btn.background = Skin.shapeDp(this, c0.card2, c0.line, 10f, 100, 1f)
             btn.tag = "bg:keep"
             btn.isClickable = true
             btn.isFocusable = true
@@ -2251,8 +2248,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         fun fld(t: String) = TextView(this).apply {
             text = t; textSize = 14f; setTextColor(c0.txt)
             setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
-            background = Skin.shapeDp(this@SettingsActivity, (c0.acc and 0x00FFFFFF) or (0x14 shl 24),
-                (c0.acc and 0x00FFFFFF) or (0x59 shl 24), 10f, 100, 1f)
+            background = Skin.shapeDp(this@SettingsActivity, c0.card2, c0.line, 10f, 100, 1f)
             tag = "bg:keep"; isClickable = true; isFocusable = true
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
@@ -2261,7 +2257,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(lbl(getString(R.string.alarm_time)))
         val fTime = fld(String.format(java.util.Locale.US, "%02d:%02d", hour, minute))
         fTime.setOnClickListener {
-            android.app.TimePickerDialog(this, { _, h, m ->
+            android.app.TimePickerDialog(this, R.style.VtPicker, { _, h, m ->
                 hour = h; minute = m; fTime.text = String.format(java.util.Locale.US, "%02d:%02d", h, m)
             }, hour, minute, true).show()
         }
@@ -2285,7 +2281,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
                 }
             }
-            android.app.DatePickerDialog(this, { _, y, mo, d ->
+            android.app.DatePickerDialog(this, R.style.VtPicker, { _, y, mo, d ->
                 date = String.format(java.util.Locale.US, "%04d-%02d-%02d", y, mo + 1, d)
                 fDate.text = date
             }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),

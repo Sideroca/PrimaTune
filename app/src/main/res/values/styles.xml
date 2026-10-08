@@ -69,4 +69,12 @@
         <item name="android:textSize">13sp</item>
         <item name="android:layout_marginEnd">8dp</item>
     </style>
+
+    <!-- 时间 / 日期选择器：浅色弹窗（应用基类是深色 → 系统选择器默认一坨深灰） -->
+    <style name="VtPicker" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">@color/acc</item>
+        <item name="android:textColorPrimary">#FF1F2329</item>
+        <item name="android:textColorSecondary">#FF828A9B</item>
+        <item name="android:colorBackground">#FFFFFFFF</item>
+    </style>
 </resources>
