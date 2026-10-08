@@ -144,10 +144,17 @@ class AlarmService : Service() {
             val store = Store(this)
             val cfg = AlarmCfg.from(store.alarmJson)
             val dir = store.alarmDir
-            status("pregen 开始：LLM Key=${if (store.llmKey.isBlank()) "空!" else "有"}，音色=${if (cfg.voiceId.isBlank()) "空!" else cfg.voiceName.ifBlank { cfg.voiceId.take(10) }}，条数=${cfg.count}，字数下限=${cfg.minChars}，厂商=${store.providerId}，模型=${store.lastModel}")
+            val pid0 = cfg.providerId.ifBlank { store.providerId }
+            val pname0 = TtsProviders.byId(pid0)?.name ?: pid0
+            status("pregen 开始：LLM Key=${if (store.llmKey.isBlank()) "空!" else "有"}，音色=${if (cfg.voiceId.isBlank()) "空!" else cfg.voiceName + "(" + cfg.voiceId.take(14) + ")"}，条数=${cfg.count}，字数下限=${cfg.minChars}，厂商=$pname0($pid0)，模型=${cfg.model.ifBlank { store.lastModel }}")
             dir.listFiles()?.filter { it.name != "status.txt" }?.forEach { it.delete() }
             if (store.llmKey.isBlank()) { status("pregen 失败：没填 LLM Key（设置 → 模型 → 润色）"); return false }
             if (cfg.voiceId.isBlank()) { status("pregen 失败：闹钟没选音色"); return false }
+            // ⚠️ 秒失败：百炼音色配了非百炼厂商（Fish 等不认识百炼音色 id）——不要白等 TTS 超时
+            if (pid0 != "aliyun-bailian" && cfg.voiceId in VoiceCatalog.builtIn.map { it.second }) {
+                status("pregen 失败：音色「${cfg.voiceName}」是**百炼**音色，而当前 TTS 厂商是 $pname0($pid0) → 请把闹钟音色改选成 $pname0 的音色")
+                return false
+            }
             val msgs = writeMessages(store, cfg)
             if (msgs == null) { status("pregen 失败：LLM 没写出合格文案（或超时）"); return false }
             status("LLM 写出 ${msgs.size} 条（字数 ${msgs.map { charCount(it) }}）")
@@ -156,7 +163,7 @@ class AlarmService : Service() {
                 i++
                 val e = synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))
                 if (e != null) {
-                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${cfg.providerId.ifBlank { store.providerId }}，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）：$e")
+                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${TtsProviders.byId(cfg.providerId.ifBlank { store.providerId })?.name ?: cfg.providerId}，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）：$e")
                     return false
                 }
                 status("TTS 第 $i 条已存盘")
@@ -240,8 +247,8 @@ class AlarmService : Service() {
         }
         runCatching { Synth.dispatch(this, store, req, null, "wav", DashScopeClient(), cb, cfg.providerId) }
             .onFailure { err = it.message }
-        latch.await(120, TimeUnit.SECONDS)
-        return if (ok) null else (err ?: "无响应/超时（120 秒）")
+        latch.await(60, TimeUnit.SECONDS)
+        return if (ok) null else (err ?: "无响应/超时（60 秒）")
     }
 
     // ---------------------------------------------------------------- 播放

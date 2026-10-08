@@ -2288,8 +2288,18 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                 cal.get(java.util.Calendar.DAY_OF_MONTH)).show()
         }
         box.addView(fDate)
+        box.addView(lbl(getString(R.string.alarm_engine)))
+        val pName = TtsProviders.byId(store.providerId)?.name ?: store.providerId
+        box.addView(fld(pName + " · " + store.lastModel))    // 只读显示：闹钟会用哪个引擎
+
         box.addView(lbl(getString(R.string.alarm_voice)))
-        val fVoice = fld(if (voiceName.isBlank()) getString(R.string.alarm_voice_pick) else voiceName)
+        val voiceBad = voiceId.isNotBlank() && store.providerId != "aliyun-bailian" &&
+            voiceId in VoiceCatalog.builtIn.map { it.second }
+        val fVoice = fld(when {
+            voiceName.isBlank() -> getString(R.string.alarm_voice_pick)
+            voiceBad -> voiceName + "  " + getString(R.string.alarm_voice_mismatch)
+            else -> voiceName
+        })
         fVoice.setOnClickListener {
             showVoicePickDialog { id, name -> voiceId = id; voiceName = name; fVoice.text = name }
         }

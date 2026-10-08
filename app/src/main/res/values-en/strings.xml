@@ -372,4 +372,6 @@
     <string name="alarm_pregen_started">Generating… check back in a few seconds</string>
     <string name="alarm_voice_fail">Voice not ready — using system ringtone</string>
     <string name="alarm_need_voice_first">No usable voice for this provider — create one on the home screen (＋)</string>
+    <string name="alarm_engine">Engine</string>
+    <string name="alarm_voice_mismatch">⚠ does not match the current provider — pick another voice</string>
 </resources>
