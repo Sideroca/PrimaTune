@@ -225,7 +225,7 @@
     <string name="cat_chinese">🏮 중국 전통색 46</string>
     <string name="cat_attrs">배경 속성</string>
     <string name="icon_style_default">보라 · 기본</string>
-    <string name="icon_style_a">노브</string>
+    <string name="icon_style_a">칩</string>
     <string name="icon_style_b">로즈</string>
     <string name="icon_style_c">믹서</string>
     <string name="toast_backfill_done">파라미터 복원 완료</string>
@@ -362,4 +362,8 @@
     <string name="alarm_ring_text">AI가 아침 인사를 하고 있습니다</string>
     <string name="alarm_preparing">알람 음성 준비 중…</string>
     <string name="role_edit">프롬프트</string>
+    <string name="alarm_date">날짜</string>
+    <string name="alarm_date_auto">자동 (오늘/내일)</string>
+    <string name="alarm_test">테스트 울림</string>
+    <string name="alarm_test_toast">3초 후 울립니다…</string>
 </resources>

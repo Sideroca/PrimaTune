@@ -11,8 +11,8 @@ android {
         applicationId = "com.sideroca.voicetuner"
         minSdk = 26
         targetSdk = 34
-        versionCode = 55
-        versionName = "1.4.3"
+        versionCode = 56
+        versionName = "1.5"
     }
 
     signingConfigs {

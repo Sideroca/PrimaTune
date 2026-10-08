@@ -225,7 +225,7 @@
     <string name="cat_chinese">🏮 中国伝統色 46</string>
     <string name="cat_attrs">壁紙属性</string>
     <string name="icon_style_default">紫・デフォルト</string>
-    <string name="icon_style_a">ノブ</string>
+    <string name="icon_style_a">チップ</string>
     <string name="icon_style_b">ローズ</string>
     <string name="icon_style_c">ミキサー</string>
     <string name="toast_backfill_done">パラメータを復元しました</string>
@@ -362,4 +362,8 @@
     <string name="alarm_ring_text">AI がおはようと話しています</string>
     <string name="alarm_preparing">アラーム音声を準備中…</string>
     <string name="role_edit">プロンプト</string>
+    <string name="alarm_date">日付</string>
+    <string name="alarm_date_auto">自動（今日/明日）</string>
+    <string name="alarm_test">テスト再生</string>
+    <string name="alarm_test_toast">3 秒後に鳴ります…</string>
 </resources>

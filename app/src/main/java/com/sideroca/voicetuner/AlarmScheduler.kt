@@ -23,8 +23,25 @@ object AlarmScheduler {
         val ring = nextTrigger(cfg, now)
         val pregen = maxOf(now + 60_000, ring - LEAD_MS)
         set(ctx, RC_PREGEN, "pregen", pregen)
-        set(ctx, RC_RING, "ring", ring)
+        setRing(ctx, ring)
     }
+
+    /** 响铃用 `setAlarmClock`：最可靠（Doze 也放行），并给"可启动前台服务"豁免；且状态栏出现闹钟图标。 */
+    private fun setRing(ctx: Context, at: Long) {
+        val p = pi(ctx, RC_RING, "ring")
+        try {
+            val show = PendingIntent.getActivity(
+                ctx, RC_RING, Intent(ctx, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            am(ctx).setAlarmClock(AlarmManager.AlarmClockInfo(at, show), p)
+        } catch (e: Exception) {
+            set(ctx, RC_RING, "ring", at)      // 回退
+        }
+    }
+
+    /** 「测试响铃」：延迟 delayMs 后响一次（走同一条路径） */
+    fun testRing(ctx: Context, delayMs: Long) = setRing(ctx, System.currentTimeMillis() + delayMs)
 
     fun snooze(ctx: Context, minutes: Int) {
         val at = System.currentTimeMillis() + minutes * 60_000L
@@ -44,12 +61,18 @@ object AlarmScheduler {
             set(Calendar.HOUR_OF_DAY, cfg.hour); set(Calendar.MINUTE, cfg.minute)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
+        // 一次性：若指定了日期，先落到那天
+        if (cfg.repeat == "once" && cfg.date.isNotBlank()) {
+            val p = cfg.date.split("-")
+            if (p.size == 3) runCatching {
+                c.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
+                c.set(Calendar.HOUR_OF_DAY, cfg.hour); c.set(Calendar.MINUTE, cfg.minute)
+            }
+        }
+        if (c.timeInMillis <= now) c.add(Calendar.DAY_OF_MONTH, 1)
         if (cfg.repeat == "weekday") {
-            while (c.timeInMillis <= now ||
-                c.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || c.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
+            while (c.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || c.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
                 c.add(Calendar.DAY_OF_MONTH, 1)
-        } else if (c.timeInMillis <= now) {
-            c.add(Calendar.DAY_OF_MONTH, 1)
         }
         return c.timeInMillis
     }

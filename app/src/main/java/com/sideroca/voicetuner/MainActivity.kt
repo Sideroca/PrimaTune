@@ -264,6 +264,7 @@ class MainActivity : AppCompatActivity() {
         takes.addAll(store.loadTakes())
         renderHistory()
         migrateDurationsAsync()
+        runCatching { AlarmScheduler.apply(this) }   // 已保存的闹钟：启动时补排（幂等）
 
         if (store.apiKey.isBlank()) {
             tvStatus.text = getString(R.string.first_run_hint)

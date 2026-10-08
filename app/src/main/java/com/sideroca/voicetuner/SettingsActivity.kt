@@ -1346,7 +1346,10 @@ class SettingsActivity : AppCompatActivity() {
             btn.textSize = 13f
             btn.setPadding(dp(14f), dp(11f), dp(14f), dp(11f))
             val c0 = Skin.colors(this)
-            btn.background = Skin.shapeDp(this, c0.card2, c0.line, 10f, 100, 1f)
+            // 跟主题色：accent 玻璃（与「翻译 / 智能填参」同一款），不再是灰卡
+            btn.background = Skin.shapeDp(this, (c0.acc and 0x00FFFFFF) or (0x29 shl 24),
+                (c0.acc and 0x00FFFFFF) or (0x6B shl 24), 11f, 100, 1.5f)
+            btn.setTextColor(c0.acc)
             btn.tag = "bg:keep"
             btn.isClickable = true
             btn.isFocusable = true
@@ -2240,6 +2243,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val cfg = AlarmCfg.from(store.alarmJson)
         var hour = cfg.hour; var minute = cfg.minute
         var repeat = cfg.repeat
+        var date = cfg.date
         var voiceId = cfg.voiceId; var voiceName = cfg.voiceName
         val c0 = Skin.colors(this)
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20f), dp(6f), dp(20f), dp(4f)) }
@@ -2247,7 +2251,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         fun fld(t: String) = TextView(this).apply {
             text = t; textSize = 14f; setTextColor(c0.txt)
             setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
-            background = Skin.shapeDp(this@SettingsActivity, c0.card2, c0.line, 10f, 100, 1f)
+            background = Skin.shapeDp(this@SettingsActivity, (c0.acc and 0x00FFFFFF) or (0x14 shl 24),
+                (c0.acc and 0x00FFFFFF) or (0x59 shl 24), 10f, 100, 1f)
             tag = "bg:keep"; isClickable = true; isFocusable = true
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
@@ -2270,6 +2275,23 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val fRep = fld(repName(repeat))
         fRep.setOnClickListener { showRepeatPick(fRep) { r -> repeat = r; fRep.text = repName(r) } }
         box.addView(fRep)
+        box.addView(lbl(getString(R.string.alarm_date)))
+        val fDate = fld(date.ifBlank { getString(R.string.alarm_date_auto) })
+        fDate.setOnClickListener {
+            val cal = java.util.Calendar.getInstance()
+            runCatching {
+                if (date.isNotBlank()) {
+                    val p = date.split("-")
+                    cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
+                }
+            }
+            android.app.DatePickerDialog(this, { _, y, mo, d ->
+                date = String.format(java.util.Locale.US, "%04d-%02d-%02d", y, mo + 1, d)
+                fDate.text = date
+            }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+                cal.get(java.util.Calendar.DAY_OF_MONTH)).show()
+        }
+        box.addView(fDate)
         box.addView(lbl(getString(R.string.alarm_voice)))
         val fVoice = fld(if (voiceName.isBlank()) getString(R.string.alarm_voice_pick) else voiceName)
         fVoice.setOnClickListener {
@@ -2285,6 +2307,13 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(lbl(getString(R.string.alarm_count)))
         val etN = EditText(this).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(cfg.count.toString()); textSize = 14f; setTextColor(c0.txt) }
         box.addView(etN)
+        box.addView(lbl(getString(R.string.alarm_test)))
+        val fTest = fld(getString(R.string.alarm_test))
+        fTest.setOnClickListener {
+            AlarmScheduler.testRing(this, 3000)
+            toast(getString(R.string.alarm_test_toast))
+        }
+        box.addView(fTest)
         val sc = ScrollView(this); sc.addView(box)
         val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.alarm_title).setView(sc)
@@ -2294,7 +2323,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     voiceId = voiceId, voiceName = voiceName,
                     prompt = etP.text.toString().trim(),
                     minChars = (etMin.text.toString().trim().toIntOrNull() ?: 80).coerceIn(1, 2000),
-                    count = (etN.text.toString().trim().toIntOrNull() ?: 1).coerceIn(1, 9)
+                    count = (etN.text.toString().trim().toIntOrNull() ?: 1).coerceIn(1, 9),
+                    date = if (repeat == "once") date else ""
                 )
                 store.alarmJson = c.toJson()
                 AlarmScheduler.apply(this)

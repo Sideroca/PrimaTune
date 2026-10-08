@@ -238,20 +238,23 @@ class AlarmService : Service() {
     }
 
     private fun playFallback() {
-        runCatching {
-            player?.release()
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            val mp = MediaPlayer()
-            mp.setAudioAttributes(
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
-            )
-            mp.setDataSource(this, uri)
-            mp.isLooping = true
-            mp.setVolume(vol, vol)
-            mp.prepare(); mp.start()
-            player = mp
+        // 闹钟声 → 铃声 → 通知声，逐个试（有些设备没有默认"闹钟"音）
+        for (t in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION)) {
+            val uri = RingtoneManager.getDefaultUri(t) ?: continue
+            val ok = runCatching {
+                player?.release()
+                val mp = MediaPlayer()
+                mp.setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
+                )
+                mp.setDataSource(this, uri)
+                mp.isLooping = true
+                mp.setVolume(vol, vol)
+                mp.prepare(); mp.start()
+                player = mp
+            }.isSuccess
+            if (ok) return
         }
     }
 

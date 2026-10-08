@@ -10,7 +10,11 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.getStringExtra("alarm_action") ?: return
         val i = Intent(context, AlarmService::class.java).putExtra("alarm_action", action)
-        runCatching { ContextCompat.startForegroundService(context, i) }
+        try {
+            ContextCompat.startForegroundService(context, i)
+        } catch (e: Exception) {
+            runCatching { context.startService(i) }     // 兜底（部分 ROM 限制后台启前台服务）
+        }
     }
 }
 
