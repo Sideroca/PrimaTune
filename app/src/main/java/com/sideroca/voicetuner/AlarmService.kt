@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import org.json.JSONArray
@@ -25,14 +26,19 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.math.min
 
 /**
  * AI 闹钟前台服务：
  *  - `pregen`：**提前数小时**跑 —— LLM 写词 → 逐条 TTS（**存 WAV**）→ 落到 `filesDir/alarm/`；
- *  - `ring`  ：到点**只播放**（按序、音量渐强）；没有缓存 → 播**系统默认闹钟铃声**（兜底）；
- *  - `snooze`/`dismiss`：通知按钮。
- * 失败/无网一律兜底，**绝不静默不响**。
+ *  - `ring`  ：到点播放（按序、音量恒定）。**绝不静默**：
+ *      ① 有预生成 → 直接播 AI 人声；
+ *      ② 没预生成 → **立刻**响系统铃声，同时现场生成，**30 秒内**生成好就切成 AI 人声；
+ *  - `snooze` / `dismiss`：通知按钮 / 响铃页按钮。
+ *
+ * 「不打开 App 就不响」的加固（用户 2026-10-08）：
+ *  - 调度端（`AlarmScheduler`）**两条闹钟都用 `setAlarmClock`** → 都拿到 Doze 放行 + "可启动前台服务"豁免；
+ *  - 接收器（`AlarmReceiver`）**先把通知 / 全屏响铃页挂出去**，再起服务；**服务起不来 → 接收器里直接播**；
+ *  - 响铃页 `AlarmRingActivity` 走**全屏通知**（`setFullScreenIntent`），锁屏也能一眼看到。
  */
 class AlarmService : Service() {
 
@@ -40,7 +46,117 @@ class AlarmService : Service() {
         const val EXTRA = "alarm_action"
         private const val CH = "vt_alarm"
         private const val NOTI_PREGEN = 7301
-        private const val NOTI_RING = 7302
+        const val NOTI_RING = 7302
+
+        /** 生成窗口：无预生成时，现场生成这么久还没好就保持系统铃声 */
+        private const val LIVE_GEN_LIMIT_MS = 30_000L
+
+        /** 接收器「直接播」用的静态播放器 + 唤醒锁（后台不给起前台服务时的最后一道兜底）。 */
+        @Volatile private var directPlayer: MediaPlayer? = null
+        @Volatile private var directWake: PowerManager.WakeLock? = null
+
+        /** 抢一把短唤醒锁（30 分钟）：到点后 CPU 别睡回去。 */
+        fun wakeUp(ctx: Context) {
+            runCatching {
+                if (directWake == null) {
+                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+                    directWake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "vt:alarm")
+                        .apply { acquire(30 * 60 * 1000L) }
+                }
+            }
+        }
+
+        fun releaseWake() {
+            runCatching { directWake?.let { if (it.isHeld) it.release() } }
+            directWake = null
+        }
+
+        fun ensureChannel(ctx: Context) {
+            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+            if (nm.getNotificationChannel(CH) == null) {
+                nm.createNotificationChannel(
+                    NotificationChannel(CH, ctx.getString(R.string.alarm_channel), NotificationManager.IMPORTANCE_HIGH).apply {
+                        setShowBadge(true); enableVibration(true)
+                    }
+                )
+            }
+        }
+
+        /** 诊断日志（**静态**版：接收器/调度器也能写，用于判断"广播到底有没有送达"）。 */
+        fun logStatus(ctx: Context, msg: String) {
+            runCatching {
+                val f = File(Store(ctx).alarmDir, "status.txt")
+                if (f.length() > 20000) f.delete()
+                f.appendText(SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date()) + "  " + msg + "\n")
+            }
+        }
+
+        /** 响铃时的"谁在说话"文案：**「音色名 向你问好」**（用户 2026-10-08：不要"AI 正在用…"那套）。 */
+        fun ringWho(ctx: Context): String {
+            val cfg = AlarmCfg.from(Store(ctx).alarmJson)
+            val who = cfg.voiceName.ifBlank { ctx.getString(R.string.voice_custom) }
+            return ctx.getString(R.string.alarm_ring_who, who)
+        }
+
+        /** 响铃通知：高优先级 + **全屏意图**（锁屏也弹响铃页）+ 贪睡 / 停止。 */
+        fun buildRingNoti(ctx: Context, text: String): Notification {
+            ensureChannel(ctx)
+            val full = PendingIntent.getActivity(
+                ctx, 7400, Intent(ctx, AlarmRingActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val snooze = PendingIntent.getService(
+                ctx, 7401, Intent(ctx, AlarmService::class.java).putExtra(EXTRA, "snooze"),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val dismiss = PendingIntent.getService(
+                ctx, 7402, Intent(ctx, AlarmService::class.java).putExtra(EXTRA, "dismiss"),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            return NotificationCompat.Builder(ctx, CH)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle(ctx.getString(R.string.alarm_ring_title))
+                .setContentText(text)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setOngoing(true)
+                .setFullScreenIntent(full, true)
+                .addAction(0, ctx.getString(R.string.alarm_ring_snooze), snooze)
+                .addAction(0, ctx.getString(R.string.alarm_ring_stop), dismiss)
+                .build()
+        }
+
+        /**
+         * 后台**不给**起前台服务时的兜底：**接收器里直接播**系统铃声（闹钟声→铃声→通知声）。
+         * 配合唤醒锁，短时间内进程不会被回收；响铃页 / 通知仍由接收器负责挂出。
+         */
+        fun playFallbackDirect(ctx: Context) {
+            if (directPlayer != null) return
+            wakeUp(ctx)
+            for (t in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION)) {
+                val uri = RingtoneManager.getDefaultUri(t) ?: continue
+                val ok = runCatching {
+                    val mp = MediaPlayer()
+                    mp.setAudioAttributes(
+                        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
+                    )
+                    mp.setDataSource(ctx, uri)
+                    mp.isLooping = true
+                    mp.setVolume(1f, 1f)
+                    mp.prepare(); mp.start()
+                    directPlayer = mp
+                }.isSuccess
+                if (ok) return
+            }
+        }
+
+        fun stopDirect() {
+            runCatching { directPlayer?.stop() }
+            runCatching { directPlayer?.release() }
+            directPlayer = null
+            releaseWake()
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -53,91 +169,65 @@ class AlarmService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.getStringExtra(EXTRA) ?: "ring"
+        // 手动"测试响铃"（直接起服务那条）：响完**不要**做收尾（否则会误关掉真实的一次性闹钟）
+        val isManualTest = intent?.getBooleanExtra("alarm_test", false) == true
         when (action) {
             "pregen" -> {
-                startFg(NOTI_PREGEN, noti(getString(R.string.alarm_title), getString(R.string.alarm_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 Thread {
                     if (!generate()) runCatching {
                         (getSystemService(NotificationManager::class.java))?.notify(
-                            NOTI_PREGEN, noti(getString(R.string.alarm_title), getString(R.string.alarm_voice_fail)))
+                            NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_voice_fail)))
                     }
                     stopSelf()
                 }.start()
             }
             "ring" -> {
                 stopped = false
-                startFg(NOTI_RING, ringNotification(getString(R.string.alarm_ring_text)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                startFg(NOTI_RING, buildRingNoti(this, ringWho(this)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
                 startRingFlow()
             }
-            "snooze" -> { stopped = true; stopPlayback(); AlarmScheduler.snooze(this, 5); stopSelf() }
-            "dismiss" -> { stopped = true; stopPlayback(); afterRing(); stopSelf() }
+            // 系统闹钟自检：走**真实链路**（AlarmManager → 广播 → 服务）响一声就停。
+            // 不动真实排期、不弹响铃页、不触发"响完收尾"——只用来证明"系统会不会把进程拉起来"。
+            "test" -> {
+                stopped = false
+                startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_selfcheck_running)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                status("自检：系统闹钟把进程拉起来了 ✅（这条就是「广播有没有送达」的铁证）")
+                vol = 1f
+                playFallback()
+                handler.postDelayed({ stopPlayback(); stopSelf() }, 12_000)
+            }
+            "snooze" -> { stopped = true; stopPlayback(); stopDirect(); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
+            "dismiss" -> { stopped = true; stopPlayback(); stopDirect(); if (!isManualTest) afterRing(); stopSelf() }
         }
         return START_NOT_STICKY
     }
 
     /** 诊断日志：写到 alarm/status.txt（卡片里能看"上次结果"） */
-    private fun status(msg: String) {
-        runCatching {
-            val f = File(Store(this).alarmDir, "status.txt")
-            if (f.length() > 20000) f.delete()
-            f.appendText(SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date()) + "  " + msg + "\n")
-        }
-    }
+    private fun status(msg: String) = logStatus(this, msg)
 
     // ---------------------------------------------------------------- 前台服务
-    private fun ch() {
-        val nm = getSystemService(NotificationManager::class.java)
-        if (nm != null && nm.getNotificationChannel(CH) == null) {
-            nm.createNotificationChannel(
-                NotificationChannel(CH, "闹钟", NotificationManager.IMPORTANCE_HIGH).apply {
-                    setShowBadge(true); enableVibration(true)
-                }
-            )
-        }
-    }
-
     private fun startFg(id: Int, n: Notification, type: Int) {
-        ch()
+        ensureChannel(this)
         runCatching {
             if (Build.VERSION.SDK_INT >= 29) ServiceCompat.startForeground(this, id, n, type)
             else startForeground(id, n)
         }
     }
 
-    private fun noti(title: String, text: String): Notification =
+    private fun pregenNoti(title: String, text: String): Notification =
         NotificationCompat.Builder(this, CH)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title).setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).setShowWhen(false).build()
 
-    private fun ringNotification(text: String): Notification {
-        val snooze = PendingIntent.getService(this, 7401,
-            Intent(this, AlarmService::class.java).putExtra(EXTRA, "snooze"),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val dismiss = PendingIntent.getService(this, 7402,
-            Intent(this, AlarmService::class.java).putExtra(EXTRA, "dismiss"),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(this, CH)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("⏰ 闹钟")
-            .setContentText(text)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setOngoing(true)
-            .addAction(0, "贪睡 5 分钟", snooze)
-            .addAction(0, "停止", dismiss)
-            .build()
-    }
-
     private fun updateRingNoti(text: String) {
         runCatching {
-            (getSystemService(NotificationManager::class.java))?.notify(NOTI_RING, ringNotification(text))
+            (getSystemService(NotificationManager::class.java))?.notify(NOTI_RING, buildRingNoti(this, text))
         }
     }
 
     // ---------------------------------------------------------------- 预生成
-    private fun pregen() { generate() }
-
     /** 生成到 alarmDir；成功（≥1 段可播）返回 true。失败原因：缺 LLM Key / 没选音色 / LLM 或 TTS 出错。 */
     private fun generate(): Boolean {
         try {
@@ -255,9 +345,10 @@ class AlarmService : Service() {
     @Volatile private var stopped = false
 
     /**
-     * 响铃：**有预生成就直接播**；没有则**先响系统铃声（绝不静默）**，
-     * 同时**现场生成**（LLM→TTS）；生成好立刻切成 AI 人声。
-     * —— 这样**不依赖"自启动/后台"**：到点由 `setAlarmClock` 唤醒即可。
+     * 响铃：**绝不静默**。
+     *  - 有预生成 → 直接播 AI 人声；
+     *  - 没预生成 → **立刻**响系统铃声，同时现场生成（LLM→TTS）；**30 秒内**成功 → 切成 AI 人声。
+     * 先把**全屏响铃页 + 高优先级通知**挂出去（即播放链路出意外，用户也看得到、点得到）。
      */
     private fun startRingFlow() {
         acquireWake()
@@ -265,34 +356,40 @@ class AlarmService : Service() {
         files = store.alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
         vol = 1f                                      // 音量**恒定**（不做渐强）
         status("响铃：预生成文件 ${files.size} 段")
-        if (files.isNotEmpty()) { idx = 0; playCurrent(); return }   // 预生成已就绪 → 直接播 TTS
-        // 没有预生成 → **现场生成**；生成好立刻播 TTS；
-        // 只有"真的失败 / 超过 8 秒还没好"才退系统铃声（绝不长时间静默）
-        handler.postDelayed({
-            if (!stopped && player == null) {
-                status("响铃：8 秒仍无音频 → 退系统铃声")
-                playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
-            }
-        }, 8000)
+        launchRingUi()
+        if (files.isNotEmpty()) {
+            updateRingNoti(ringWho(this))
+            idx = 0; playCurrent(); return
+        }
+        // 没有预生成 → 先响系统铃声（绝不静默），同时现场生成
+        status("响铃：无预生成 → 先响系统铃声，同时现场生成（${LIVE_GEN_LIMIT_MS / 1000} 秒内成功即切人声）")
+        playFallback()
+        updateRingNoti(getString(R.string.alarm_voice_fail))
+        val t0 = SystemClock.elapsedRealtime()
         Thread {
             val ok = generate()
+            val cost = SystemClock.elapsedRealtime() - t0
             if (stopped) return@Thread
-            if (ok) {
+            if (ok && cost <= LIVE_GEN_LIMIT_MS) {
                 val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
                 if (f.isNotEmpty() && !stopped) handler.post {
                     files = f; idx = 0
                     runCatching { player?.release() }; player = null
                     playCurrent()
-                    status("响铃：已切换为生成的人声（${f.size} 段）")
-                    updateRingNoti(getString(R.string.alarm_ring_text))
+                    status("响铃：已切换为生成的人声（${f.size} 段，用时 ${cost / 1000} 秒）")
+                    updateRingNoti(ringWho(this))
                 }
-            } else handler.post {
-                if (!stopped && player == null) {
-                    status("响铃：现场生成失败 → 系统铃声")
-                    playFallback(); updateRingNoti(getString(R.string.alarm_voice_fail))
-                }
+            } else {
+                status("响铃：现场生成失败 / 超时（用时 ${cost / 1000} 秒）→ 保持系统铃声")
             }
         }.start()
+    }
+
+    /** 唤起全屏响铃页（后台起 Activity 可能被系统拒绝 → 失败就靠通知的"全屏意图"）。 */
+    private fun launchRingUi() {
+        runCatching {
+            startActivity(Intent(this, AlarmRingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
     }
 
     private fun playCurrent() {

@@ -190,13 +190,13 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp">
+                android:layout_marginTop="6dp"
+                android:clipChildren="false">
 
                 <EditText
                     android:id="@+id/etText"
                     style="@style/VtInput"
                     android:layout_marginTop="0dp"
-                    android:paddingEnd="24dp"
                     android:gravity="top|start"
                     android:hint="@string/hint_input_text"
                     android:importantForAutofill="no"
@@ -205,21 +205,26 @@
 
                 <!-- 「译」「润」已下移：与「情绪 / 风格指令」标签同一水平线（见下方操作行） -->
 
-                <!-- 清空叉号：字形 = ＋号同尺寸(13sp)；判定方块 26dp，贴文本框上边+右边内沿 -->
+                <!-- 清空叉号：**骑在文本框右上角**（用户 2026-10-09）。
+                     原因：EditText 只有一个内距、换行按统一宽度算，"只让第一行变窄"做不到；
+                     以前 paddingEnd=24dp → **每一行**都白少约 1 个字（叉号只挡第 1 行）。
+                     现在改成：框内距回到常规 9dp（每行写满），叉号用**负外边距**跨到框的角上——
+                     字形（12sp ≈ 8dp）落在框的 9dp 内距里，**不压正文**，且仍长在框上。
+                     负边距画到父容器外 → FrameLayout 必须 clipChildren=false，否则上半截被裁掉。 -->
                 <TextView
                     android:id="@+id/btnClearText"
                     android:layout_width="34dp"
                     android:layout_height="34dp"
                     android:layout_gravity="top|end"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginEnd="-12dp"
                     android:gravity="center"
-                    android:paddingStart="3dp"
-                    android:paddingBottom="3dp"
                     android:clickable="true"
                     android:contentDescription="@string/clear_text"
                     android:focusable="true"
                     android:text="✕"
                     android:textColor="@color/clear_x"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
             </FrameLayout>
 
             <!-- 操作行：与「情绪 / 风格指令」标签同一水平线（[4] 定稿）
@@ -716,7 +721,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="20dp"
             android:gravity="center"
-            android:text="v1.5.7 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
+            android:text="v1.6.2 · deepseek-v4.1-flash∠( ᐛ 」∠)_"
             android:textColor="@color/hint"
             android:textSize="11sp" />
     </LinearLayout>

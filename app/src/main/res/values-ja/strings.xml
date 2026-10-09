@@ -374,4 +374,37 @@
     <string name="alarm_need_voice_first">このプロバイダーで使える音色がありません。ホームの「＋」で作成してください</string>
     <string name="alarm_engine">エンジン</string>
     <string name="alarm_voice_mismatch">⚠ 現在のプロバイダーと不一致。音色を選び直してください</string>
+    <!-- ===== 全画面アラーム / アラーム権限チェック（2026-10-08） ===== -->
+    <string name="alarm_channel">アラーム</string>
+    <string name="alarm_ring_title">⏰ アラーム</string>
+    <string name="alarm_ring_snooze">5分スヌーズ</string>
+    <string name="alarm_ring_stop">停止</string>
+    <string name="alarm_ring_who">%1$s から挨拶です</string>
+    <string name="date_fmt">M月d日 EEEE</string>
+    <string name="alarm_check_title">アラームの権限チェック</string>
+    <string name="alarm_check_entry">アラームの権限チェック…</string>
+    <string name="alarm_check_hint">中国系 ROM（Xiaomi・Huawei など）では、アプリを開いていなくても時間どおり鳴らすために下の3つが必要です。</string>
+    <string name="alarm_check_exact">正確なアラーム</string>
+    <string name="alarm_check_noti">通知</string>
+    <string name="alarm_check_fullscreen">全画面アラーム（ロック画面）</string>
+    <string name="alarm_check_battery">バッテリー最適化の除外</string>
+    <string name="alarm_check_autostart">自動起動 / バックグラウンド実行</string>
+    <string name="alarm_check_autostart_note">中国系 ROM（Xiaomi・Huawei など）では「自動起動」を手動で許可しないと鳴らないことがあります。</string>
+    <string name="alarm_check_details">アプリ情報（自動起動の入口）</string>
+    <string name="alarm_check_goto">設定へ</string>
+    <string name="alarm_check_on">オン</string>
+    <string name="alarm_check_off">オフ</string>
+    <string name="alarm_test_sys">システムアラーム自検（15秒後）</string>
+    <string name="alarm_test_sys_toast">15秒後に一度鳴ります（本物のシステムアラーム経由）。いまアプリを履歴から消して、それでも鳴るか確認してください。戻って記録の行を見られます。</string>
+    <string name="alarm_test_direct">今すぐ一度鳴らす（直接再生・システムアラームなし）</string>
+    <string name="alarm_selfcheck_running">アラーム自検：鳴っています…</string>
+
+    <string name="alarm_check_three">① 必須（中国系 ROM）</string>
+    <string name="alarm_check_step_keep">① 履歴でロック</string>
+    <string name="alarm_check_step_keep_note">履歴でこのアプリのカードを長押し → ロックをタップ（システムに消されないように）</string>
+    <string name="alarm_check_step_battery">② バッテリー節約 → 制限なし</string>
+    <string name="alarm_check_step_autostart">③ 自動起動 → オン</string>
+    <string name="alarm_check_step_autostart_note">＝システムがバックグラウンドでこのアプリを起動できるようにする設定。アラームはこれ頼みです（アプリ側からは変更できません）。</string>
+    <string name="alarm_check_perms">② 権限チェック</string>
+    <string name="alarm_check_open_appinfo">アプリ情報を開く（自動起動 / バッテリーはここ）</string>
 </resources>

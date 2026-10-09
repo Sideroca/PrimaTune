@@ -200,6 +200,9 @@ class MainActivity : AppCompatActivity() {
     private var genTextOverride: String? = null
     /** 多版本翻译：所有译版都写进「合成文本」框（每行一版）；这里留一份清单给「生成＝全部生成」用 */
     private val transVersions = mutableListOf<String>()
+    /** 多译版「删除即整行清掉」：正在被删的行号（-1 = 无）与该行累计删掉的字数 */
+    private var trDelLine = -1
+    private var trDelHits = 0
     private lateinit var btnYi: TextView
     private lateinit var btnRun: TextView
     private lateinit var btnRole: TextView
@@ -320,7 +323,7 @@ class MainActivity : AppCompatActivity() {
         customVoices.clear(); customVoices.addAll(store.loadCustomVoices())
         hiddenVoices.clear(); hiddenVoices.addAll(store.hiddenVoices)
         if (!voiceIsCustom && allVoices().none { it.id == currentVoiceId }) {
-            currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+            setVoice(null)          // 音色被删/隐藏后回落："当前音色"变了就清空骰子
         }
         fitVoiceWidth()
         syncVoiceUi()
@@ -436,8 +439,17 @@ class MainActivity : AppCompatActivity() {
         btnCreateVoice = findViewById(R.id.btnCreateVoice)
         etText = findViewById(R.id.etText)
         btnClearText = findViewById(R.id.btnClearText)
+        // 中文**两端对齐**（用户 2026-10-09：机型为安卓 16 / API 36）。
+        // 官方口径：`JUSTIFICATION_MODE_INTER_CHARACTER` **自 Android 15（API 35）起**提供，
+        // 正是给"不用空格分词"的中文 / 日文用的（`inter_word` 只按空格拉伸，对中文无效）。
+        // 效果：**每一行右端都齐平**（末行除外，符合排版常规）。
+        // ⚠️ 它只是**排版**（字间距），**不改文字内容** → 送去合成的文本一字不动，不污染 TTS。
+        if (Build.VERSION.SDK_INT >= 35) {
+            runCatching { etText.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_CHARACTER }
+        }
         // 清空叉号：仅清空文本，不改变其它参数
         btnClearText.setOnClickListener {
+            transVersions.clear(); trDelLine = -1; trDelHits = 0   // 整段清空 = 退出多译版模式，别被"删字"逻辑拆行
             etText.setText("")
             etText.requestFocus()
         }
@@ -451,7 +463,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 if (::etSeed.isInitialized && etSeed.text.isNotEmpty()) etSeed.setText("")
-                if (transVersions.isNotEmpty() && s?.toString() != transVersions.joinToString("\n")) transVersions.clear()
+                handleMultiVersionEdit(s?.toString() ?: "")
             }
         })
         btnDice = findViewById(R.id.btnDice)
@@ -648,6 +660,51 @@ class MainActivity : AppCompatActivity() {
         llTransBlocks.visibility = View.GONE
     }
 
+    /**
+     * 「多译版」状态下（一次翻出好几版，都写进「合成文本」框、每行一版）：
+     * **在一行里连续删到 2 个字** → **整行删除**（这版消失、其余译版上移）。
+     * - 只删 1 个字时按兵不动（防手滑一下抹掉整版），但让 `transVersions` 与文本保持同步；
+     * - 打字 / 替换 / 整段清空 → 退出多译版模式（沿用原行为）。
+     * 用户 2026-10-08 指定。
+     */
+    private fun handleMultiVersionEdit(newText: String) {
+        if (transVersions.isEmpty()) { trDelLine = -1; trDelHits = 0; return }
+        val old = transVersions.joinToString("\n")
+        if (newText == old) return
+        if (newText.length >= old.length) {              // 打字 / 替换 / 清空 → 退出多译版模式
+            transVersions.clear(); trDelLine = -1; trDelHits = 0
+            return
+        }
+        if (newText.isEmpty()) {                         // 整段删光
+            transVersions.clear(); trDelLine = -1; trDelHits = 0
+            return
+        }
+        val lines = newText.split("\n")
+        if (lines.size < transVersions.size - 1) {       // 一次少了 ≥2 行 = 批量编辑 → 退出模式
+            transVersions.clear(); trDelLine = -1; trDelHits = 0
+            return
+        }
+        // 删除：按"公共前缀"定位改动落在第几行
+        var p = 0
+        val cap = minOf(old.length, newText.length)
+        while (p < cap && old[p] == newText[p]) p++
+        val line = old.substring(0, p).count { it == '\n' }
+        val removed = old.length - newText.length
+        if (line == trDelLine) trDelHits += removed else { trDelLine = line; trDelHits = removed }
+        if (trDelHits < 2) {                             // 只删了 1 个字：先不动，保持同步
+            if (lines.size == transVersions.size) { transVersions.clear(); transVersions.addAll(lines) }
+            return
+        }
+        // 删够 2 个字 → 整行删除
+        trDelLine = -1; trDelHits = 0
+        if (line !in transVersions.indices) { transVersions.clear(); return }
+        transVersions.removeAt(line)
+        val joined = transVersions.joinToString("\n")
+        val caret = transVersions.take(line).sumOf { it.length + 1 }.coerceIn(0, joined.length)
+        etText.setText(joined)
+        etText.setSelection(caret)
+    }
+
     /** 走 LLM：translate=true 翻译 / false 润色 */
     private fun llmRewrite(translate: Boolean, text: String) {
         val sys = if (translate)
@@ -671,6 +728,7 @@ class MainActivity : AppCompatActivity() {
             ui {
                 btnTranslate.isEnabled = true
                 if (out != null) {
+                    transVersions.clear()          // 整段替换 = 退出多译版模式
                     etText.setText(out)
                     tvStatus.text = if (translate) getString(R.string.llm_trans_done, store.trTarget) else getString(R.string.llm_polish_done)
                 } else {
@@ -2000,6 +2058,7 @@ class MainActivity : AppCompatActivity() {
             etCustomVoice.setText(take.voiceId)
             syncVoiceUi()
         }
+        transVersions.clear()          // 回填历史 = 退出多译版模式（否则会被"删字"逻辑拆行）
         etText.setText(take.text)
         etInstr.setText(take.instruction)
         etSeed.setText(take.seed.toString())
@@ -2123,10 +2182,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun switchTo(id: String) {
-            voiceIsCustom = false
-            currentVoiceId = id
-            fitVoiceWidth()
-            syncVoiceUi()
+            setVoice(id)            // 走统一入口：内部会处理"换音色 → 清空骰子"，别直接改 currentVoiceId（那会绕过）
             pop?.dismiss()          // 指示符已搬到首页 → 这里立即收起（不再等 790ms）
         }
 
@@ -2301,7 +2357,7 @@ class MainActivity : AppCompatActivity() {
                 hiddenVoices.add(v.id)
                 store.hiddenVoices = hiddenVoices
                 if (!voiceIsCustom && currentVoiceId == v.id) {
-                    currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+                    setVoice(null)          // 走统一入口 → 顺带清空骰子
                 }
                 fitVoiceWidth()
                 syncVoiceUi()
@@ -2324,7 +2380,7 @@ class MainActivity : AppCompatActivity() {
                 customVoices.removeAll { it.id == v.id }
                 store.saveCustomVoices(customVoices)
                 if (!voiceIsCustom && currentVoiceId == v.id) {
-                    currentVoiceId = allVoices().firstOrNull()?.id ?: ""
+                    setVoice(null)          // 走统一入口 → 顺带清空骰子
                 }
                 fitVoiceWidth()
                 syncVoiceUi()

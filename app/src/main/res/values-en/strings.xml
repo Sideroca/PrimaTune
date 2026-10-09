@@ -374,4 +374,37 @@
     <string name="alarm_need_voice_first">No usable voice for this provider — create one on the home screen (＋)</string>
     <string name="alarm_engine">Engine</string>
     <string name="alarm_voice_mismatch">⚠ does not match the current provider — pick another voice</string>
+    <!-- ===== full-screen ring page / alarm permission check (2026-10-08) ===== -->
+    <string name="alarm_channel">Alarm</string>
+    <string name="alarm_ring_title">⏰ Alarm</string>
+    <string name="alarm_ring_snooze">Snooze 5 min</string>
+    <string name="alarm_ring_stop">Stop</string>
+    <string name="alarm_ring_who">%1$s says hello</string>
+    <string name="date_fmt">EEEE, MMM d</string>
+    <string name="alarm_check_title">Alarm permissions</string>
+    <string name="alarm_check_entry">Alarm permissions…</string>
+    <string name="alarm_check_hint">On Chinese ROMs (Xiaomi, Huawei…) do the three steps below (same as our sister app) so the alarm can ring on time without opening the app.</string>
+    <string name="alarm_check_exact">Exact alarms</string>
+    <string name="alarm_check_noti">Notifications</string>
+    <string name="alarm_check_fullscreen">Full-screen alarm (lock screen)</string>
+    <string name="alarm_check_battery">Ignore battery optimization</string>
+    <string name="alarm_check_autostart">Autostart / run in background</string>
+    <string name="alarm_check_autostart_note">On Chinese ROMs (Xiaomi, Huawei…) you must allow autostart manually, or the alarm may not ring.</string>
+    <string name="alarm_check_details">App info (autostart entry)</string>
+    <string name="alarm_check_goto">Open</string>
+    <string name="alarm_check_on">On</string>
+    <string name="alarm_check_off">Off</string>
+    <string name="alarm_test_sys">System-alarm self-test (in 15 s)</string>
+    <string name="alarm_test_sys_toast">Will ring once in 15 s through the real system alarm. Now swipe the app away from Recents and see whether it still rings; then come back and check the log line.</string>
+    <string name="alarm_test_direct">Ring once now (direct playback, no system alarm)</string>
+    <string name="alarm_selfcheck_running">Alarm self-test: ringing…</string>
+
+    <string name="alarm_check_three">1) Required on Chinese ROMs</string>
+    <string name="alarm_check_step_keep">1) Lock it in Recents</string>
+    <string name="alarm_check_step_keep_note">Long-press this app card in Recents -> tap the lock (stops the system from clearing it)</string>
+    <string name="alarm_check_step_battery">2) Battery saver -> No restrictions</string>
+    <string name="alarm_check_step_autostart">3) Autostart -> On</string>
+    <string name="alarm_check_step_autostart_note">= lets the system start this app in the background. The alarm depends on it; without it the alarm may not ring (the app cannot turn this on by itself).</string>
+    <string name="alarm_check_perms">2) Permission checklist</string>
+    <string name="alarm_check_open_appinfo">Open App info (Autostart / Battery live here)</string>
 </resources>

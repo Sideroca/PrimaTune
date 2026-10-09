@@ -2315,14 +2315,23 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val etN = EditText(this).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(cfg.count.toString()); textSize = 14f; setTextColor(c0.txt) }
         box.addView(etN)
         box.addView(lbl(getString(R.string.alarm_test)))
-        val fTest = fld(getString(R.string.alarm_test))
+        // ① **真实链路自检**（推荐先做这个）：走 AlarmManager → 广播 → 服务，能验出
+        //    "App 被划掉 / 进程不在时，系统还会不会把它拉起来"——这是"从没在后台就永远不响"的判定关键。
+        val fTestSys = fld(getString(R.string.alarm_test_sys))
+        fTestSys.setOnClickListener {
+            AlarmScheduler.testSystemAlarm(this, 15_000)
+            toast(getString(R.string.alarm_test_sys_toast))
+        }
+        box.addView(fTestSys)
+        // ② 只验播放链路：**直接起服务**（绕过系统闹钟，排除 AlarmManager / 权限干扰）
+        val fTest = fld(getString(R.string.alarm_test_direct))
         fTest.setOnClickListener {
             toast(getString(R.string.alarm_test_toast))
-            // 直接起服务（**绕过系统闹钟**，排除 AlarmManager / 权限干扰）
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 runCatching {
                     androidx.core.content.ContextCompat.startForegroundService(
-                        this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "ring")
+                        this, Intent(this, AlarmService::class.java)
+                            .putExtra(AlarmService.EXTRA, "ring").putExtra("alarm_test", true)
                     )
                 }
             }, 3000)
@@ -2361,6 +2370,10 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tries = 0; hPoll.postDelayed(poll, 2000)
         }
         box.addView(fPre)
+        box.addView(lbl(getString(R.string.alarm_check_title)))
+        val fPerm = fld(getString(R.string.alarm_check_entry))
+        fPerm.setOnClickListener { showAlarmCheckDialog() }
+        box.addView(fPerm)
         val sc = ScrollView(this); sc.addView(box)
         val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.alarm_title).setView(sc)
@@ -2435,6 +2448,122 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
         d.setOnShowListener { skinDialog(d) }; d.show()
+    }
+
+    /**
+     * 闹钟「权限体检」（用户 2026-10-08）：把"到点不响"的几个坑逐项列出来（✓/✗），点一下**直达**系统设置。
+     * 精确闹钟 / 通知 / 全屏响铃 / 电池优化 / 自启动——尤其国产 ROM 的自启动，不给就很可能不响。
+     */
+    /**
+     * 闹钟「权限体检」（用户 2026-10-08 起；2026-10-09 按姊妹项目**闪译**的做法改成**引导式**）。
+     *
+     * 结论（读闪译代码得出）：闹钟要准点响，靠的**不是常驻**，而是"**允许系统在后台把本应用拉起来**"——
+     * 即小米的「自启动」。所以这里把闪译 README 的三步一次性设置原样搬过来，逐项 ✓/✗、点一下直达系统设置。
+     */
+    private fun showAlarmCheckDialog() {
+        val c = Skin.colors(this)
+        val on = getString(R.string.alarm_check_on)
+        val off = getString(R.string.alarm_check_off)
+        val go = getString(R.string.alarm_check_goto)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20f), dp(4f), dp(20f), dp(4f)) }
+        box.addView(TextView(this).apply {
+            text = getString(R.string.alarm_check_hint); setTextColor(c.dim); textSize = 12.5f
+            setPadding(0, dp(2f), 0, dp(6f))
+        })
+
+        fun note(t: String) = TextView(this).apply {
+            text = t; setTextColor(c.dim); textSize = 11.5f
+            setPadding(dp(2f), 0, dp(2f), dp(8f))
+        }
+        fun section(t: String) = TextView(this).apply {
+            text = t; setTextColor(c.acc); textSize = 12f
+            setPadding(dp(2f), dp(14f), dp(2f), 0)
+        }
+        fun row(title: String, state: String, click: (() -> Unit)?) {
+            val tv = TextView(this).apply {
+                text = if (state.isEmpty()) title else title + "\u3000" + state
+                textSize = 14.5f
+                setTextColor(if (state == on) c.acc else c.txt)
+                setPadding(dp(2f), dp(13f), dp(2f), dp(13f))
+                isClickable = click != null; isFocusable = click != null
+            }
+            click?.let { f -> fx(tv); tv.setOnClickListener { f() } }
+            box.addView(tv)
+        }
+
+        val notiOk = android.os.Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val fullOk = android.os.Build.VERSION.SDK_INT < 34 ||
+            (getSystemService(android.app.NotificationManager::class.java)?.canUseFullScreenIntent() ?: false)
+        val battOk = getSystemService(android.os.PowerManager::class.java)
+            ?.isIgnoringBatteryOptimizations(packageName) ?: false
+
+        // ① 闪译同款三步（国产 ROM 必做）
+        section(getString(R.string.alarm_check_three))
+        row(getString(R.string.alarm_check_step_keep), go, ::openAppDetails)
+        box.addView(note(getString(R.string.alarm_check_step_keep_note)))
+        row(getString(R.string.alarm_check_step_battery), if (battOk) on else go) {
+            runCatching { startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+        }
+        row(getString(R.string.alarm_check_step_autostart), go, ::openAppDetails)
+        box.addView(note(getString(R.string.alarm_check_step_autostart_note)))
+
+        // ② 权限清单
+        section(getString(R.string.alarm_check_perms))
+        row(getString(R.string.alarm_check_exact), if (AlarmScheduler.canExact(this)) on else off) {
+            runCatching {
+                startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    .setData(android.net.Uri.parse("package:$packageName")))
+            }
+        }
+        row(getString(R.string.alarm_check_noti), if (notiOk) on else off) {
+            if (android.os.Build.VERSION.SDK_INT >= 33)
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 79)
+            else openAppDetails()
+        }
+        row(getString(R.string.alarm_check_fullscreen), if (fullOk) on else off) {
+            runCatching {
+                if (android.os.Build.VERSION.SDK_INT >= 34)
+                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                        .setData(android.net.Uri.parse("package:$packageName")))
+                else openAppDetails()
+            }
+        }
+        row(getString(R.string.alarm_check_battery), if (battOk) on else off) {
+            runCatching { startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+        }
+
+        // ③ 底部：一键去应用详情（自启动 / 省电策略 都在这页）
+        val btn = TextView(this).apply {
+            text = getString(R.string.alarm_check_open_appinfo)
+            textSize = 14f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(c.acc)
+            setPadding(dp(2f), dp(14f), dp(2f), dp(14f))
+            isClickable = true; isFocusable = true
+            background = Skin.shapeDp(this@SettingsActivity, c.card2, c.line, 10f, 100, 1f)
+            tag = "bg:keep"
+        }
+        fx(btn); btn.setOnClickListener { openAppDetails() }
+        box.addView(btn)
+
+        val sc = ScrollView(this); sc.addView(box)
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.alarm_check_title).setView(sc)
+            .setPositiveButton(getString(R.string.common_done), null).create()
+        d.setOnShowListener {
+            skinDialog(d)
+            sc.layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, resources.displayMetrics.heightPixels * 6 / 10)
+        }
+        d.show()
+    }
+
+    private fun openAppDetails() {
+        runCatching {
+            startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.parse("package:$packageName")))
+        }
     }
 
     /** 重复方式：**短、窄**的下拉（内容少） */

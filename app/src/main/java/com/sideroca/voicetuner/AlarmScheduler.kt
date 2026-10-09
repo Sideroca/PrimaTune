@@ -7,45 +7,64 @@ import android.content.Intent
 import android.os.Build
 import java.util.Calendar
 
-/** 闹钟调度：**预生成**（提前 3 小时）＋ **响铃**（准点）两条精确闹钟。 */
+/**
+ * 闹钟调度：**预生成**（提前 3 小时）＋ **响铃**（准点）两条精确闹钟。
+ *
+ * ⚠️ **两条都用 `setAlarmClock`**（用户 2026-10-08 同意）：它同时给到
+ * ①Doze 放行 ②**"可启动前台服务"豁免** ③状态栏闹钟图标 —— 这样**不开 App**、进程不在，
+ * 预生成照样能跑、到点照样能播。代价：状态栏会**提前约 3 小时**出现闹钟图标。
+ * （以前预生成走 `setExactAndAllowWhileIdle`，在国产 ROM 后台常被拦掉 → 只剩一条通知。）
+ */
 object AlarmScheduler {
 
     const val LEAD_MS = 3L * 60 * 60 * 1000      // 提前 3 小时预生成
     private const val RC_PREGEN = 7101
     private const val RC_RING = 7102
     private const val RC_SNOOZE = 7103
+    private const val RC_TEST = 7104
 
     fun apply(ctx: Context) {
         val cfg = AlarmCfg.from(Store(ctx).alarmJson)
         cancelAll(ctx)
-        if (!cfg.enabled) return
+        if (!cfg.enabled) { AlarmService.logStatus(ctx, "调度：闹钟未启用 → 已取消全部"); return }
         val now = System.currentTimeMillis()
         val ring = nextTrigger(cfg, now)
         val pregen = maxOf(now + 60_000, ring - LEAD_MS)
-        set(ctx, RC_PREGEN, "pregen", pregen)
-        setRing(ctx, ring)
+        setAlarmClock(ctx, RC_PREGEN, "pregen", pregen)
+        setAlarmClock(ctx, RC_RING, "ring", ring)
+        AlarmService.logStatus(
+            ctx,
+            "调度：响铃=${fmt(ring)} 预生成=${fmt(pregen)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}"
+        )
     }
 
-    /** 响铃用 `setAlarmClock`：最可靠（Doze 也放行），并给"可启动前台服务"豁免；且状态栏出现闹钟图标。 */
-    private fun setRing(ctx: Context, at: Long) {
-        val p = pi(ctx, RC_RING, "ring")
+    private fun fmt(t: Long): String =
+        java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(t))
+
+    /** `setAlarmClock`：最可靠的精确闹钟（Doze 放行 + 给"可启动前台服务"豁免 + 状态栏闹钟图标）。 */
+    private fun setAlarmClock(ctx: Context, rc: Int, action: String, at: Long) {
+        val p = pi(ctx, rc, action)
         try {
             val show = PendingIntent.getActivity(
-                ctx, RC_RING, Intent(ctx, MainActivity::class.java),
+                ctx, rc, Intent(ctx, MainActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             am(ctx).setAlarmClock(AlarmManager.AlarmClockInfo(at, show), p)
         } catch (e: Exception) {
-            set(ctx, RC_RING, "ring", at)      // 回退
+            setFallback(ctx, rc, action, at)          // 个别机型 / 未授权 → 退精确闹钟
         }
     }
 
-    /** 「测试响铃」：延迟 delayMs 后响一次（走同一条路径） */
-    fun testRing(ctx: Context, delayMs: Long) = setRing(ctx, System.currentTimeMillis() + delayMs)
+    /** 「系统闹钟自检」：delayMs 后**走真实链路**响一声（AlarmManager → 广播 → 服务）。
+     *  用来验"App 被划掉 / 进程不在时，系统还会不会把它拉起来"——现有"直接起服务"测不出这个。 */
+    fun testSystemAlarm(ctx: Context, delayMs: Long) {
+        AlarmService.logStatus(ctx, "自检：已排一个 ${delayMs / 1000} 秒后的系统闹钟（到点会写「接收器：…」）")
+        setAlarmClock(ctx, RC_TEST, "test", System.currentTimeMillis() + delayMs)
+    }
 
     fun snooze(ctx: Context, minutes: Int) {
-        val at = System.currentTimeMillis() + minutes * 60_000L
-        set(ctx, RC_SNOOZE, "ring", at)
+        // 贪睡也走 setAlarmClock：锁屏/后台照样准点
+        setAlarmClock(ctx, RC_SNOOZE, "ring", System.currentTimeMillis() + minutes * 60_000L)
     }
 
     private fun cancelAll(ctx: Context) {
@@ -89,7 +108,7 @@ object AlarmScheduler {
         )
     }
 
-    private fun set(ctx: Context, rc: Int, action: String, at: Long) {
+    private fun setFallback(ctx: Context, rc: Int, action: String, at: Long) {
         val p = pi(ctx, rc, action)
         try {
             if (Build.VERSION.SDK_INT >= 31 && !am(ctx).canScheduleExactAlarms())
