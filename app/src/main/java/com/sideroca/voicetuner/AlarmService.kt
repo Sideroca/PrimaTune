@@ -51,6 +51,12 @@ class AlarmService : Service() {
         /** 生成窗口：无预生成时，现场生成这么久还没好就保持系统铃声 */
         private const val LIVE_GEN_LIMIT_MS = 30_000L
 
+        /**
+         * 是否已有一次预生成在跑。**跨服务实例互斥**——否则预生成（保存时那次）与响铃时那次会
+         * 互相删档（用户 2026-10-10 报的"已准备 1 段却被删空"就是这个）。
+         */
+        @Volatile var generating = false
+
         /** 接收器「直接播」用的静态播放器 + 唤醒锁（后台不给起前台服务时的最后一道兜底）。 */
         @Volatile private var directPlayer: MediaPlayer? = null
         @Volatile private var directWake: PowerManager.WakeLock? = null
@@ -230,6 +236,8 @@ class AlarmService : Service() {
     // ---------------------------------------------------------------- 预生成
     /** 生成到 alarmDir；成功（≥1 段可播）返回 true。失败原因：缺 LLM Key / 没选音色 / LLM 或 TTS 出错。 */
     private fun generate(): Boolean {
+        if (generating) { status("pregen 跳过：已有一次生成在进行中（防互相删档）"); return false }
+        generating = true
         try {
             val store = Store(this)
             val cfg = AlarmCfg.from(store.alarmJson)
@@ -237,7 +245,11 @@ class AlarmService : Service() {
             val pid0 = cfg.providerId.ifBlank { store.providerId }
             val pname0 = TtsProviders.byId(pid0)?.name ?: pid0
             status("pregen 开始：LLM Key=${if (store.llmKey.isBlank()) "空!" else "有"}，音色=${if (cfg.voiceId.isBlank()) "空!" else cfg.voiceName + "(" + cfg.voiceId.take(14) + ")"}，条数=${cfg.count}，字数下限=${cfg.minChars}，厂商=$pname0($pid0)，模型=${cfg.model.ifBlank { store.lastModel }}")
-            dir.listFiles()?.filter { it.name != "status.txt" }?.forEach { it.delete() }
+            // ⚠️ **不再一上来就删旧缓存**（用户 2026-10-10 报的 bug 根因）：
+            //    旧代码在这里 dir.listFiles().forEach{delete()}，"设完闹钟马上到点"时旧语音被删、新的还没写出来
+            //    → 到点缓存为空 → 只能响系统铃声。现在改成：先写 tmp/，**全部成功后再一次性替换**。
+            val tmp = File(dir, "tmp").apply { mkdirs() }
+            tmp.listFiles()?.forEach { it.delete() }
             if (store.llmKey.isBlank()) { status("pregen 失败：没填 LLM Key（设置 → 模型 → 润色）"); return false }
             if (cfg.voiceId.isBlank()) { status("pregen 失败：闹钟没选音色"); return false }
             // ⚠️ 秒失败：百炼音色配了非百炼厂商（Fish 等不认识百炼音色 id）——不要白等 TTS 超时
@@ -251,19 +263,25 @@ class AlarmService : Service() {
             var i = 0
             for (m in msgs) {
                 i++
-                val e = synthToFile(store, cfg, m, File(dir, String.format("%02d.wav", i)))
+                val e = synthToFile(store, cfg, m, File(tmp, String.format("%02d.wav", i)))
                 if (e != null) {
                     status("pregen 失败：第 $i 条 TTS 失败（厂商=${TtsProviders.byId(cfg.providerId.ifBlank { store.providerId })?.name ?: cfg.providerId}，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）：$e")
                     return false
                 }
-                status("TTS 第 $i 条已存盘")
+                status("TTS 第 $i 条已存盘（tmp）")
             }
-            val n = dir.listFiles()?.count { it.length() > 0 && it.name != "status.txt" } ?: 0
-            status("pregen 完成：共 $n 段")
-            return n > 0
+            val made = tmp.listFiles()?.filter { it.isFile && it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
+            if (made.isEmpty()) { status("pregen 失败：没有产出可播的语音"); return false }
+            // 全部成功 → 才清旧、换上新的（这一刻之前，旧缓存一直可播）
+            dir.listFiles()?.filter { it.isFile && it.name != "status.txt" }?.forEach { it.delete() }
+            made.forEach { f -> f.renameTo(File(dir, f.name)) }
+            status("pregen 完成：共 ${made.size} 段")
+            return true
         } catch (e: Exception) {
             status("pregen 异常：${e.javaClass.simpleName}: ${e.message}")
             return false
+        } finally {
+            generating = false
         }
     }
 
@@ -352,44 +370,54 @@ class AlarmService : Service() {
      */
     private fun startRingFlow() {
         acquireWake()
-        val store = Store(this)
-        files = store.alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
+        files = cachedFiles()
         vol = 1f                                      // 音量**恒定**（不做渐强）
-        status("响铃：预生成文件 ${files.size} 段")
+        status("响铃：预生成文件 ${files.size} 段（另有生成在进行中=$generating）")
         launchRingUi()
         if (files.isNotEmpty()) {
             updateRingNoti(ringWho(this))
             idx = 0; playCurrent(); return
         }
-        // 没有预生成 → 先响系统铃声（绝不静默），同时现场生成
-        status("响铃：无预生成 → 先响系统铃声，同时现场生成（${LIVE_GEN_LIMIT_MS / 1000} 秒内成功即切人声）")
+        // 没有缓存 → 先响系统铃声（绝不静默）；然后**轮询等缓存**——很可能是"保存闹钟那一刻的预生成"
+        // 还在跑（旧代码把缓存删了在重做）。30 秒内一出现就切成 AI 人声；若压根没人生成，才自己起一次。
+        status("响铃：无缓存 → 先响系统铃声；等预生成（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
         playFallback()
         updateRingNoti(getString(R.string.alarm_voice_fail))
         val t0 = SystemClock.elapsedRealtime()
-        Thread {
-            val ok = generate()
-            val cost = SystemClock.elapsedRealtime() - t0
-            if (stopped) return@Thread
-            if (ok && cost <= LIVE_GEN_LIMIT_MS) {
-                val f = Store(this).alarmDir.listFiles()?.filter { it.length() > 0 && it.name != "status.txt" }?.sortedBy { it.name } ?: emptyList()
-                if (f.isNotEmpty() && !stopped) handler.post {
+        if (!generating) Thread { runCatching { generate() } }.start()
+        val poll = object : Runnable {
+            override fun run() {
+                if (stopped) return
+                val f = cachedFiles()
+                if (f.isNotEmpty()) {
                     files = f; idx = 0
                     runCatching { player?.release() }; player = null
                     playCurrent()
-                    status("响铃：已切换为生成的人声（${f.size} 段，用时 ${cost / 1000} 秒）")
-                    updateRingNoti(ringWho(this))
+                    status("响铃：已切换为 AI 人声（${f.size} 段，等了 ${(SystemClock.elapsedRealtime() - t0) / 1000} 秒）")
+                    updateRingNoti(ringWho(this@AlarmService))
+                    return
                 }
-            } else {
-                status("响铃：现场生成失败 / 超时（用时 ${cost / 1000} 秒）→ 保持系统铃声")
+                if (SystemClock.elapsedRealtime() - t0 < LIVE_GEN_LIMIT_MS) handler.postDelayed(this, 1500)
+                else status("响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → 保持系统铃声")
             }
-        }.start()
+        }
+        handler.postDelayed(poll, 1500)
     }
+
+    /** 可播的预生成语音（**只认真文件**：tmp/ 子目录不算、status.txt 不算）。 */
+    private fun cachedFiles(): List<File> =
+        Store(this).alarmDir.listFiles()
+            ?.filter { it.isFile && it.length() > 0 && it.name != "status.txt" }
+            ?.sortedBy { it.name } ?: emptyList()
 
     /** 唤起全屏响铃页（后台起 Activity 可能被系统拒绝 → 失败就靠通知的"全屏意图"）。 */
     private fun launchRingUi() {
-        runCatching {
+        val ok = runCatching {
             startActivity(Intent(this, AlarmRingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
+        }.isSuccess
+        val fsi = android.os.Build.VERSION.SDK_INT < 34 ||
+            (getSystemService(NotificationManager::class.java)?.canUseFullScreenIntent() ?: false)
+        status("响铃页：直接拉起=${if (ok) "成功" else "被系统拦"}；全屏通知权限=${if (fsi) "已开" else "**未开**（安卓 14+ 默认不给，「闹钟权限体检」里可开）"}")
     }
 
     private fun playCurrent() {

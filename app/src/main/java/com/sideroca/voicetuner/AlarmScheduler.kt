@@ -29,13 +29,18 @@ object AlarmScheduler {
         if (!cfg.enabled) { AlarmService.logStatus(ctx, "调度：闹钟未启用 → 已取消全部"); return }
         val now = System.currentTimeMillis()
         val ring = nextTrigger(cfg, now)
-        val pregen = maxOf(now + 60_000, ring - LEAD_MS)
-        setAlarmClock(ctx, RC_PREGEN, "pregen", pregen)
+        val lead = ring - now
         setAlarmClock(ctx, RC_RING, "ring", ring)
-        AlarmService.logStatus(
-            ctx,
-            "调度：响铃=${fmt(ring)} 预生成=${fmt(pregen)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}"
-        )
+        if (lead > LEAD_MS + 5 * 60_000L) {
+            setAlarmClock(ctx, RC_PREGEN, "pregen", ring - LEAD_MS)
+            AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)} 预生成=${fmt(ring - LEAD_MS)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}")
+        } else {
+            // ⚠️ 离响铃太近（不足"提前 3 小时 + 5 分钟"）→ **不排预生成闹钟**。
+            // 保存时已经立刻跑过一次预生成；若那时也没跑到 +60s 再跑一次，
+            // 两次生成会**互相删档**（用户 2026-10-09 报的"已准备 1 段却响了系统铃声"就是这个）。
+            // 到点若还没好，响铃流程会自己等 30 秒（见 AlarmService.startRingFlow）。
+            AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)}（离现在仅 ${lead / 60_000} 分钟 → **不排**预生成闹钟，保存时已生成；到点若没好在响铃里等 30 秒） 精确闹钟=${canExact(ctx)}")
+        }
     }
 
     private fun fmt(t: Long): String =

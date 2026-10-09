@@ -407,4 +407,6 @@
     <string name="alarm_check_step_autostart_note">＝允许系统在后台把本应用拉起来。闹钟到点就靠它；不开可能不响（这个开关 App 无权自己开，必须你手动点）。</string>
     <string name="alarm_check_perms">② 权限清单</string>
     <string name="alarm_check_open_appinfo">打开应用详情（自启动 / 省电 都在这页）</string>
+    <string name="alarm_too_soon">离响铃不到 5 分钟：语音可能来不及生成，到点会先响系统铃声、随后自动切成人声</string>
+    <string name="alarm_need_fullscreen">要让闹钟到点**弹整屏响铃页**，需要「全屏通知」权限（安卓 14+ 默认不授予，只给电话/闹钟类应用）。不开的话到点只会弹一条横幅通知。去开启？</string>
 </resources>

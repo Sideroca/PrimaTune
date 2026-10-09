@@ -284,9 +284,10 @@ class SettingsActivity : AppCompatActivity() {
         val c = Skin.colors(this)
         val pal = Palettes.byId(store.themeId)
         val r = (pal?.btnRadius ?: 11).toFloat()
-        val solid = pal?.solidBtn ?: true
-        val faceA = if (solid) 0x38 else 0x1A        // 22% / 10%
-        val strokeA = if (solid) 0x66 else 0x99      // 40% / 60%
+        // 用户 2026-10-10 指定：**用「描边档」（空心感）**——即规范⑥ 里 solidBtn=false 的那一档
+        // （面色 accent 10% / 描边 accent 60%），不随配色的 solidBtn 变。
+        val faceA = 0x1A        // accent 10%
+        val strokeA = 0x99      // accent 60%
         val face = (c.acc and 0x00FFFFFF) or (faceA shl 24)
         val stroke = (c.acc and 0x00FFFFFF) or (strokeA shl 24)
         return Skin.shapeDp(this, face, stroke, r, 100, 1.5f)
@@ -2375,7 +2376,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(fTest)
         box.addView(lbl(getString(R.string.alarm_pregen_now)))
         fun pregenInfo(): String {
-            val n = store.alarmDir.listFiles()?.count { it.length() > 0 && it.name != "status.txt" } ?: 0
+            val n = store.alarmDir.listFiles()?.count { it.isFile && it.length() > 0 && it.name != "status.txt" } ?: 0
             val tail = runCatching {
                 val f = File(store.alarmDir, "status.txt")
                 if (f.exists()) f.readLines().lastOrNull { it.isNotBlank() }.orEmpty() else ""
@@ -2431,7 +2432,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
                     )
                 }
                 toast(getString(R.string.alarm_saved))
+                // 离响铃太近（< 5 分钟）→ 预生成多半来不及：**如实提前告知**，别让用户以为坏了
+                if (c.enabled) {
+                    val waitMs = AlarmScheduler.nextTrigger(c, System.currentTimeMillis()) - System.currentTimeMillis()
+                    if (waitMs in 0 until 5 * 60_000L) toast(getString(R.string.alarm_too_soon))
+                }
                 if (c.enabled && !AlarmScheduler.canExact(this)) askExactPermission()
+                // 全屏响铃页要「全屏通知」权限 —— 安卓 14+ 默认**不授予**（只给电话/闹钟类系统应用），
+                // 不开的话到点只会是一条横幅通知、不会弹整屏页。用户 2026-10-09 报的"全屏页没弹"就是这个。
+                if (c.enabled) {
+                    val nm = getSystemService(android.app.NotificationManager::class.java)
+                    val fsiOk = android.os.Build.VERSION.SDK_INT < 34 || (nm?.canUseFullScreenIntent() ?: true)
+                    if (!fsiOk) askFullScreenPermission()
+                }
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
         dlg.setOnShowListener {
@@ -2490,6 +2503,20 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
      * 闹钟「权限体检」（用户 2026-10-08）：把"到点不响"的几个坑逐项列出来（✓/✗），点一下**直达**系统设置。
      * 精确闹钟 / 通知 / 全屏响铃 / 电池优化 / 自启动——尤其国产 ROM 的自启动，不给就很可能不响。
      */
+    /** 「全屏通知」权限引导（安卓 14+ 默认不给 → 到点只弹横幅、不弹整屏响铃页）。 */
+    private fun askFullScreenPermission() {
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.alarm_title).setMessage(R.string.alarm_need_fullscreen)
+            .setPositiveButton(getString(R.string.alarm_grant)) { _, _ ->
+                runCatching {
+                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                        .setData(android.net.Uri.parse("package:$packageName")))
+                }
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null).create()
+        d.setOnShowListener { skinDialog(d) }; d.show()
+    }
+
     /**
      * 闹钟「权限体检」（用户 2026-10-08 起；2026-10-09 按姊妹项目**闪译**的做法改成**引导式**）。
      *

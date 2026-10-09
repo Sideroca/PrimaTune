@@ -407,4 +407,6 @@
     <string name="alarm_check_step_autostart_note">＝システムがバックグラウンドでこのアプリを起動できるようにする設定。アラームはこれ頼みです（アプリ側からは変更できません）。</string>
     <string name="alarm_check_perms">② 権限チェック</string>
     <string name="alarm_check_open_appinfo">アプリ情報を開く（自動起動 / バッテリーはここ）</string>
+    <string name="alarm_too_soon">鳴るまで5分未満です：音声の生成が間に合わない可能性があります（先にシステム音、生成でき次第AI音声へ切替）</string>
+    <string name="alarm_need_fullscreen">時間どおり全画面アラームを表示するには「全画面通知」の権限が必要です（Android 14+ では既定で付与されません）。未許可だとバナー通知だけになります。設定を開きますか？</string>
 </resources>

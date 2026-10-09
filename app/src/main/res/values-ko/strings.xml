@@ -407,4 +407,6 @@
     <string name="alarm_check_step_autostart_note">= 시스템이 백그라운드에서 이 앱을 시작할 수 있게 하는 설정입니다. 알람은 이걸 기대합니다(앱이 스스로 켤 수 없음).</string>
     <string name="alarm_check_perms">② 권한 점검</string>
     <string name="alarm_check_open_appinfo">앱 정보 열기(자동 시작/배터리가 여기 있음)</string>
+    <string name="alarm_too_soon">울릴 때까지 5분 미만: 음성 생성이 늦어질 수 있어 먼저 시스템 벨소리가 울리고 준비되면 AI 음성으로 바뀝니다</string>
+    <string name="alarm_need_fullscreen">제때 전체 화면 알람을 띄우려면 "전체 화면 알림" 권한이 필요합니다(Android 14+ 기본 미부여). 없으면 배너 알림만 표시됩니다. 설정을 열까요?</string>
 </resources>
