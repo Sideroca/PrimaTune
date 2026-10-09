@@ -2242,7 +2242,8 @@ class MainActivity : AppCompatActivity() {
         val c = Skin.colors(this)
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
-        box.setPadding(dp(20), dp(4), dp(20), dp(4))
+        // 用户 2026-10-10：名字 / 标题 / 删除按钮一律**向卡片中心挪 2dp**（20 → 22dp）
+        box.setPadding(dp(22), dp(4), dp(22), dp(4))
         var dlg: AlertDialog? = null
 
         fun section(text: String) {
@@ -2344,7 +2345,16 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.common_done), null)
             .create()
         dlg = d
-        d.setOnShowListener { skinDialog(d) }
+        d.setOnShowListener {
+            skinDialog(d)
+            // 用户 2026-10-10：标题也向卡片中心挪 2dp（与音色名 / 删除按钮一致）
+            runCatching {
+                val id = resources.getIdentifier("alertTitle", "id", "android")
+                d.findViewById<TextView>(id)?.let { t ->
+                    t.setPadding(t.paddingStart + dp(2), t.paddingTop, t.paddingEnd + dp(2), t.paddingBottom)
+                }
+            }
+        }
         d.show()
     }
 

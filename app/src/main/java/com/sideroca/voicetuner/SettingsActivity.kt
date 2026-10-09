@@ -272,6 +272,26 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun dp(px: Float): Int = (px * resources.displayMetrics.density).toInt()
 
+    /**
+     * 《夕汀前端规范》**⑥ · 玲珑调音的「次级 / 入口」按钮 ＝ 透明玻璃**（本节属性源自玲珑调音）：
+     * 面色 / 描边取 `accent` 的**两档透明** —— **按配色的 `solidBtn` 选**
+     * （实心档 22% / 40%，描边档 10% / 60%），文字取 `accent`，描边 1.5dp，圆角取 `btnRadius`。
+     *
+     * ⚠️ 用它做底的控件**必须**打 `tag = "bg:keep"`：否则换肤引擎会按圆角去"猜角色"、把它重绘成别的颜色
+     * （v1.5.3 那次"挑错颜色"就是这么来的）。
+     */
+    private fun glassBtnBg(): android.graphics.drawable.Drawable {
+        val c = Skin.colors(this)
+        val pal = Palettes.byId(store.themeId)
+        val r = (pal?.btnRadius ?: 11).toFloat()
+        val solid = pal?.solidBtn ?: true
+        val faceA = if (solid) 0x38 else 0x1A        // 22% / 10%
+        val strokeA = if (solid) 0x66 else 0x99      // 40% / 60%
+        val face = (c.acc and 0x00FFFFFF) or (faceA shl 24)
+        val stroke = (c.acc and 0x00FFFFFF) or (strokeA shl 24)
+        return Skin.shapeDp(this, face, stroke, r, 100, 1.5f)
+    }
+
     private fun buildDock() {
         // 坞整体留白：图标不再贴着卡片上沿，避免拥挤
         llDock.setPadding(0, dp(9f), 0, dp(6f))
@@ -1346,7 +1366,11 @@ class SettingsActivity : AppCompatActivity() {
             btn.textSize = 13f
             btn.setPadding(dp(14f), dp(11f), dp(14f), dp(11f))
             val c0 = Skin.colors(this)
-            btn.background = Skin.shapeDp(this, c0.card2, c0.line, 10f, 100, 1f)
+            // 用户 2026-10-10：按《夕汀前端规范》⑥ —— 这是「入口 / 次级」按钮，取 accent 的玻璃档
+            //（面色 / 描边按配色的 solidBtn 选，文字取 accent）。以前误当"灰色字段"或"乱挑一档"处理过，
+            // 这次严格照规范来，不再自己选颜色。
+            btn.background = glassBtnBg()
+            btn.setTextColor(c0.acc)
             btn.tag = "bg:keep"
             btn.isClickable = true
             btn.isFocusable = true
@@ -2238,7 +2262,11 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     // ---------------------------------------------------------------- AI 闹钟
     private fun openAlarmDialog() {
         val cfg = AlarmCfg.from(store.alarmJson)
-        var hour = cfg.hour; var minute = cfg.minute
+        // 用户 2026-10-10：打开闹钟时时间默认**当前时间**（像"新建闹钟"那样），
+        // 不再沿用上次保存的时间。（其余项——重复 / 日期 / 音色 / 提示词——仍沿用已存的）
+        val nowCal = java.util.Calendar.getInstance()
+        var hour = nowCal.get(java.util.Calendar.HOUR_OF_DAY)
+        var minute = nowCal.get(java.util.Calendar.MINUTE)
         var repeat = cfg.repeat
         var date = cfg.date
         var voiceId = cfg.voiceId; var voiceName = cfg.voiceName
@@ -2251,6 +2279,14 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             background = Skin.shapeDp(this@SettingsActivity, c0.card2, c0.line, 10f, 100, 1f)
             tag = "bg:keep"; isClickable = true; isFocusable = true
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        // 「动作行」＝ 按钮（系统闹钟自检 / 立即响一次 / 闹钟权限体检）：
+        // 按《夕汀前端规范》⑥ 用 **accent 玻璃档**（与「⏰ 闹钟…」入口同一器件）。
+        // ⚠️ 文字**保持左对齐**、内距与取值行一致 —— 用户 2026-10-10 明确：不要居中。
+        fun fldAct(t: String) = fld(t).apply {
+            setTextColor(c0.acc)
+            background = glassBtnBg()
+            tag = "bg:keep"
         }
         val cbE = android.widget.CheckBox(this).apply { text = getString(R.string.alarm_enable); isChecked = cfg.enabled; setTextColor(c0.txt) }
         box.addView(cbE)
@@ -2317,14 +2353,14 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(lbl(getString(R.string.alarm_test)))
         // ① **真实链路自检**（推荐先做这个）：走 AlarmManager → 广播 → 服务，能验出
         //    "App 被划掉 / 进程不在时，系统还会不会把它拉起来"——这是"从没在后台就永远不响"的判定关键。
-        val fTestSys = fld(getString(R.string.alarm_test_sys))
+        val fTestSys = fldAct(getString(R.string.alarm_test_sys))
         fTestSys.setOnClickListener {
             AlarmScheduler.testSystemAlarm(this, 15_000)
             toast(getString(R.string.alarm_test_sys_toast))
         }
         box.addView(fTestSys)
         // ② 只验播放链路：**直接起服务**（绕过系统闹钟，排除 AlarmManager / 权限干扰）
-        val fTest = fld(getString(R.string.alarm_test_direct))
+        val fTest = fldAct(getString(R.string.alarm_test_direct))
         fTest.setOnClickListener {
             toast(getString(R.string.alarm_test_toast))
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -2371,7 +2407,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
         box.addView(fPre)
         box.addView(lbl(getString(R.string.alarm_check_title)))
-        val fPerm = fld(getString(R.string.alarm_check_entry))
+        val fPerm = fldAct(getString(R.string.alarm_check_entry))
         fPerm.setOnClickListener { showAlarmCheckDialog() }
         box.addView(fPerm)
         val sc = ScrollView(this); sc.addView(box)
