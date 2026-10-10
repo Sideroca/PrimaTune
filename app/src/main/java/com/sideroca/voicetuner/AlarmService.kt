@@ -57,6 +57,27 @@ class AlarmService : Service() {
          */
         @Volatile var generating = false
 
+        /**
+         * 是否**正在响铃**（服务播放 或 接收器直播）。
+         * 用来做两件事：① 避免重复响（两个播放器叠在一起）；② 让"打开 App 就停止"成为可能
+         * （用户 2026-10-10 报的"开了 App 也停不掉、划掉任务栏还在响"）。
+         */
+        @Volatile var ringing = false
+
+        /**
+         * **只停，不动排期**（"dismiss" 会做响完收尾、可能关掉一次性闹钟；这个不会）。
+         * 主页 onResume / 响铃页「停止」/ 外部调用都走它。
+         */
+        fun stopIfRinging(ctx: Context): Boolean {
+            if (!ringing && directPlayer == null) return false
+            return runCatching {
+                ctx.startService(Intent(ctx, AlarmService::class.java).putExtra(EXTRA, "stop"))
+                stopDirect()
+                (ctx.getSystemService(NotificationManager::class.java))?.cancel(NOTI_RING)
+                true
+            }.getOrDefault(false)
+        }
+
         /** 接收器「直接播」用的静态播放器 + 唤醒锁（后台不给起前台服务时的最后一道兜底）。 */
         @Volatile private var directPlayer: MediaPlayer? = null
         @Volatile private var directWake: PowerManager.WakeLock? = null
@@ -139,6 +160,7 @@ class AlarmService : Service() {
         fun playFallbackDirect(ctx: Context) {
             if (directPlayer != null) return
             wakeUp(ctx)
+            ringing = true
             for (t in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION)) {
                 val uri = RingtoneManager.getDefaultUri(t) ?: continue
                 val ok = runCatching {
@@ -153,14 +175,18 @@ class AlarmService : Service() {
                     mp.prepare(); mp.start()
                     directPlayer = mp
                 }.isSuccess
-                if (ok) return
+                if (ok) break
             }
+            // 兜底自停：最多响 5 分钟（万一没人接手停止，也**不会永远响下去**——
+            // 用户 2026-10-10 报的"开 App、划掉任务栏都停不掉"就是这么来的）
+            Handler(Looper.getMainLooper()).postDelayed({ stopDirect() }, 5 * 60_000L)
         }
 
         fun stopDirect() {
             runCatching { directPlayer?.stop() }
             runCatching { directPlayer?.release() }
             directPlayer = null
+            ringing = false
             releaseWake()
         }
     }
@@ -197,14 +223,17 @@ class AlarmService : Service() {
             // 不动真实排期、不弹响铃页、不触发"响完收尾"——只用来证明"系统会不会把进程拉起来"。
             "test" -> {
                 stopped = false
+                ringing = true
                 startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_selfcheck_running)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
                 status("自检：系统闹钟把进程拉起来了 ✅（这条就是「广播有没有送达」的铁证）")
                 vol = 1f
                 playFallback()
                 handler.postDelayed({ stopPlayback(); stopSelf() }, 12_000)
             }
-            "snooze" -> { stopped = true; stopPlayback(); stopDirect(); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
-            "dismiss" -> { stopped = true; stopPlayback(); stopDirect(); if (!isManualTest) afterRing(); stopSelf() }
+            "snooze" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
+            "dismiss" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); if (!isManualTest) afterRing(); stopSelf() }
+            // 「停止」：只停、**不动排期**（主页打开时 / 响铃页停止 / stopIfRinging 用）
+            "stop" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); stopSelf() }
         }
         return START_NOT_STICKY
     }
@@ -369,6 +398,8 @@ class AlarmService : Service() {
      * 先把**全屏响铃页 + 高优先级通知**挂出去（即播放链路出意外，用户也看得到、点得到）。
      */
     private fun startRingFlow() {
+        if (ringing) { status("响铃：已在响，忽略这次重复触发（防两个播放器叠在一起）"); return }
+        ringing = true
         acquireWake()
         files = cachedFiles()
         vol = 1f                                      // 音量**恒定**（不做渐强）
@@ -486,6 +517,7 @@ class AlarmService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopped = true
+        ringing = false
         stopPlayback()
     }
 }

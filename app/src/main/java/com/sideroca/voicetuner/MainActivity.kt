@@ -295,6 +295,9 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         applyLook()
+        // 用户 2026-10-10：闹钟正响时打开 App → **立刻停止响铃**。
+        // （以前 App 里没有任何地方能停，划掉最近任务也停不掉，只能干等——体验最差的那个 bug）
+        runCatching { AlarmService.stopIfRinging(this) }
         // 设置页可能删/改过记录、音色、隐藏列表 → 以 Store 为准整表重载（Store = 唯一数据源）
         reloadFromStore()
         // 设置页点了「回填」→ 在这里应用（跨页交接）
@@ -439,14 +442,6 @@ class MainActivity : AppCompatActivity() {
         btnCreateVoice = findViewById(R.id.btnCreateVoice)
         etText = findViewById(R.id.etText)
         btnClearText = findViewById(R.id.btnClearText)
-        // 中文**两端对齐**（用户 2026-10-09：机型为安卓 16 / API 36）。
-        // 官方口径：`JUSTIFICATION_MODE_INTER_CHARACTER` **自 Android 15（API 35）起**提供，
-        // 正是给"不用空格分词"的中文 / 日文用的（`inter_word` 只按空格拉伸，对中文无效）。
-        // 效果：**每一行右端都齐平**（末行除外，符合排版常规）。
-        // ⚠️ 它只是**排版**（字间距），**不改文字内容** → 送去合成的文本一字不动，不污染 TTS。
-        if (Build.VERSION.SDK_INT >= 35) {
-            runCatching { etText.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_CHARACTER }
-        }
         // 清空叉号：仅清空文本，不改变其它参数
         btnClearText.setOnClickListener {
             transVersions.clear(); trDelLine = -1; trDelHits = 0   // 整段清空 = 退出多译版模式，别被"删字"逻辑拆行
