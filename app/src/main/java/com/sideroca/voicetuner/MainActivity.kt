@@ -1714,10 +1714,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPlayButtons() {
         val cur = currentTake
-        btnPlay.text = if (cur != null && playingId == cur.id && player?.isPlaying == true) getString(R.string.st_pause) else getString(R.string.rec_play)
+        // 判据**必须统一**：顶卡与记录行都看「同一个 player 真的在播」。
+        // 旧代码记录行只判 playingId —— **暂停后 playingId 还在**，于是记录行仍显示「暂停」、
+        // 顶卡已显示「播放」，两个按钮状态对不上（用户 2026-10-10 报的 bug）。
+        val playing = runCatching { player?.isPlaying == true }.getOrDefault(false)
+        btnPlay.text = if (cur != null && playingId == cur.id && playing) getString(R.string.st_pause) else getString(R.string.rec_play)
         for (r in rowRefs) {
-            r.playBtn.text = if (playingId == r.take.id) getString(R.string.st_pause) else getString(R.string.rec_play)
-            r.prog.visibility = if (playingId == r.take.id) View.VISIBLE else View.GONE
+            val on = playing && playingId == r.take.id
+            r.playBtn.text = if (on) getString(R.string.st_pause) else getString(R.string.rec_play)
+            r.prog.visibility = if (on) View.VISIBLE else View.GONE
         }
     }
 
