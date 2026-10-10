@@ -409,4 +409,10 @@
     <string name="alarm_check_open_appinfo">앱 정보 열기(자동 시작/배터리가 여기 있음)</string>
     <string name="alarm_too_soon">울릴 때까지 5분 미만: 음성 생성이 늦어질 수 있어 먼저 시스템 벨소리가 울리고 준비되면 AI 음성으로 바뀝니다</string>
     <string name="alarm_need_fullscreen">제때 전체 화면 알람을 띄우려면 "전체 화면 알림" 권한이 필요합니다(Android 14+ 기본 미부여). 없으면 배너 알림만 표시됩니다. 설정을 열까요?</string>
+    <string name="alarm_check_page">③ 제때 화면을 띄우려면 두 가지 모두 필요</string>
+    <string name="alarm_check_step_popup">백그라운드 팝업 표시(샤오미/HyperOS)</string>
+    <string name="alarm_check_step_popup_note">Xiaomi/HyperOS 전용 항목입니다. 허용하지 않으면 "전체 화면 알림"을 켜도 백그라운드에서 화면을 띄울 수 없어 소리만 납니다(앱을 열 때만 표시). 위치: 앱 정보 → 권한 → 백그라운드 팝업 표시.</string>
+    <string name="alarm_ring_page">알람 화면</string>
+    <string name="alarm_ring_page_ok">준비됨: 제때 전체 화면으로 표시됩니다</string>
+    <string name="alarm_ring_page_no">준비 안 됨 - 눌러서 "알람 권한 점검" 확인(없으면 소리만 나고 화면은 안 뜹니다)</string>
 </resources>

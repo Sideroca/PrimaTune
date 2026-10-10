@@ -409,4 +409,10 @@
     <string name="alarm_check_open_appinfo">アプリ情報を開く（自動起動 / バッテリーはここ）</string>
     <string name="alarm_too_soon">鳴るまで5分未満です：音声の生成が間に合わない可能性があります（先にシステム音、生成でき次第AI音声へ切替）</string>
     <string name="alarm_need_fullscreen">時間どおり全画面アラームを表示するには「全画面通知」の権限が必要です（Android 14+ では既定で付与されません）。未許可だとバナー通知だけになります。設定を開きますか？</string>
+    <string name="alarm_check_page">③ 時間どおり画面を出すには2つ必要</string>
+    <string name="alarm_check_step_popup">バックグラウンドでポップアップ（Xiaomi/HyperOS）</string>
+    <string name="alarm_check_step_popup_note">Xiaomi/HyperOS 独自の項目です。許可しないと「全画面通知」を許可してもバックグラウンドから画面を出せず、音だけで表示されません（アプリを開いた時だけ表示）。場所：アプリ情報 → 権限 → バックグラウンドでのポップアップ表示。</string>
+    <string name="alarm_ring_page">アラーム画面</string>
+    <string name="alarm_ring_page_ok">準備OK：時間どおり全画面で表示されます</string>
+    <string name="alarm_ring_page_no">未準備 ― タップして「アラームの権限チェック」へ（未許可だと音だけで画面が出ません）</string>
 </resources>

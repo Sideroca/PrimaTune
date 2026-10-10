@@ -409,4 +409,10 @@
     <string name="alarm_check_open_appinfo">Open App info (Autostart / Battery live here)</string>
     <string name="alarm_too_soon">Less than 5 min to ring time: the voice may not be ready, so the system ringtone plays first and switches to the AI voice as soon as it is</string>
     <string name="alarm_need_fullscreen">To pop the full-screen alarm page at ring time, the app needs the "Full screen notifications" permission (Android 14+ does not grant it by default). Without it you only get a heads-up banner. Open the setting?</string>
+    <string name="alarm_check_page">3) Popping the ring page needs BOTH</string>
+    <string name="alarm_check_step_popup">Background pop-up windows (Xiaomi/HyperOS)</string>
+    <string name="alarm_check_step_popup_note">An extra Xiaomi/HyperOS switch: without it, even with "Full screen notifications" granted the system will not launch the ring page from the background — the alarm only makes sound until you open the app. Path: App info -> Permissions -> Display pop-up windows while running in the background.</string>
+    <string name="alarm_ring_page">Ring page</string>
+    <string name="alarm_ring_page_ok">Ready: the full-screen page will pop at ring time</string>
+    <string name="alarm_ring_page_no">Not ready - tap to open "Alarm permissions" (without it you only get sound, no page)</string>
 </resources>

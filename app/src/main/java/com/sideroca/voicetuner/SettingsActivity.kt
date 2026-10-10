@@ -2329,6 +2329,17 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val pName = TtsProviders.byId(store.providerId)?.name ?: store.providerId
         box.addView(fld(pName + " · " + store.lastModel))    // 只读显示：闹钟会用哪个引擎
 
+        // 「响铃页」就绪状态：用户 2026-10-10 的困惑是"只响声音、不弹页"——
+        // 安卓 14+ 的「全屏通知」默认不给，澎湃/小米还额外要「后台弹出界面」。这里直接显示并一键去查。
+        box.addView(lbl(getString(R.string.alarm_ring_page)))
+        val fsiOkNow = android.os.Build.VERSION.SDK_INT < 34 ||
+            (getSystemService(android.app.NotificationManager::class.java)?.canUseFullScreenIntent() ?: true)
+        val fReady = fld(getString(if (fsiOkNow) R.string.alarm_ring_page_ok else R.string.alarm_ring_page_no))
+        fReady.textSize = 13f
+        if (!fsiOkNow) fReady.setTextColor(c0.acc)
+        fReady.setOnClickListener { showAlarmCheckDialog() }
+        box.addView(fReady)
+
         box.addView(lbl(getString(R.string.alarm_voice)))
         val availIds = (if (TtsProviders.byId(store.providerId)?.shape == "dashscope" || store.providerId.isBlank())
             visibleVoices() else store.loadCustomVoices().map { it.name to it.id }).map { it.second }
@@ -2571,6 +2582,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         row(getString(R.string.alarm_check_step_autostart), go, ::openAppDetails)
         box.addView(note(getString(R.string.alarm_check_step_autostart_note)))
 
+        // ③ 「到点弹响铃页」需要**两道**，缺一不弹（用户 2026-10-10：只响声音、不弹页）
+        section(getString(R.string.alarm_check_page))
+        row(getString(R.string.alarm_check_fullscreen), if (fullOk) on else go) {
+            runCatching {
+                if (android.os.Build.VERSION.SDK_INT >= 34)
+                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                        .setData(android.net.Uri.parse("package:$packageName")))
+                else openAppDetails()
+            }
+        }
+        row(getString(R.string.alarm_check_step_popup), go, ::openAppDetails)
+        box.addView(note(getString(R.string.alarm_check_step_popup_note)))
+
         // ② 权限清单
         section(getString(R.string.alarm_check_perms))
         row(getString(R.string.alarm_check_exact), if (AlarmScheduler.canExact(this)) on else off) {
@@ -2583,14 +2607,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             if (android.os.Build.VERSION.SDK_INT >= 33)
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 79)
             else openAppDetails()
-        }
-        row(getString(R.string.alarm_check_fullscreen), if (fullOk) on else off) {
-            runCatching {
-                if (android.os.Build.VERSION.SDK_INT >= 34)
-                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
-                        .setData(android.net.Uri.parse("package:$packageName")))
-                else openAppDetails()
-            }
         }
         row(getString(R.string.alarm_check_battery), if (battOk) on else off) {
             runCatching { startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }

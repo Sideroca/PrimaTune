@@ -409,4 +409,10 @@
     <string name="alarm_check_open_appinfo">打开应用详情（自启动 / 省电 都在这页）</string>
     <string name="alarm_too_soon">离响铃不到 5 分钟：语音可能来不及生成，到点会先响系统铃声、随后自动切成人声</string>
     <string name="alarm_need_fullscreen">要让闹钟到点**弹整屏响铃页**，需要「全屏通知」权限（安卓 14+ 默认不授予，只给电话/闹钟类应用）。不开的话到点只会弹一条横幅通知。去开启？</string>
+    <string name="alarm_check_page">③ 到点「弹响铃页」要两道（缺一不弹）</string>
+    <string name="alarm_check_step_popup">后台弹出界面（小米 / 澎湃）</string>
+    <string name="alarm_check_step_popup_note">澎湃 / MIUI 额外加的一道：不给的话，即使「全屏通知」开了，系统也不许从后台拉起响铃页——表现就是"只响声音、不弹页"，只有你手动打开 App 才弹。位置：应用信息 → 权限管理 → 后台弹出界面。</string>
+    <string name="alarm_ring_page">响铃页</string>
+    <string name="alarm_ring_page_ok">已就绪：到点会弹整屏页</string>
+    <string name="alarm_ring_page_no">未就绪 —— 点这里查「闹钟权限体检」（缺权限就只响声音、不弹页）</string>
 </resources>
