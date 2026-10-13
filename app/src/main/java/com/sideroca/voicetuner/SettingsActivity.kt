@@ -344,6 +344,10 @@ class SettingsActivity : AppCompatActivity() {
             val lb = TextView(this)
             lb.text = dockDefs[i]
             lb.textSize = 11f
+            // 用户 2026-10-14：**别让坞的标签换行**——某些语言（如日文「アプリについて」）比中文长得多，
+            // 每个键只占 1/5 宽 → 一换行整键就变"竖的"、坞也忽高忽低（切语言后最明显）。
+            lb.maxLines = 1
+            lb.ellipsize = android.text.TextUtils.TruncateAt.END
             lb.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(4f) }

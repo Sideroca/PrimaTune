@@ -1344,6 +1344,15 @@ class MainActivity : AppCompatActivity() {
             ?: takes.firstOrNull { it.voiceId == id }?.voiceName?.takeIf { it.isNotBlank() }
             ?: getString(R.string.voice_custom)
 
+    /**
+     * 「自定义音色 ID…」那一行的强调色。
+     * 用户 2026-10-14：他记得是"闪亮的金色"——但 git 里这行**一直是 `c.dim`（灰）**、从没金色过
+     * （金色其实是各配色的**强调条色 `barBg`**：9 套现代浅色 + 竹青 / 天水碧等才是琥珀金 #F0C239）。
+     * 所以这不是"回退"，是**改用主题的强调条色**：该主题有金就用金，没设就回退 accent。
+     */
+    private fun emphasizeColor(c: Skin.Colors): Int =
+        Palettes.byId(store.themeId)?.barBg?.takeIf { it != 0 } ?: c.acc
+
     private fun renderChips() {
         llChips.removeAllViews()
         val vName = if (voiceIsCustom) "" else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
@@ -2288,7 +2297,7 @@ class MainActivity : AppCompatActivity() {
         }
         // 当前音色用主题主色标出（指示符搬去首页后，这里留个静态标记）
         for (v in all) addRow(v.name, v.id, if (!voiceIsCustom && v.id == currentVoiceId) c.acc else c.txt) { switchTo(v.id) }
-        addRow(customLabel, null, c.dim) {
+        addRow(customLabel, null, emphasizeColor(c)) {
             openCustomIdDialog()   // 弹卡片：填 ID + 起名字（原来是回主页显示输入框）
             syncVoiceUi()
             pop?.dismiss()

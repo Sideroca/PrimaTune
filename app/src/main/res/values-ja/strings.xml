@@ -185,7 +185,7 @@
     <string name="tab_voice">音色</string>
     <string name="tab_theme">テーマ</string>
     <string name="tab_records">記録</string>
-    <string name="tab_about">アプリについて</string>
+    <string name="tab_about">情報</string>   <!-- 2026-10-14：原「アプリについて」在底弧五键里会换行（每个键只占 1/5 宽）→ 换行后整键变"竖的" -->
     <string name="common_copy">コピー</string>
     <string name="common_close">閉じる</string>
     <string name="common_fail">失敗</string>
