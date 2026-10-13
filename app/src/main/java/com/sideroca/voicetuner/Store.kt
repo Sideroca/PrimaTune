@@ -271,6 +271,11 @@ class Store(context: Context) {
         get() = prefs.getInt("recFontPct", 100)
         set(v) { prefs.edit().putInt("recFontPct", v.coerceIn(90, 130)).apply() }
 
+    /** 翻译方式："auto"＝有 LLM Key 就走 LLM、否则走免费接口 ｜ "llm" ｜ "free"（用户 2026-10-14） */
+    var transEngine: String
+        get() = prefs.getString("transEngine", "auto") ?: "auto"
+        set(v) { prefs.edit().putString("transEngine", v).apply() }
+
     /** 翻译目标语言（中文/英语/…） */
     var trTarget: String
         get() = prefs.getString("trTarget", "中文") ?: "中文"

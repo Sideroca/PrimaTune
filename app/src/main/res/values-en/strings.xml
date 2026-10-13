@@ -415,4 +415,11 @@
     <string name="alarm_ring_page">Ring page</string>
     <string name="alarm_ring_page_ok">Ready: the full-screen page will pop at ring time</string>
     <string name="alarm_ring_page_no">Not ready - tap to open "Alarm permissions" (without it you only get sound, no page)</string>
+    <string name="label_trans_engine">Translation engine</string>
+    <string name="trans_engine_auto">Auto</string>
+    <string name="trans_engine_llm">LLM only</string>
+    <string name="trans_engine_free">Free API only</string>
+    <string name="trans_engine_fmt">%1$s | now: %2$s</string>
+    <string name="trans_eff_free">Free API (Google to MyMemory)</string>
+    <string name="trans_need_llm">"LLM only" needs an LLM key (Settings - Model - Polish)</string>
 </resources>

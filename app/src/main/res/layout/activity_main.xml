@@ -510,6 +510,17 @@
                     android:textColor="@color/dim"
                     android:textSize="13sp" />
 
+                <!-- 翻译方式（用户 2026-10-14）：以前只按"有没有 LLM Key"暗自动，看不出用的是哪家 -->
+                <TextView style="@style/VtLabel" android:text="@string/label_trans_engine" />
+                <TextView
+                    android:id="@+id/tvTransEngine"
+                    style="@style/VtInput"
+                    android:clickable="true"
+                    android:ellipsize="end"
+                    android:focusable="true"
+                    android:maxLines="1"
+                    android:text="@string/trans_engine_auto" />
+
                 <!-- 翻译：目标语言**多选**（勾 2 种＝互译；勾 3 种＋＝多版本：译版在上、原文压底） -->
                 <TextView style="@style/VtLabel" android:text="@string/label_trans_langs" />
                 <LinearLayout

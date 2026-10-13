@@ -193,6 +193,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivVoiceInd: VoiceIndicatorView
     private lateinit var btnTranslate: TextView
     private lateinit var tvTransTarget: TextView
+    private lateinit var tvTransEngine: TextView
     private lateinit var llTransBlocks: LinearLayout
     private lateinit var etProvMain: android.widget.AutoCompleteTextView
     /** 多版本翻译：生成时逐个跑（译版在上、原文在下）；非空时 generate() 用它当文本 */
@@ -417,6 +418,7 @@ class MainActivity : AppCompatActivity() {
         // 「翻译」是同一款 accent 玻璃，一并刷新（字色保持原样，不动它的观感）
         btnTranslate.background = glassBg()
         btnTranslate.tag = "bg:keep"
+        syncTransEngineUi()      // 「翻译方式」那行：显示当前实际走哪家（LLM / 免费接口）
     }
 
     private fun bindViews() {
@@ -430,6 +432,8 @@ class MainActivity : AppCompatActivity() {
         ivVoiceInd = findViewById(R.id.ivVoiceInd)
         btnTranslate = findViewById(R.id.btnTranslate)
         tvTransTarget = findViewById(R.id.tvTransTarget)
+        tvTransEngine = findViewById(R.id.tvTransEngine)
+        tvTransEngine.setOnClickListener { showTransEnginePick() }
         llTransBlocks = findViewById(R.id.llTransBlocks)
         etProvMain = findViewById(R.id.etProvMain)
         setupProviderField()
@@ -588,6 +592,16 @@ class MainActivity : AppCompatActivity() {
         var targets = if (src.isNotEmpty() && langs.contains(src)) langs.filter { it != src } else langs
         if (targets.isEmpty()) targets = langs
 
+        // 用户 2026-10-14：翻译方式**可选**（以前只按"有没有 LLM Key"暗自动，用户不知道用的是哪家）
+        val useLlm = when (store.transEngine) {
+            "llm" -> true
+            "free" -> false
+            else -> store.llmKey.isNotBlank()
+        }
+        if (useLlm && store.llmKey.isBlank()) {
+            toast(getString(R.string.trans_need_llm)); return
+        }
+
         clearTransBlocks()
         tvStatus.text = getString(R.string.st_translating)
         btnTranslate.isEnabled = false
@@ -595,7 +609,7 @@ class MainActivity : AppCompatActivity() {
         if (targets.size <= 1) {
             val t = targets.first()
             store.trTarget = t
-            if (store.llmKey.isNotBlank()) { btnTranslate.isEnabled = true; llmRewrite(true, text); return }
+            if (useLlm) { btnTranslate.isEnabled = true; llmRewrite(true, text); return }
             TransClient.translate(text, t, store.trLastSource, store.transEmail) { out, err, s ->
                 ui {
                     btnTranslate.isEnabled = true
@@ -807,6 +821,76 @@ class MainActivity : AppCompatActivity() {
     private fun syncTransUi() {
         val ls = store.transLangList()
         tvTransTarget.text = if (ls.isEmpty()) "" else ls.joinToString(" · ")
+        syncTransEngineUi()
+    }
+
+    /**
+     * 「翻译方式」那一行：显示**当前实际会走哪家**（用户 2026-10-14：
+     * 以前只按"有没有 LLM Key"暗自动，用户根本看不出用的是 LLM 还是免费接口）。
+     */
+    private fun syncTransEngineUi() {
+        if (!::tvTransEngine.isInitialized) return
+        val mode = when (store.transEngine) {
+            "llm" -> getString(R.string.trans_engine_llm)
+            "free" -> getString(R.string.trans_engine_free)
+            else -> getString(R.string.trans_engine_auto)
+        }
+        val eff = if (store.transEngine != "free" &&
+            (store.transEngine == "llm" || store.llmKey.isNotBlank())
+        ) {
+            "LLM" + store.llmModel.takeIf { it.isNotBlank() }?.let { "（$it）" }.orEmpty()
+        } else getString(R.string.trans_eff_free)
+        tvTransEngine.text = getString(R.string.trans_engine_fmt, mode, eff)
+    }
+
+    /** 选「翻译方式」：自动 / 只用 LLM / 只用免费接口（自绘行、✓ 靠右，与语言下拉同一套） */
+    private fun showTransEnginePick() {
+        val c = Skin.colors(this)
+        var pop: android.widget.PopupWindow? = null
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        val opts = listOf(
+            "auto" to getString(R.string.trans_engine_auto),
+            "llm" to getString(R.string.trans_engine_llm),
+            "free" to getString(R.string.trans_engine_free)
+        )
+        for ((code, name) in opts) {
+            val on = store.transEngine == code
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                isClickable = true
+                isFocusable = true
+            }
+            row.addView(TextView(this).apply {
+                text = name
+                setTextColor(if (on) c.acc else c.txt)
+                textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            if (on) row.addView(TextView(this).apply { text = "✓"; setTextColor(c.acc); textSize = 14f })
+            fx(row)
+            row.setOnClickListener {
+                pop?.dismiss()
+                store.transEngine = code
+                syncTransEngineUi()
+            }
+            box.addView(row)
+        }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Skin.shapeDp(this@MainActivity, c.bg, c.line, 12f)
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+        }
+        panel.addView(box)
+        val w = minOf(dp(320), resources.displayMetrics.widthPixels - dp(32))
+        pop = android.widget.PopupWindow(panel, w, ViewGroup.LayoutParams.WRAP_CONTENT, true)
+        pop.inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
+        pop.isOutsideTouchable = true
+        pop.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        pop.elevation = dp(8).toFloat()
+        pop.showAsDropDown(tvTransEngine, 0, dp(2))
     }
 
     /**
@@ -1799,6 +1883,11 @@ class MainActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- 历史
     private fun renderHistory() {
+        // 用户 2026-10-13：**保住"展开到第几屏"与当前滚动位置**。
+        // 旧代码每次 renderHistory 都把 historyShown 打回 25 条 → 用户展开到几百条、往下滑很远时，
+        // 只要 renderHistory 被触发一次（切后台回来就会），内容缩回 25 条 → 滚动位置被夹回上方
+        // （症状："不断下滑看记录，屏幕莫名跳回顶部"）。
+        val keepY = runCatching { svRoot.scrollY }.getOrDefault(0)
         llHistory.removeAllViews()
         rowRefs.clear()
         val list = filterVoiceId?.let { id -> takes.filter { it.voiceId == id } } ?: takes
@@ -1813,10 +1902,12 @@ class MainActivity : AppCompatActivity() {
         }
         // 首屏只建最近 25 条；之后每次「显示更多」**再追加 100 条**（增量，不重建已建行）——
         // 记录成百上千条时，避免一次建出上千个 View 造成卡顿
-        historyShown = minOf(HISTORY_PREVIEW, list.size)
+        historyShown = minOf(maxOf(historyShown, HISTORY_PREVIEW), list.size)
         appendHistoryRange(list, 0, historyShown)
         if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
         Skin.apply(llHistory, Skin.colors(this))
+        // 重建后把滚动位置放回去（post：等新布局完成再滚，ScrollView 自己会夹到合法范围）
+        if (keepY > 0) runCatching { svRoot.post { svRoot.scrollTo(0, keepY) } }
     }
 
     /** 追加 [from, until) 区间的记录行（增量） */
@@ -1844,7 +1935,8 @@ class MainActivity : AppCompatActivity() {
         )
         more.setOnClickListener {
             if (historyShown >= list.size) {
-                renderHistory()                     // 「收起」→ 回到首屏 25 条
+                historyShown = HISTORY_PREVIEW       // 「收起」→ 显式回到首屏 25 条（renderHistory 现在会保住展开数）
+                renderHistory()
                 return@setOnClickListener
             }
             val idx = llHistory.indexOfChild(more)
@@ -2863,7 +2955,8 @@ class MainActivity : AppCompatActivity() {
      * 顶边 ~7% 高度一条 `rgba(255,252,244,.60)` 渐隐高光），让按键像"被光照到"。
      */
     private fun genButtonBg(color: Int, radiusDp: Float): android.graphics.drawable.Drawable {
-        val base = Skin.shapeDp(this, color, null, radiusDp, 100, 0f)
+        // 用户 2026-10-13：「生成」按钮也要跟「卡片浓度」——只让**填充**随浓度变淡（描边/字照旧）。
+        val base = Skin.cardFillDp(this, color, null, radiusDp, Skin.colors(this).cardAlphaPct, 0f)
         val light = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
             cornerRadius = radiusDp * resources.displayMetrics.density

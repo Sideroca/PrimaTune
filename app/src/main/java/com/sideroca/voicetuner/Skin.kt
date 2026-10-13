@@ -261,6 +261,12 @@ object Skin {
         return shape(fill, stroke, radiusDp * d, alphaPct, strokeDp * d)
     }
 
+    /** 卡片式填充（**只让填充随浓度变淡、描边保持**）—— 供页面代码复用（例：主页「生成」按钮跟「卡片浓度」） */
+    fun cardFillDp(ctx: Context, fill: Int, stroke: Int?, radiusDp: Float, alphaPct: Int, strokeDp: Float): GradientDrawable {
+        val d = ctx.resources.displayMetrics.density
+        return cardShape(fill, stroke, radiusDp * d, alphaPct, strokeDp * d)
+    }
+
     /** 弹窗面板：卡片色圆角底板 + 轻描边，四周留外距（窗口内容按同样边距内缩） */
     fun dialogPanel(ctx: Context, c: Colors): Drawable {
         val d = ctx.resources.displayMetrics.density

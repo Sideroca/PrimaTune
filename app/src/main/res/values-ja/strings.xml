@@ -415,4 +415,11 @@
     <string name="alarm_ring_page">アラーム画面</string>
     <string name="alarm_ring_page_ok">準備OK：時間どおり全画面で表示されます</string>
     <string name="alarm_ring_page_no">未準備 ― タップして「アラームの権限チェック」へ（未許可だと音だけで画面が出ません）</string>
+    <string name="label_trans_engine">翻訳方式</string>
+    <string name="trans_engine_auto">自動</string>
+    <string name="trans_engine_llm">LLM のみ</string>
+    <string name="trans_engine_free">無料 API のみ</string>
+    <string name="trans_engine_fmt">%1$s ｜ 現在：%2$s</string>
+    <string name="trans_eff_free">無料 API（Google → MyMemory）</string>
+    <string name="trans_need_llm">「LLM のみ」には設定 → モデル → 推敲 で LLM キーが必要です</string>
 </resources>

@@ -415,4 +415,11 @@
     <string name="alarm_ring_page">响铃页</string>
     <string name="alarm_ring_page_ok">已就绪：到点会弹整屏页</string>
     <string name="alarm_ring_page_no">未就绪 —— 点这里查「闹钟权限体检」（缺权限就只响声音、不弹页）</string>
+    <string name="label_trans_engine">翻译方式</string>
+    <string name="trans_engine_auto">自动</string>
+    <string name="trans_engine_llm">只用 LLM</string>
+    <string name="trans_engine_free">只用免费接口</string>
+    <string name="trans_engine_fmt">%1$s ｜ 当前：%2$s</string>
+    <string name="trans_eff_free">免费接口（Google → MyMemory）</string>
+    <string name="trans_need_llm">「只用 LLM」要先在 设置 → 模型 → 润色 里填 LLM Key</string>
 </resources>

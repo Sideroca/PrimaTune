@@ -94,6 +94,16 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Loc.apply(this)          // 界面语言（per-app locale）
         setContentView(R.layout.activity_settings)
+        // 横屏 / 小窗（分屏、自由窗口）下补一个返回键（用户 2026-10-14）：
+        // 那种形态下系统没有可点的返回，用户只能杀掉 App。**竖屏不显示**、不打扰。
+        runCatching {
+            val needBack = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE || isInMultiWindowMode
+            findViewById<TextView>(R.id.btnBack)?.apply {
+                visibility = if (needBack) View.VISIBLE else View.GONE
+                setOnClickListener { finish() }
+            }
+        }
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
         LayoutFix.flattenCardFirstTop(window.decorView, dp(8f))
         store = Store(this)
@@ -2199,7 +2209,10 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             ).apply { topMargin = dp(14f) }
             llTips.addView(v)
         }
+        // 用户 2026-10-14：上方那个「提示」标签与这里的「使用提示」**重复** → XML 里那个已删；
+        // 第一行也不再留 16dp 上距，整块内容往上贴（**卡片位置不动**）。
         label(getString(R.string.tips_title))
+        (llTips.getChildAt(llTips.childCount - 1) as? TextView)?.setPadding(0, dp(2f), 0, 0)
         line(getString(R.string.tips_1), c.dim)
         line(getString(R.string.tips_2), c.dim)
         line(getString(R.string.tips_3), c.dim)
@@ -2244,17 +2257,33 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
         for ((name, code) in Loc.OPTIONS) {
-            val tv = TextView(this)
             val on = store.lang == code
-            tv.text = (if (on) "✓ " else "　 ") + name
-            tv.setTextColor(if (on) c.acc else c.txt)
-            tv.textSize = 14f
-            tv.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
-            tv.isClickable = true
-            tv.isFocusable = true
-            fx(tv)
-            tv.setOnClickListener { pop?.dismiss(); Loc.set(this, code) }
-            box.addView(tv)
+            // 用户 2026-10-14：不再给每行前面塞"✓ / 全角空格"（那会把所有选项都推右）；
+            // 改成 **名字靠左、✓ 靠右**，四边对齐。
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+                isClickable = true
+                isFocusable = true
+            }
+            val tv = TextView(this).apply {
+                text = name
+                setTextColor(if (on) c.acc else c.txt)
+                textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            row.addView(tv)
+            if (on) {
+                row.addView(TextView(this).apply {
+                    text = "✓"
+                    setTextColor(c.acc)
+                    textSize = 14f
+                })
+            }
+            fx(row)
+            row.setOnClickListener { pop?.dismiss(); Loc.set(this, code) }
+            box.addView(row)
         }
         val sc = ScrollView(this)
         sc.isVerticalScrollBarEnabled = false
