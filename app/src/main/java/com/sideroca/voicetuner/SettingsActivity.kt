@@ -1610,13 +1610,18 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val sbScrimMain = findViewById<SeekBar>(R.id.sbScrimMain)
         val sbScrimPage = findViewById<SeekBar>(R.id.sbScrimPage)
         val sbCardAlpha = findViewById<SeekBar>(R.id.sbCardAlpha)
+        // 主界面那条「卡片浓度」（用户 2026-10-13 新增；与设置页各自独立）
+        val sbCardAlphaMain = findViewById<SeekBar>(R.id.sbCardAlphaMain)
+        val tvCardAlphaMain = findViewById<TextView>(R.id.tvCardAlphaMain)
 
         sbScrimMain.progress = store.scrimMain
         tvScrimMain.text = "${store.scrimMain}%"
         sbScrimPage.progress = store.scrimPage
         tvScrimPage.text = "${store.scrimPage}%"
-        sbCardAlpha.progress = store.cardAlphaPct
-        tvCardAlpha.text = "${store.cardAlphaPct}%"
+        sbCardAlpha.progress = store.cardAlphaPage
+        tvCardAlpha.text = "${store.cardAlphaPage}%"
+        sbCardAlphaMain.progress = store.cardAlphaMain
+        tvCardAlphaMain.text = "${store.cardAlphaMain}%"
 
         // 棘轮卡位：共 20 档 = 量程 ÷ 20（遮罩 0~80 → 每档 4；卡片 0~100 → 每档 5）
         Ratchet.attach(sbScrimMain, (sbScrimMain.max / 20).coerceAtLeast(1)) {
@@ -1630,9 +1635,15 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tvScrimPage.text = "$p%"
             Wp.applySlot(this, wpImg, wpScrim, store.wpPage, store.scrimPage, Skin.colors(this).bg)
         }
+        // 主界面「卡片」：改的是**主页**的值 —— 本页没有主页的卡，回主页即生效
+        Ratchet.attach(sbCardAlphaMain, (sbCardAlphaMain.max / 20).coerceAtLeast(1)) {
+            val p = sbCardAlphaMain.progress
+            store.cardAlphaMain = p
+            tvCardAlphaMain.text = "$p%"
+        }
         Ratchet.attach(sbCardAlpha, (sbCardAlpha.max / 20).coerceAtLeast(1)) {
             val p = sbCardAlpha.progress
-            store.cardAlphaPct = p
+            store.cardAlphaPage = p
             tvCardAlpha.text = "$p%"
             Skin.apply(window.decorView, Skin.colors(this))
         }
@@ -1665,11 +1676,14 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             store.wpPageCrop = ""
             store.scrimMain = 35
             store.scrimPage = 35
-            store.cardAlphaPct = 100
+            store.cardAlphaMain = 100
+            store.cardAlphaPage = 100
             sbScrimMain.progress = 35
             tvScrimMain.text = "35%"
             sbScrimPage.progress = 35
             tvScrimPage.text = "35%"
+            sbCardAlphaMain.progress = 100
+            tvCardAlphaMain.text = "100%"
             sbCardAlpha.progress = 100
             tvCardAlpha.text = "100%"
             refreshWpStates()

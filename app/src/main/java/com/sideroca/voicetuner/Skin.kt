@@ -96,11 +96,17 @@ object Skin {
         }
     }
 
-    /** 当前生效的角色色（未选主题 = 本机原色） */
-    fun colors(ctx: Context): Colors {
+    /**
+     * 当前生效的角色色。
+     * `mainPage`：**卡片浓度主界面 / 设置页各自独立**（用户 2026-10-13）——
+     * 默认按"调用方是谁"自动判断（主界面 → 用主界面的值，设置页 → 用设置页的值），
+     * 所以**不需要改任何调用点**；需要显式指定时可传第二个参数。
+     */
+    fun colors(ctx: Context, mainPage: Boolean = ctx is MainActivity): Colors {
         val store = Store(ctx)
         val p = Palettes.byId(store.themeId)
-        return if (p == null) Colors.original(store.cardAlphaPct) else Colors.of(p, store.cardAlphaPct)
+        val pct = if (mainPage) store.cardAlphaMain else store.cardAlphaPage
+        return if (p == null) Colors.original(pct) else Colors.of(p, pct)
     }
 
     /** 窗口级：底色 + 系统栏（含状态栏图标明暗） */
@@ -229,9 +235,9 @@ object Skin {
             R.drawable.bg_btn_primary -> v.background =
                 // ⑭：主行动按钮统一用"提亮提纯"的派生色（raw accent 只在未列入的配色 / 本机原色时用）
                 if (c.isOriginal) grad(c.acc, c.acc2, 12f * d) else shape(c.gen, null, 12f * d, 100, 0f)
-            R.drawable.bg_card -> v.background = shape(c.card, c.line, 14f * d, c.cardAlphaPct, d)
+            R.drawable.bg_card -> v.background = cardShape(c.card, c.line, 14f * d, c.cardAlphaPct, d)
             R.drawable.bg_chip -> if (!sel) v.background = shape(c.card2, c.line, 100f * d, 100, d)
-            R.drawable.bg_row -> v.background = shape(c.row, null, 10f * d, 100, 0f)
+            R.drawable.bg_row -> v.background = cardShape(c.row, null, 10f * d, c.cardAlphaPct, 0f)
             R.drawable.bg_input, R.drawable.bg_btn ->
                 v.background = shape(c.card2, if (sel) c.acc else c.line, 10f * d, 100, if (sel) 3f else d)
         }
@@ -260,6 +266,20 @@ object Skin {
         val d = ctx.resources.displayMetrics.density
         val panel = shape(c.card, c.line, 18f * d, 100, d)
         return InsetDrawable(panel, (24 * d).toInt(), (20 * d).toInt(), (24 * d).toInt(), (20 * d).toInt())
+    }
+
+    /**
+     * **卡片**底：浓度只作用在**填充**上，**描边保持不透明**
+     * —— 《夕汀前端规范》B15「卡片浓度 0–100…**0% = 只剩描边**」。
+     * （旧实现用 `shape(...)` 的整体 alpha，连描边一起淡掉 → 0% 时卡片整个消失，与规范不符。）
+     */
+    private fun cardShape(fill: Int, stroke: Int?, radiusPx: Float, alphaPct: Int, strokePx: Float): GradientDrawable {
+        val a = (alphaPct.coerceIn(0, 100) * 255 / 100)
+        val g = GradientDrawable()
+        g.setColor((fill and 0x00FFFFFF) or (a shl 24))
+        g.cornerRadius = radiusPx
+        if (stroke != null) g.setStroke(strokePx.toInt().coerceAtLeast(2), stroke)
+        return g
     }
 
     fun shape(fill: Int, stroke: Int?, radiusPx: Float, alphaPct: Int, strokePx: Float): GradientDrawable {

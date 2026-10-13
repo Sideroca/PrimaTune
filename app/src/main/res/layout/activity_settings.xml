@@ -607,6 +607,22 @@
                                 style="@style/VtSliderValue"
                                 android:text="35%" />
                         </LinearLayout>
+                        <!-- 主界面「卡片浓度」：与「遮罩」成对（用户 2026-10-13 ——
+                             以前这条只出现在"设置页壁纸"里，主界面这一节找不到，看着像"不支持改"） -->
+                        <LinearLayout style="@style/VtSliderRow">
+                            <TextView style="@style/VtSliderLabel" android:text="@string/label_card" />
+                            <SeekBar
+                                android:id="@+id/sbCardAlphaMain"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:max="100"
+                                android:min="0" />
+                            <TextView
+                                android:id="@+id/tvCardAlphaMain"
+                                style="@style/VtSliderValue"
+                                android:text="100%" />
+                        </LinearLayout>
 
                         <TextView style="@style/VtLabel" android:text="@string/label_wp_page" />
                         <LinearLayout

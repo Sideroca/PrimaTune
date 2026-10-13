@@ -256,9 +256,15 @@ class Store(context: Context) {
         get() = prefs.getInt("scrimPage", 35)
         set(v) { prefs.edit().putInt("scrimPage", v).apply() }
 
-    var cardAlphaPct: Int
+    /** 卡片浓度（%）：**主界面**用 —— 主界面/设置页**各自独立**（用户 2026-10-13，像「遮罩」那样成对） */
+    var cardAlphaMain: Int
+        get() = prefs.getInt("cardAlphaMain", 100)
+        set(v) { prefs.edit().putInt("cardAlphaMain", v.coerceIn(0, 100)).apply() }
+
+    /** 卡片浓度（%）：**设置页**用（沿用旧键 `cardAlpha` → 老用户已设的值不会丢） */
+    var cardAlphaPage: Int
         get() = prefs.getInt("cardAlpha", 100)
-        set(v) { prefs.edit().putInt("cardAlpha", v).apply() }
+        set(v) { prefs.edit().putInt("cardAlpha", v.coerceIn(0, 100)).apply() }
 
     /** 记录字号（%）：只作用在记录卡的标题/信息/详情——小按钮不动（用户 2026-10-05）。 */
     var recordFontPct: Int
