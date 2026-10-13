@@ -423,4 +423,6 @@
     <string name="trans_eff_free">Free API (Google to MyMemory)</string>
     <string name="trans_need_llm">"LLM only" needs an LLM key (Settings - Model - Polish)</string>
     <string name="alarm_prepared_stale">%1$d clip(s) cached, but settings changed - it will regenerate with the NEW voice/prompt (the old ones will not play)</string>
+    <string name="alarm_gen_note">Saving generates one brand-new clip (the old one is deleted) and plays exactly that at ring time.</string>
+    <string name="alarm_test_no_voice">No alarm voice yet - saving the alarm generates one (nothing plays this time)</string>
 </resources>

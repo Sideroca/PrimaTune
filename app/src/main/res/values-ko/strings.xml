@@ -423,4 +423,6 @@
     <string name="trans_eff_free">무료 API(Google → MyMemory)</string>
     <string name="trans_need_llm">"LLM만"은 설정 → 모델 → 다듬기에서 LLM 키가 필요합니다</string>
     <string name="alarm_prepared_stale">%1$d개 캐시됨(⚠️ 설정이 바뀜: **새 음색/프롬프트**로 다시 생성되며 예전 것은 재생되지 않습니다)</string>
+    <string name="alarm_gen_note">저장하면 새 음성을 하나 생성합니다(이전 것은 삭제). 시간이 되면 그 음성을 재생합니다.</string>
+    <string name="alarm_test_no_voice">알람 음성이 아직 없습니다 — 저장할 때 하나 생성됩니다(이번에는 재생하지 않음)</string>
 </resources>

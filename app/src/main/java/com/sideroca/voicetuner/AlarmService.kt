@@ -255,7 +255,7 @@ class AlarmService : Service() {
             "ring" -> {
                 stopped = false
                 startFg(NOTI_RING, buildRingNoti(this, ringWho(this)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                startRingFlow()
+                startRingFlow(isManualTest)
             }
             // 系统闹钟自检：走**真实链路**（AlarmManager → 广播 → 服务）响一声就停。
             // 不动真实排期、不弹响铃页、不触发"响完收尾"——只用来证明"系统会不会把进程拉起来"。
@@ -312,9 +312,9 @@ class AlarmService : Service() {
             val pid0 = cfg.providerId.ifBlank { store.providerId }
             val pname0 = TtsProviders.byId(pid0)?.name ?: pid0
             status("pregen 开始：LLM Key=${if (store.llmKey.isBlank()) "空!" else "有"}，音色=${if (cfg.voiceId.isBlank()) "空!" else cfg.voiceName + "(" + cfg.voiceId.take(14) + ")"}，条数=${cfg.count}，字数下限=${cfg.minChars}，厂商=$pname0($pid0)，模型=${cfg.model.ifBlank { store.lastModel }}")
-            // ⚠️ **不再一上来就删旧缓存**（用户 2026-10-10 报的 bug 根因）：
-            //    旧代码在这里 dir.listFiles().forEach{delete()}，"设完闹钟马上到点"时旧语音被删、新的还没写出来
-            //    → 到点缓存为空 → 只能响系统铃声。现在改成：先写 tmp/，**全部成功后再一次性替换**。
+            // 用户 2026-10-14：**每次生成都是一条全新的** —— 开工先把旧的全部清掉
+            // （"过去生成的、没用上的，不要留在本地"）。生成失败就什么都不留（宁缺勿错）。
+            dir.listFiles()?.filter { it.isFile && it.name != "status.txt" }?.forEach { it.delete() }
             val tmp = File(dir, "tmp").apply { mkdirs() }
             tmp.listFiles()?.forEach { it.delete() }
             if (store.llmKey.isBlank()) { status("pregen 失败：没填 LLM Key（设置 → 模型 → 润色）"); return false }
@@ -436,25 +436,39 @@ class AlarmService : Service() {
      *  - 没预生成 → **立刻**响系统铃声，同时现场生成（LLM→TTS）；**30 秒内**成功 → 切成 AI 人声。
      * 先把**全屏响铃页 + 高优先级通知**挂出去（即播放链路出意外，用户也看得到、点得到）。
      */
-    private fun startRingFlow() {
+    private fun startRingFlow(isManualTest: Boolean = false) {
         if (ringing) { status("响铃：已在响，忽略这次重复触发（防两个播放器叠在一起）"); return }
         ringing = true
         acquireWake()
         files = cachedFiles()
         vol = 1f                                      // 音量**恒定**（不做渐强）
-        status("响铃：预生成文件 ${files.size} 段（另有生成在进行中=$generating）")
+        status("响铃：预生成文件 ${files.size} 段（生成中=$generating，手测=$isManualTest）")
         launchRingUi()
         if (files.isNotEmpty()) {
             updateRingNoti(ringWho(this))
             idx = 0; playCurrent(); return
+        }
+        // ⚠️ **手动测试**且没有可用语音 → **绝不要拿系统铃声冒充 AI 闹钟**
+        // （用户 2026-10-14 的困惑："点预生成却响了系统铃声"——其实他点的是「立即响一次」，
+        //  而那时缓存刚换了音色被判无效 → 退成了系统铃声，看起来就像"预生成变成响铃"）
+        if (isManualTest) {
+            status("手测：没有可用的闹钟语音 → 不出声，只提示（先点「预生成」）")
+            updateRingNoti(getString(R.string.alarm_test_no_voice))
+            if (!generating) Thread { runCatching { generate() } }.start()
+            pollForVoice(SystemClock.elapsedRealtime(), silent = true)
+            return
         }
         // 没有缓存 → 先响系统铃声（绝不静默）；然后**轮询等缓存**——很可能是"保存闹钟那一刻的预生成"
         // 还在跑（旧代码把缓存删了在重做）。30 秒内一出现就切成 AI 人声；若压根没人生成，才自己起一次。
         status("响铃：无缓存 → 先响系统铃声；等预生成（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
         playFallback()
         updateRingNoti(getString(R.string.alarm_voice_fail))
-        val t0 = SystemClock.elapsedRealtime()
         if (!generating) Thread { runCatching { generate() } }.start()
+        pollForVoice(SystemClock.elapsedRealtime(), silent = false)
+    }
+
+    /** 轮询等"可播语音"出现：一出现就切换成 AI 人声；[silent] = 手测模式（失败也不出声）。 */
+    private fun pollForVoice(t0: Long, silent: Boolean) {
         val poll = object : Runnable {
             override fun run() {
                 if (stopped) return
@@ -467,8 +481,14 @@ class AlarmService : Service() {
                     updateRingNoti(ringWho(this@AlarmService))
                     return
                 }
-                if (SystemClock.elapsedRealtime() - t0 < LIVE_GEN_LIMIT_MS) handler.postDelayed(this, 1500)
-                else status("响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → 保持系统铃声")
+                if (SystemClock.elapsedRealtime() - t0 < LIVE_GEN_LIMIT_MS) {
+                    handler.postDelayed(this, 1500)
+                } else {
+                    status(
+                        if (silent) "手测：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍没有语音（本次不出声）"
+                        else "响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → 保持系统铃声"
+                    )
+                }
             }
         }
         handler.postDelayed(poll, 1500)

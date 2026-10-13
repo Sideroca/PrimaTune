@@ -423,4 +423,6 @@
     <string name="trans_eff_free">免费接口（Google → MyMemory）</string>
     <string name="trans_need_llm">「只用 LLM」要先在 设置 → 模型 → 润色 里填 LLM Key</string>
     <string name="alarm_prepared_stale">已准备 %1$d 段（⚠️ 但设置已改：会按**新音色/新提示词**重新生成，旧的不会播）</string>
+    <string name="alarm_gen_note">保存后会生成一条新的语音（旧的会删掉）；到点直接播它。</string>
+    <string name="alarm_test_no_voice">还没有可用的闹钟语音 —— 保存闹钟时会自动生成一条（本次不出声）</string>
 </resources>

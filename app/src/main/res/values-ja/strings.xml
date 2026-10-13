@@ -423,4 +423,6 @@
     <string name="trans_eff_free">無料 API（Google → MyMemory）</string>
     <string name="trans_need_llm">「LLM のみ」には設定 → モデル → 推敲 で LLM キーが必要です</string>
     <string name="alarm_prepared_stale">%1$d 段キャッシュ済み（⚠️ 設定変更済み：**新しい音色/プロンプト**で再生成されます。古いものは再生されません）</string>
+    <string name="alarm_gen_note">保存すると新しい音声を1つ生成します（古いものは削除）。時間になるとそれを再生します。</string>
+    <string name="alarm_test_no_voice">アラーム音声がまだありません — 保存時に1つ生成されます（今回は再生しません）</string>
 </resources>
