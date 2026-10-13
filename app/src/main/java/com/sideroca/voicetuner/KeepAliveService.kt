@@ -25,10 +25,15 @@ class KeepAliveService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
             if (nm != null && nm.getNotificationChannel(CH) == null) {
+                // ⚠️ 通道 ID 故意带了 `2`（用户 2026-10-14）：
+                //    旧通道 `vt_keepalive` 已经在用户机上**创建过**了，而**通知通道的"重要级别"一经创建就不可改**
+                //    （代码里改 IMPORTANCE 对老用户无效）→ 旧通道可能停在会"弹横幅"的档位，于是每次合成
+                //    屏幕上方都弹一下 ✗。换一个新 ID = 新通道，才能真正变成"静音、不弹、只躺在通知栏" ✓。
                 nm.createNotificationChannel(
                     NotificationChannel(CH, "后台任务", NotificationManager.IMPORTANCE_LOW).apply {
                         setShowBadge(false)
                         enableVibration(false)
+                        setSound(null, null)          // 静音
                     }
                 )
             }
@@ -38,7 +43,9 @@ class KeepAliveService : Service() {
             .setContentTitle("玲珑调音")
             .setContentText(title)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)   // 最低：绝不出横幅
+            .setSilent(true)                                // 再保险一次
+            .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .build()
         startForeground(NOTI_ID, n)
@@ -46,7 +53,7 @@ class KeepAliveService : Service() {
     }
 
     companion object {
-        private const val CH = "vt_keepalive"
+        private const val CH = "vt_keepalive2"     // ← 见上文：换了新 ID，旧的不可改的通道不再复用
         private const val NOTI_ID = 1001
         private const val EXTRA_TITLE = "title"
 
