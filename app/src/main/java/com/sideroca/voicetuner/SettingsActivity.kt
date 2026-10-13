@@ -2434,12 +2434,18 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(fTest)
         box.addView(lbl(getString(R.string.alarm_pregen_now)))
         fun pregenInfo(): String {
-            val n = store.alarmDir.listFiles()?.count { it.isFile && it.length() > 0 && it.name != "status.txt" } ?: 0
+            val n = store.alarmDir.listFiles()
+                ?.count { it.isFile && it.length() > 0 && it.name != "status.txt" && it.name != "cache.json" } ?: 0
             val tail = runCatching {
                 val f = File(store.alarmDir, "status.txt")
                 if (f.exists()) f.readLines().lastOrNull { it.isNotBlank() }.orEmpty() else ""
             }.getOrDefault("")
-            val head = if (n > 0) getString(R.string.alarm_prepared, n) else getString(R.string.alarm_not_prepared)
+            // 缓存是**旧设置**生成的（音色/提示词等改过）→ 别再说"已准备"，否则用户以为新音色已生效
+            val head = when {
+                n <= 0 -> getString(R.string.alarm_not_prepared)
+                !AlarmService.cacheMatches(this) -> getString(R.string.alarm_prepared_stale, n)
+                else -> getString(R.string.alarm_prepared, n)
+            }
             return if (tail.isBlank()) head else head + "\n" + tail
         }
         val fPre = TextView(this).apply {

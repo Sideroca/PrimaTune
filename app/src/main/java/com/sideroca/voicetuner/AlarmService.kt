@@ -52,6 +52,44 @@ class AlarmService : Service() {
         private const val LIVE_GEN_LIMIT_MS = 30_000L
 
         /**
+         * 预生成缓存的**配置指纹**。
+         *
+         * 为什么需要（用户 2026-10-14 报"改成爱布拉娜却还播迷迭香"）：
+         * v1.6.4 起"预生成失败时保留旧语音"是为了"到点至少有声音"，但如果**用户换了音色而新一次预生成失败**
+         * （最常见是音色与当前厂商不匹配），旧语音会一直留着 → 到点就播**上一个音色** ✗。
+         * 现在给缓存盖一个指纹（音色/提示词/条数/字数下限/厂商/模型）；**指纹不符的旧缓存一律不播**。
+         */
+        private fun stampFile(ctx: Context) = File(Store(ctx).alarmDir, "cache.json")
+
+        fun cacheMatches(ctx: Context): Boolean {
+            val f = stampFile(ctx)
+            if (!f.exists()) return false
+            val cfg = AlarmCfg.from(Store(ctx).alarmJson)
+            return runCatching {
+                val o = org.json.JSONObject(f.readText())
+                o.optString("voiceId") == cfg.voiceId &&
+                    o.optString("prompt") == cfg.prompt &&
+                    o.optInt("count") == cfg.count &&
+                    o.optInt("minChars") == cfg.minChars &&
+                    o.optString("providerId") == cfg.providerId &&
+                    o.optString("model") == cfg.model
+            }.getOrDefault(false)
+        }
+
+        private fun writeStamp(ctx: Context) {
+            val cfg = AlarmCfg.from(Store(ctx).alarmJson)
+            runCatching {
+                stampFile(ctx).writeText(
+                    org.json.JSONObject().apply {
+                        put("voiceId", cfg.voiceId); put("prompt", cfg.prompt)
+                        put("count", cfg.count); put("minChars", cfg.minChars)
+                        put("providerId", cfg.providerId); put("model", cfg.model)
+                    }.toString()
+                )
+            }
+        }
+
+        /**
          * 是否已有一次预生成在跑。**跨服务实例互斥**——否则预生成（保存时那次）与响铃时那次会
          * 互相删档（用户 2026-10-10 报的"已准备 1 段却被删空"就是这个）。
          */
@@ -302,8 +340,9 @@ class AlarmService : Service() {
             val made = tmp.listFiles()?.filter { it.isFile && it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
             if (made.isEmpty()) { status("pregen 失败：没有产出可播的语音"); return false }
             // 全部成功 → 才清旧、换上新的（这一刻之前，旧缓存一直可播）
-            dir.listFiles()?.filter { it.isFile && it.name != "status.txt" }?.forEach { it.delete() }
+            dir.listFiles()?.filter { it.isFile && it.name != "status.txt" && it.name != "cache.json" }?.forEach { it.delete() }
             made.forEach { f -> f.renameTo(File(dir, f.name)) }
+            writeStamp(this)                       // 盖指纹：之后"配置变了"的旧缓存不会被误播
             status("pregen 完成：共 ${made.size} 段")
             return true
         } catch (e: Exception) {
@@ -435,11 +474,18 @@ class AlarmService : Service() {
         handler.postDelayed(poll, 1500)
     }
 
-    /** 可播的预生成语音（**只认真文件**：tmp/ 子目录不算、status.txt 不算）。 */
-    private fun cachedFiles(): List<File> =
-        Store(this).alarmDir.listFiles()
-            ?.filter { it.isFile && it.length() > 0 && it.name != "status.txt" }
+    /** 可播的预生成语音（**只认真文件**：tmp/ 子目录不算、status.txt / cache.json 不算；**且指纹要对**）。 */
+    private fun cachedFiles(): List<File> {
+        if (!cacheMatches(this)) {
+            if (Store(this).alarmDir.listFiles()?.any { it.isFile && it.name.endsWith(".wav") } == true) {
+                status("响铃：缓存是**旧设置**生成的（音色/提示词等已改）→ 视为未生成，按新设置来")
+            }
+            return emptyList()
+        }
+        return Store(this).alarmDir.listFiles()
+            ?.filter { it.isFile && it.length() > 0 && it.name != "status.txt" && it.name != "cache.json" }
             ?.sortedBy { it.name } ?: emptyList()
+    }
 
     /** 唤起全屏响铃页（后台起 Activity 可能被系统拒绝 → 失败就靠通知的"全屏意图"）。 */
     private fun launchRingUi() {

@@ -422,4 +422,5 @@
     <string name="trans_engine_fmt">%1$s ｜ 현재: %2$s</string>
     <string name="trans_eff_free">무료 API(Google → MyMemory)</string>
     <string name="trans_need_llm">"LLM만"은 설정 → 모델 → 다듬기에서 LLM 키가 필요합니다</string>
+    <string name="alarm_prepared_stale">%1$d개 캐시됨(⚠️ 설정이 바뀜: **새 음색/프롬프트**로 다시 생성되며 예전 것은 재생되지 않습니다)</string>
 </resources>

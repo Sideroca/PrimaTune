@@ -422,4 +422,5 @@
     <string name="trans_engine_fmt">%1$s ｜ 当前：%2$s</string>
     <string name="trans_eff_free">免费接口（Google → MyMemory）</string>
     <string name="trans_need_llm">「只用 LLM」要先在 设置 → 模型 → 润色 里填 LLM Key</string>
+    <string name="alarm_prepared_stale">已准备 %1$d 段（⚠️ 但设置已改：会按**新音色/新提示词**重新生成，旧的不会播）</string>
 </resources>

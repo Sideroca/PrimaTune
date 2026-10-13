@@ -73,7 +73,10 @@ object AlarmScheduler {
     }
 
     private fun cancelAll(ctx: Context) {
-        listOf(RC_PREGEN to "pregen", RC_RING to "ring", RC_SNOOZE to "ring").forEach { (rc, act) ->
+        // ⚠️ RC_TEST 也要取消（用户 2026-10-14）："系统闹钟自检"排的是 15 秒后的闹钟，
+        // 以前这里只取消 预生成/响铃/贪睡 三条 → **测试闹钟会留在系统里**，等你下次点「立即预生成」
+        // 它到点就响 → 看着像"生成完自己播了"。
+        listOf(RC_PREGEN to "pregen", RC_RING to "ring", RC_SNOOZE to "ring", RC_TEST to "test").forEach { (rc, act) ->
             runCatching { am(ctx).cancel(pi(ctx, rc, act)) }
         }
     }

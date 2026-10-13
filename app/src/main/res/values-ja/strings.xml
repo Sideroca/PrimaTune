@@ -422,4 +422,5 @@
     <string name="trans_engine_fmt">%1$s ｜ 現在：%2$s</string>
     <string name="trans_eff_free">無料 API（Google → MyMemory）</string>
     <string name="trans_need_llm">「LLM のみ」には設定 → モデル → 推敲 で LLM キーが必要です</string>
+    <string name="alarm_prepared_stale">%1$d 段キャッシュ済み（⚠️ 設定変更済み：**新しい音色/プロンプト**で再生成されます。古いものは再生されません）</string>
 </resources>
