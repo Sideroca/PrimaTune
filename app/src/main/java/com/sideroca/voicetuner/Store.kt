@@ -66,13 +66,21 @@ data class CustomVoice(
     val id: String,
     val name: String,
     val prefix: String,
-    val createdAt: Long
+    val createdAt: Long,
+    /**
+     * 这个音色**属于哪家 TTS 厂商**（TtsProviders.id）。
+     * 2026-10-15 新增：音色 ID 是各厂商自己发的，跨厂商不通用；
+     * 「智能填参」要用它判断"当前音色 ↔ 当前厂商"是否对得上，不对就自动切厂商。
+     * 旧数据没有这个字段 → 空串，由 `providerGuess`（前缀规则）兜底。
+     */
+    val providerId: String = ""
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("name", name)
         put("prefix", prefix)
         put("createdAt", createdAt)
+        put("provider", providerId)
     }
 
     companion object {
@@ -80,7 +88,8 @@ data class CustomVoice(
             id = o.optString("id"),
             name = o.optString("name"),
             prefix = o.optString("prefix"),
-            createdAt = o.optLong("createdAt", 0)
+            createdAt = o.optLong("createdAt", 0),
+            providerId = o.optString("provider", "")       // 旧数据没有 → 空串（走前缀兜底）
         )
     }
 }

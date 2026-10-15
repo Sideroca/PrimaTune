@@ -542,8 +542,10 @@ class MainActivity : AppCompatActivity() {
         syncTransUi()
 
         // 悬浮「译」：判定 48dp、字形小而浅；位置 = 文本框✕所在竖线 × 屏幕竖直中心
-        // 这两个"微不足道"的小字**不做点按特效**（涟漪/星点会在字上闪一下，看着像文字变色）
+        // ⚠️ 2026-10-15 用户反馈：这两个小字**没有点按特效**像"点了没反应" → 补上水波 + 留痕星点
+        // （旧注释担心"涟漪在字上闪一下像变色"，实测不如"完全没反馈"糟）
         btnYi.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
+        fx(btnYi, findViewById(R.id.llRoot))
         // 智能填参：给 LLM 一条请求 → 自动挑厂商 / 写风格指令 / 生成纠错表
         btnSmartFill.background = glassBg()
         btnSmartFill.tag = "bg:keep"
@@ -554,6 +556,7 @@ class MainActivity : AppCompatActivity() {
 
         // 一物两用：文本框**空**→ 选目标语言；文本框**有字**→ 直接翻译
         btnRun.setTextColor((Skin.colors(this).dim and 0x00FFFFFF) or (0x8A shl 24))
+        fx(btnRun, findViewById(R.id.llRoot))      // 同上：补点按反馈（用户 2026-10-15）
         btnRun.setOnClickListener { polishText() }
         // 「角色提示词」：写这个音色的人设（喂给 AI，不是给 TTS）。**保持旧版淡底细边**，字色随主题 dim。
         btnRole.setTextColor(Skin.colors(this).dim)
@@ -751,8 +754,16 @@ class MainActivity : AppCompatActivity() {
 
 
     /**
-     * 智能填参：把「文本 + 音色身份 + 补充说明」发给 LLM，让它回
-     * {provider, instruction, hot_fix} —— 自动挑 TTS 厂商、写自然语言风格/分割指令、生成纠错表。
+     * 智能填参（2026-10-15 改版 · **两条请求并发**）。
+     *
+     * 为什么拆成两条：这两件事是**完全不同的任务**，塞进同一条 prompt 模型会互相干扰
+     * （实测：让它同时"写风格指令 + 给原文加标签"，它跑去写台词了）：
+     *   · A) 情绪 / 风格指令（＋纠错表）→ 写进 **`etInstr` / `etHotfix`**
+     *   · B) 给原文加情感标签            → 写回 **`etText`**（就是"文本"那个框）
+     * 两个框是分开的，所以两条请求各写各的、互不覆盖；同时发出（并发），谁先回谁先落。
+     *
+     * 进函数还多做一件事：**校验"当前音色"是否属于"当前 TTS 厂商"**，
+     * 不属于就自动切过去（前提：目标厂商已存过 Key；没 Key 只提示，绝不静默切）。
      */
     private fun smartFill() {
         val text = etText.text.toString().trim()
@@ -765,11 +776,14 @@ class MainActivity : AppCompatActivity() {
             openSettings()
             return
         }
+
+        // ── ⓪ 音色 ↔ 厂商 自动校正（会改 store.providerId；返回一句要显示的话） ──
+        val alignNote = alignProviderToVoice()
+
         val voice = if (voiceIsCustom) getString(R.string.voice_custom) else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
-        val system = store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT }
         // 当前 TTS 厂商 + 它接受的参数：**系统按当前配置自动附带**（不让模型去猜 provider）
         val prov = TtsProviders.byId(store.providerId)
-        val user = buildString {
+        val head = buildString {
             if (prov != null) {
                 append(getString(R.string.pfx_provider)).append(prov.name).append("（").append(prov.id).append("）\n")
                 val params = TtsModels.supportedNames(store.providerId, store.lastModel)
@@ -779,23 +793,90 @@ class MainActivity : AppCompatActivity() {
             val role = store.rolePrompt(roleVoiceId())
             if (role.isNotBlank()) append(getString(R.string.pfx_role)).append(role).append('\n')
             if (store.llmExtra.isNotBlank()) append(getString(R.string.pfx_extra)).append(store.llmExtra).append('\n')
-            append("待合成文本：\n").append(text)
         }
+
         tvStatus.text = getString(R.string.smartfill_busy)
         btnSmartFill.isEnabled = false
-        LlmClient.ask(store.llmBaseUrl, store.llmKey, store.llmModel, system, user) { out, err ->
-            ui {
-                btnSmartFill.isEnabled = true
-                if (out == null) {
-                    tvStatus.text = "❌ " + (err ?: getString(R.string.toast_req_fail))
-                    toast(err ?: getString(R.string.toast_req_fail))
-                } else {
-                    val ok = applySmartFill(out)
-                    tvStatus.text = if (ok) getString(R.string.smartfill_ok)
-                                     else getString(R.string.smartfill_bad, out.take(80))
-                }
+
+        // 两条请求各自完成 → 汇总（两条都落定才重新放开按钮）
+        var instrRes: String? = null
+        var tagRes: String? = null
+        fun settle() {
+            if (instrRes == null || tagRes == null) return
+            btnSmartFill.isEnabled = true
+            val a = instrRes!!
+            val b = tagRes!!
+            tvStatus.text = buildString {
+                append(if (a == OK) getString(R.string.smartfill_a_ok) else getString(R.string.smartfill_a_bad, a))
+                append("　")
+                append(if (b == OK) getString(R.string.smartfill_b_ok) else getString(R.string.smartfill_b_bad, b))
+                if (!alignNote.isNullOrBlank()) append('\n').append(alignNote)
             }
         }
+
+        // ── A) 情绪 / 风格指令 + 纠错表 → etInstr / etHotfix ──
+        LlmClient.ask(
+            store.llmBaseUrl, store.llmKey, store.llmModel,
+            store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT },
+            head + getString(R.string.pfx_text) + "\n" + text,
+            store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+        ) { out, err ->
+            ui {
+                instrRes = if (out == null) (err ?: getString(R.string.toast_req_fail))
+                else if (applySmartFill(out)) OK
+                else getString(R.string.smartfill_bad, out.take(60))
+                settle()
+            }
+        }
+
+        // ── B) 给原文加情感标签 → etText（**不动** etInstr） ──
+        LlmClient.ask(
+            store.llmBaseUrl, store.llmKey, store.llmModel,
+            LlmClient.DEFAULT_TAG_PROMPT,
+            head + getString(R.string.pfx_text_raw) + "\n" + text,
+            store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+        ) { out, err ->
+            ui {
+                tagRes = if (out == null) (err ?: getString(R.string.toast_req_fail)) else {
+                    val tagged = stripCodeFence(out).trim()
+                    when {
+                        tagged.isEmpty() -> getString(R.string.smartfill_tag_none)
+                        '[' !in tagged -> getString(R.string.smartfill_tag_none)   // 安全网：没标签就不覆盖原文
+                        else -> { etText.setText(tagged); OK }
+                    }
+                }
+                settle()
+            }
+        }
+    }
+
+    /** 两条请求共用的"成功"哨兵（别用字面量散在各处） */
+    private val OK = "OK"
+
+    /** 去掉 ```json / ``` 之类的围栏（模型很爱加） */
+    private fun stripCodeFence(s: String): String =
+        s.replace(Regex("^\\s*```[a-zA-Z]*\\s*"), "").replace(Regex("\\s*```\\s*$"), "")
+
+    /**
+     * 音色 ↔ 厂商 自动校正（用户 2026-10-15 要求）。
+     * 返回一句要显示在状态栏的话；不需要动/没话说 → null。
+     *
+     * · 认不出这个音色属于哪家 → **不动**（不猜）
+     * · 认得出且和当前厂商一致 → 不动
+     * · 不一致 → 目标厂商**已存 Key** 才切；否则只提示，避免切过去反而不能用
+     */
+    private fun alignProviderToVoice(): String? {
+        val want = VoiceProviders.of(selectedVoiceId(), customVoices) ?: return null
+        if (want == store.providerId) return null
+        val target = TtsProviders.byId(want) ?: return null
+        val k = store.providerKey(want).ifBlank { if (want == VoiceProviders.BAILIAN) store.apiKey else "" }
+        if (k.isBlank()) return getString(R.string.smartfill_prov_nokey, target.name)
+        store.providerId = want
+        setModelField(store.lastModel)
+        rebuildFormats()
+        syncProviderField()
+        syncVoiceUi()
+        return getString(R.string.smartfill_prov_switched, target.name)
     }
 
     /** 解析并应用 LLM 的建议（容错：从返回里抠出第一个 { ... } 再解析） */
@@ -1254,7 +1335,9 @@ class MainActivity : AppCompatActivity() {
                 val name = nm.ifEmpty { getString(R.string.voice_custom) }
                 // 存进getString(R.string.voice_self)列表（这样它能出现在下拉里，也能在「管理音色」里改名/删除）
                 if (customVoices.none { it.id == id }) {
-                    customVoices.add(CustomVoice(id, name, "", System.currentTimeMillis()))
+                    // 归属厂商：先按 id 前缀认（cosyvoice-* → 百炼），认不出就记"当前厂商"
+                    customVoices.add(CustomVoice(id, name, "", System.currentTimeMillis(),
+                        VoiceProviders.of(id, customVoices) ?: store.providerId))
                     store.saveCustomVoices(customVoices)
                 }
                 etCustomVoice.setText(id)
@@ -1345,13 +1428,18 @@ class MainActivity : AppCompatActivity() {
             ?: getString(R.string.voice_custom)
 
     /**
-     * 「自定义音色 ID…」那一行的强调色。
-     * 用户 2026-10-14：他记得是"闪亮的金色"——但 git 里这行**一直是 `c.dim`（灰）**、从没金色过
-     * （金色其实是各配色的**强调条色 `barBg`**：9 套现代浅色 + 竹青 / 天水碧等才是琥珀金 #F0C239）。
-     * 所以这不是"回退"，是**改用主题的强调条色**：该主题有金就用金，没设就回退 accent。
+     * 「自定义音色 ID…」那一行的强调色 —— **固定金，不跟主题**（用户 2026-10-15 钦定）。
+     *
+     * 取值：**`#9E8368`** —— 就是「润色中…」那行状态字用的 `dim/subText` 色（竹青主题的 subText）。
+     * 为什么是它：这一行 v1.7.0 之前一直是 `c.dim`（用户记忆里的"漂亮的金色"其实是这个**暗金／古铜**，
+     * 不是配色里的明黄 `#F0C239`，也不是 v0.3 描金的 `#EACD76`——2026-10-15 两轮实测否决）。
+     *
+     * 为什么固定：原先取主题 `barBg`，绿/蓝主题会露出闷黄 `#F0C239`，观感不对；现任何主题都用这一支。
+     * 附带好处：`#9E8368` 在浅底约 3.5:1、深底约 4.3:1，比 `#F0C239`(1.7:1) 可读得多。
      */
-    private fun emphasizeColor(c: Skin.Colors): Int =
-        Palettes.byId(store.themeId)?.barBg?.takeIf { it != 0 } ?: c.acc
+    private val customVoiceGold = 0xFF9E8368.toInt()
+
+    private fun emphasizeColor(@Suppress("UNUSED_PARAMETER") c: Skin.Colors): Int = customVoiceGold
 
     private fun renderChips() {
         llChips.removeAllViews()
@@ -2912,7 +3000,7 @@ class MainActivity : AppCompatActivity() {
                         "private"
                     )
                     ui {
-                        customVoices.add(CustomVoice(vid, name, "", System.currentTimeMillis()))
+                        customVoices.add(CustomVoice(vid, name, "", System.currentTimeMillis(), store.providerId))
                         store.saveCustomVoices(customVoices)
                         setVoice(vid)
                         syncVoiceUi()
@@ -2928,7 +3016,7 @@ class MainActivity : AppCompatActivity() {
                 ui { createStatus?.text = getString(R.string.uploading_create) }
                 client.createVoice(key, ws, model, prefix, dataUri, onResult = { vid ->
                     ui {
-                        customVoices.add(CustomVoice(vid, name, prefix, System.currentTimeMillis()))
+                        customVoices.add(CustomVoice(vid, name, prefix, System.currentTimeMillis(), store.providerId))
                         store.saveCustomVoices(customVoices)
                         setVoice(vid)
                         syncVoiceUi()

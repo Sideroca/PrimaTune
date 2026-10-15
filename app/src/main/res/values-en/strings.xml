@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML mode (enable_ssml)</string>
     <string name="label_trans_langs">Translation languages (multi · tap to choose)</string>
     <string name="hint_trans_target">Tap to choose (multi)</string>
-    <string name="btn_smartfill">✨ Smart fill (auto provider · style · fixes)</string>
+    <string name="btn_smartfill">✨ Smart fill (provider · style instruction · emotion tags · hot-fix)</string>
     <string name="btn_generate">Generate</string>
     <string name="label_result">This result</string>
     <string name="label_history">Records</string>
@@ -281,10 +281,10 @@
     <string name="common_got_it">Got it</string>
     <string name="open_file_fail">Cannot open the selected file</string>
     <string name="dur_unknown">Unknown duration</string>
-    <string name="smartfill_busy">✨ Asking LLM for parameters…</string>
+    <string name="smartfill_busy">✨ Requesting style instruction / emotion tags…</string>
     <string name="smartfill_ok">✅ Filled per LLM suggestions: vendor / style prompt / correction table</string>
-    <string name="llm_trans_busy">🤖 LLM translating…</string>
-    <string name="llm_polish_busy">🤖 Polishing…</string>
+    <string name="llm_trans_busy">LLM translating…</string>
+    <string name="llm_polish_busy">Polishing…</string>
     <string name="llm_polish_done">✅ Polished</string>
     <string name="pfx_voice">Voice:</string>
     <string name="pfx_role">Role prompt:</string>
@@ -425,4 +425,13 @@
     <string name="alarm_prepared_stale">%1$d clip(s) cached, but settings changed - it will regenerate with the NEW voice/prompt (the old ones will not play)</string>
     <string name="alarm_gen_note">Saving generates one brand-new clip (the old one is deleted) and plays exactly that at ring time.</string>
     <string name="alarm_test_no_voice">No alarm voice yet - saving the alarm generates one (nothing plays this time)</string>
+    <string name="pfx_text">Text to synthesize:</string>
+    <string name="pfx_text_raw">Original text:</string>
+    <string name="smartfill_a_ok">✅ Style instruction filled</string>
+    <string name="smartfill_a_bad">⚠️ Style instruction failed: %1$s</string>
+    <string name="smartfill_b_ok">✅ Emotion tags added to the text</string>
+    <string name="smartfill_b_bad">⚠️ Tagging failed: %1$s</string>
+    <string name="smartfill_tag_none">The model returned no tagged text</string>
+    <string name="smartfill_prov_switched">🔁 Provider auto-switched to match the voice: %1$s</string>
+    <string name="smartfill_prov_nokey">⚠️ This voice belongs to %1$s, but no key is saved — not switched</string>
 </resources>

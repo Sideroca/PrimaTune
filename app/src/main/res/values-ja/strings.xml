@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML モード（enable_ssml）</string>
     <string name="label_trans_langs">翻訳言語（複数・右で選択）</string>
     <string name="hint_trans_target">タップで選択（複数可）</string>
-    <string name="btn_smartfill">✨ スマート入力（自動選択・スタイル・誤り修正）</string>
+    <string name="btn_smartfill">✨ スマート補完（プロバイダ・スタイル指示・感情タグ・誤り訂正表）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">今回の結果</string>
     <string name="label_history">記録</string>
@@ -281,10 +281,10 @@
     <string name="common_got_it">了解</string>
     <string name="open_file_fail">選択したファイルを開けません</string>
     <string name="dur_unknown">長さ不明</string>
-    <string name="smartfill_busy">✨ LLM にパラメータを問い合わせ中…</string>
+    <string name="smartfill_busy">✨ スタイル指示／感情タグを並行リクエスト中…</string>
     <string name="smartfill_ok">✅ LLM の提案どおりに入力しました：ベンダー / スタイル指示 / 訂正表</string>
-    <string name="llm_trans_busy">🤖 LLM 翻訳中…</string>
-    <string name="llm_polish_busy">🤖 校正中…</string>
+    <string name="llm_trans_busy">LLM 翻訳中…</string>
+    <string name="llm_polish_busy">校正中…</string>
     <string name="llm_polish_done">✅ 校正しました</string>
     <string name="pfx_voice">音色：</string>
     <string name="pfx_role">ロールプロンプト：</string>
@@ -425,4 +425,13 @@
     <string name="alarm_prepared_stale">%1$d 段キャッシュ済み（⚠️ 設定変更済み：**新しい音色/プロンプト**で再生成されます。古いものは再生されません）</string>
     <string name="alarm_gen_note">保存すると新しい音声を1つ生成します（古いものは削除）。時間になるとそれを再生します。</string>
     <string name="alarm_test_no_voice">アラーム音声がまだありません — 保存時に1つ生成されます（今回は再生しません）</string>
+    <string name="pfx_text">読み上げテキスト：</string>
+    <string name="pfx_text_raw">原文：</string>
+    <string name="smartfill_a_ok">✅ スタイル指示を入力しました</string>
+    <string name="smartfill_a_bad">⚠️ スタイル指示に失敗：%1$s</string>
+    <string name="smartfill_b_ok">✅ 原文に感情タグを追加しました</string>
+    <string name="smartfill_b_bad">⚠️ タグ付けに失敗：%1$s</string>
+    <string name="smartfill_tag_none">モデルがタグ付き本文を返しませんでした</string>
+    <string name="smartfill_prov_switched">🔁 音色に合わせてプロバイダを自動切替：%1$s</string>
+    <string name="smartfill_prov_nokey">⚠️ この音色は「%1$s」のものですが Key 未保存のため切り替えません</string>
 </resources>

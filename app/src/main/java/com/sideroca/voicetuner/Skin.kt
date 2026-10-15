@@ -10,9 +10,11 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AutoCompleteTextView
 import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlin.math.abs
@@ -180,6 +182,16 @@ object Skin {
         }
         if (v is CompoundButton) v.buttonTintList = ColorStateList.valueOf(c.acc)
         repaintBg(v, c, d)
+        // 下拉浮层底色：**在换肤遍历里统一刷**（2026-10-15 根因修复）
+        //   主题的 popupBackground 来自 Theme.AppCompat 的暗色变体 → 没手动刷底的
+        //   下拉/浮层一律深灰（"黑卡"）。以前是哪个 view 报了就补哪个（治标），
+        //   下次新增 AutoCompleteTextView/Spinner 必复发 → 改在这里一次性覆盖。
+        when (v) {
+            is AutoCompleteTextView ->
+                v.setDropDownBackgroundDrawable(shapeDp(v.context, c.card, c.line, 12f, 100, 1f))
+            is Spinner ->
+                v.setPopupBackgroundDrawable(shapeDp(v.context, c.card, c.line, 12f, 100, 1f))
+        }
         if (v is ViewGroup) {
             var i = 0
             while (i < v.childCount) {

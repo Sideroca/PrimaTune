@@ -20,7 +20,21 @@ class ContainsAdapter(
     private fun norm(s: String?): String =
         s.orEmpty().lowercase().filter { !it.isWhitespace() }
 
-    /** 下拉每一项的文字颜色跟着主题走（否则浅色弹窗上会是白字，看不见） */
+    /**
+     * 下拉每一项：**底色**由 `Skin.visit` 统一刷（AutoCompleteTextView 的 dropDownBackground），
+     * 这里只管**字色** —— 不刷的话，浅色弹层上仍是主题的 `textColorPrimary`（近白）→ 看不见。
+     * （2026-10-15：和 Skin 那处一起做，构成"下拉不再灰黑"的完整修复。）
+     */
+    override fun getDropDownView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+        val v = super.getDropDownView(position, convertView, parent)
+        (v as? android.widget.TextView)?.let {
+            it.setTextColor(Skin.colors(context).txt)
+            Skin.setRole(it, "txt")
+        }
+        return v
+    }
+
+    /** 输入框里那一行文字也跟主题走 */
     override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
         val v = super.getView(position, convertView, parent)
         (v as? android.widget.TextView)?.setTextColor(Skin.colors(context).txt)

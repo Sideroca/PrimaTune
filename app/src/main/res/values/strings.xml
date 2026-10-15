@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML 模式（enable_ssml）</string>
     <string name="label_trans_langs">翻译语言（多选 · 点右边选择）</string>
     <string name="hint_trans_target">点此选择（可多选）</string>
-    <string name="btn_smartfill">✨ 智能填参（自动选厂商 · 写风格指令 · 纠错表）</string>
+    <string name="btn_smartfill">✨ 智能填参（自动对口厂商 · 风格指令 · 情感标签 · 纠错表）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">本次结果</string>
     <string name="label_history">本地记录</string>
@@ -281,10 +281,10 @@
     <string name="common_got_it">知道了</string>
     <string name="open_file_fail">无法打开所选文件</string>
     <string name="dur_unknown">时长未知</string>
-    <string name="smartfill_busy">✨ 正在向 LLM 要参数…</string>
+    <string name="smartfill_busy">✨ 正在并发请求：风格指令 / 情感标签…</string>
     <string name="smartfill_ok">✅ 已按 LLM 建议填好：厂商 / 风格指令 / 纠错表</string>
-    <string name="llm_trans_busy">🤖 LLM 翻译中…</string>
-    <string name="llm_polish_busy">🤖 润色中…</string>
+    <string name="llm_trans_busy">LLM 翻译中…</string>
+    <string name="llm_polish_busy">润色中…</string>
     <string name="llm_polish_done">✅ 已润色</string>
     <string name="pfx_voice">音色：</string>
     <string name="pfx_role">角色提示词：</string>
@@ -425,4 +425,13 @@
     <string name="alarm_prepared_stale">已准备 %1$d 段（⚠️ 但设置已改：会按**新音色/新提示词**重新生成，旧的不会播）</string>
     <string name="alarm_gen_note">保存后会生成一条新的语音（旧的会删掉）；到点直接播它。</string>
     <string name="alarm_test_no_voice">还没有可用的闹钟语音 —— 保存闹钟时会自动生成一条（本次不出声）</string>
+    <string name="pfx_text">待合成文本：</string>
+    <string name="pfx_text_raw">原文：</string>
+    <string name="smartfill_a_ok">✅ 风格指令已填</string>
+    <string name="smartfill_a_bad">⚠️ 风格指令失败：%1$s</string>
+    <string name="smartfill_b_ok">✅ 原文已加情感标签</string>
+    <string name="smartfill_b_bad">⚠️ 加标签失败：%1$s</string>
+    <string name="smartfill_tag_none">模型没给出带标签的文本</string>
+    <string name="smartfill_prov_switched">🔁 已按音色自动切换厂商：%1$s</string>
+    <string name="smartfill_prov_nokey">⚠️ 该音色属于「%1$s」，但没存 Key，未自动切换</string>
 </resources>
