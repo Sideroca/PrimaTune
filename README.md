@@ -354,7 +354,15 @@
 
 **v0.2**：调参面板（音色 / 文本 / 情绪指令 / 语速 / 音调 / 音量 / 种子 / 格式 / 高级参数）→ 生成 → 试听 / 分享 / 导出到「下载」 → 本地记录（回填参数、换种子重抽）；**建音色**——手机选音频样本（干净人声，推荐 ≤20 秒 / 最长 60 秒）→ 上传 → 自动创建复刻音色并加入音色列表（本地保存）。
 
-</details>**v1.8.0**（2026-10-15）——**参数能力表下沉到「模型级」**
+</details>**v1.8.1**（2026-10-15）——补齐剩下 4 家 + 模型清单按官方现状更新
+- **xAI**：`POST /v1/tts` 字段只有 text/voice_id/language/codec/sample_rate/bit_rate → **没有风格指令、没有数值语速**（`language` 对应「语言提示」）。此前界面放行了指令/语速，已纠正。
+- **阶跃 StepFun**：官方在售是 `stepaudio-2.5-tts` / `step-tts-mini`（旧的 `stepaudio-3-tts` 文档里没有）→ 清单已换；参数 = instruction(≤200字) + volume + text_normalization/pronunciation_map/voice_label（走「额外参数」）。现行文档**没有 speed**，保留放行并在 `TtsCaps` 注释里标了冲突。
+- **MiMo 小米**（**修真 bug**）：官方地址是 `api.xiaomimimo.com/v1`、鉴权头是 **`api-key`**（原来写的 Bearer + api.mimo.mi.com → 必然 401/连不上）；模型 id 全小写：`mimo-v2.5-tts` / `-voiceclone` / `-voicedesign`；形状 = messages(user=自然语言指令, assistant=待合成文本) + audio{format,voice}。
+- **IndexTTS**：按硅基流动托管接入，模型 id `IndexTeam/IndexTTS-2`；参数 = speed[0.25,4.0] + response_format + gain。
+- **Gemini**：模型清单按官方模型页更新为 `gemini-3.8-flash-tts` / `gemini-3.8-flash-lite-tts` / `gemini-2.5-pro-preview-tts` / `gemini-2.5-flash-preview-tts`。
+- 至此 `TtsCaps` 覆盖 **全部 11 家 + 系统 TTS + 自定义渠道**，每行都有官方出处（见 `TtsCaps.kt` 顶部 `sources`）。
+
+**v1.8.0**（2026-10-15）——**参数能力表下沉到「模型级」**
 - 新增 `TtsCaps.kt`：逐 **(厂商, 模型)** 声明支持的参数（rate/pitch/volume/seed/instruction/langhints/hotfix/extra/ssml）。
   查询顺序：**模型级 → 厂商级 → 老逻辑（按形态）**，所以不会比现状更差；`TtsModels.supports()` 仍是唯一入口，界面零改动。
 - **本轮按官方文档核过**（出处见 `TtsCaps.kt`）：

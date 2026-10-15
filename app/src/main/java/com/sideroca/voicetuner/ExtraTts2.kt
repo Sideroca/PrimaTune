@@ -135,7 +135,8 @@ object ExtraTts2 {
     ): Cancellable {
         val url = baseUrl.trimEnd('/') + "/chat/completions"
         val body = JSONObject().apply {
-            put("model", model.ifBlank { "MiMo-V2.5-TTS" })
+            // 2026-10-15 按官方文档核过：模型 id 全小写带连字符
+            put("model", model.ifBlank { "mimo-v2.5-tts" })
             seed?.let { put("seed", it) }        // chat/completions 标准字段
             val msgs = JSONArray()
             // 官方：**待合成文本必须放在 assistant**；风格/语速等自然语言指令放在 user（可选）
@@ -150,7 +151,9 @@ object ExtraTts2 {
             })
         }
         // 官方文档只说明"返回 base64"，具体字段名待验证 → 用"全 JSON 找最长 base64"兜底
-        return postJson(url, mapOf("Authorization" to "Bearer " + apiKey), body, cb, null, wrapPcm = false)
+        // ⚠️ 2026-10-15 官方文档核实：**鉴权头是 `api-key`**，不是 `Authorization: Bearer`
+        //   （用错会 401）；请求地址 api.xiaomimimo.com/v1。
+        return postJson(url, mapOf("api-key" to apiKey), body, cb, null, wrapPcm = false)
     }
 
     // ------------------------------------------------------------ 公共

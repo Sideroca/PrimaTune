@@ -51,12 +51,14 @@ object TtsProviders {
         ),
         P(
             "step", "Step 阶跃星辰", "https://api.stepfun.com/v1", "openai", "…",
-            listOf("stepaudio-3-tts"),          // 官网 curl 已核实
+            // 2026-10-15 官方文档核实：在售为下面两个（旧的 stepaudio-3-tts 文档里没有）
+            listOf("stepaudio-2.5-tts", "step-tts-mini"),
             formats = listOf("mp3_256", "mp3_128")
         ),
         P(
             "xai", "xAI", "https://api.x.ai/v1", "xai", "xai-…",
-            listOf("grok-tts"),                 // 无独立 TTS 模型 id，随 grok-4.20 系列走
+            // 2026-10-15 官方文档核实：POST /v1/tts **没有 model 字段**（只有 text/voice_id/language/codec）
+            listOf("grok-tts"),
             formats = listOf("mp3_256", "mp3_128")
         ),
 
@@ -78,17 +80,22 @@ object TtsProviders {
 
         P(
             "gemini", "Gemini", "https://generativelanguage.googleapis.com", "gemini", "AIza…",
-            listOf("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"),
+            // 2026-10-15 官方模型页核实（Gemini API 现役 TTS）
+            listOf("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts",
+                "gemini-2.5-pro-preview-tts", "gemini-2.5-flash-preview-tts"),
             formats = listOf("wav24", "wav48", "wav16")
         ),
         P(
-            "mimo", "MiMo 小米", "https://api.mimo.mi.com/v1", "mimo", "MIMO_API_KEY",
-            listOf("MiMo-V2.5-TTS"),          // 文档已核实模型名；端点与返回格式待真机验证
+            // 2026-10-15 官方文档（mimo.mi.com/docs）核实：地址 api.xiaomimimo.com/v1、
+            // 鉴权头是 **api-key**（不是 Bearer）、模型 id 全小写；三个变体。
+            "mimo", "MiMo 小米", "https://api.xiaomimimo.com/v1", "mimo", "…",
+            listOf("mimo-v2.5-tts", "mimo-v2.5-tts-voiceclone", "mimo-v2.5-tts-voicedesign"),
             formats = listOf("wav24", "wav48", "wav16")
         ),
         P(
             "index-tts", "B站 IndexTTS", "", "openai", "自建服务的 Key（可留空）",
-            listOf("IndexTTS2.5", "IndexTTS2"),   // 哔哩哔哩开源；B站自身不运营，由第三方托管
+            // 2026-10-15 硅基流动模型页核实：id 形如 IndexTeam/IndexTTS-2
+            listOf("IndexTeam/IndexTTS-2"),
             presets = listOf("https://api.siliconflow.cn/v1"),   // 国内最知名：硅基流动（已核实其 IndexTTS-2 模型页可达）
             formats = listOf("mp3_256", "mp3_128")
         ),

@@ -12,7 +12,7 @@ package com.sideroca.voicetuner
  * 参数键与界面一致：rate(语速) / pitch(音调) / volume(音量) / seed(种子) /
  * instruction(情绪·风格指令) / langhints(语言提示) / hotfix(纠错表) / extra(额外参数) / ssml
  *
- * ⚠️ 每行都标了出处；`SRC_TODO` = **本轮没查到官方原文**（沿用现状，不是已核实）。
+ * ⚠️ 每行都标了出处（2026-10-15 两轮：先核 7 家，再补 xAI / 阶跃 / MiMo / IndexTTS / 系统 / 自定义）。
  */
 object TtsCaps {
 
@@ -22,8 +22,11 @@ object TtsCaps {
     private const val SRC_MM = "MiniMax 文档 t2a_v2：voice_setting{speed,vol,pitch} + emotion + pronunciation_dict"
     private const val SRC_FISH = "Fish Audio 文档 TTS：prosody.speed 0.5~2 + volume；s1 用圆括号情绪标签，s2 系用方括号"
     private const val SRC_GROQ = "Groq 文档 TTS/Orpheus：english 支持 vocal directions，arabic-saudi 不支持"
-    private const val SRC_GEMINI = "Gemini-TTS 文档：走 prompt/style + inline tags，无数值语速/音调"
-    private const val SRC_TODO = "待核：本轮未查到官方原文，沿用现状"
+    private const val SRC_GEMINI = "Gemini API 模型页 + Cloud TTS：prompt/style + inline tags，无数值语速/音调；型号已按官方更新"
+    private const val SRC_XAI = "docs.x.ai Text to Speech：POST /v1/tts，字段只有 text/voice_id/language/codec/sample_rate/bit_rate"
+    private const val SRC_STEP = "platform.stepfun.com 语音合成：input/voice/response_format/sample_rate + extra_body{volume,text_normalization,instruction,pronunciation_map,voice_label}"
+    private const val SRC_MIMO = "mimo.mi.com/docs 语音合成：/v1/chat/completions + **api-key 头**；messages(user=指令,assistant=文本) + audio{format,voice}"
+    private const val SRC_INDEX = "siliconflow 文档/模型页：POST /v1/audio/speech，speed[0.25,4.0] + response_format；模型 id IndexTeam/IndexTTS-2"
 
     private fun p(vararg s: String) = s.toSet()
 
@@ -67,9 +70,34 @@ object TtsCaps {
         "groq/canopylabs/orpheus-v1-english" to p(INSTR, EXTRA),
         "groq/canopylabs/orpheus-arabic-saudi" to p(EXTRA),
 
-        // Gemini（prompt/style + inline tags）
+        // Gemini（prompt/style + inline tags）—— 2026-10-15 按官方模型页更新在售型号
+        "gemini/gemini-3.8-flash-tts" to p(INSTR, EXTRA),
+        "gemini/gemini-3.8-flash-lite-tts" to p(INSTR, EXTRA),
         "gemini/gemini-2.5-flash-preview-tts" to p(INSTR, EXTRA),
-        "gemini/gemini-2.5-pro-preview-tts" to p(INSTR, EXTRA)
+        "gemini/gemini-2.5-pro-preview-tts" to p(INSTR, EXTRA),
+
+        // xAI：POST /v1/tts 只有 text / voice_id / language / codec / sample_rate / bit_rate
+        //      → 没有风格指令、没有数值语速。language 对应我们的「语言提示」。
+        "xai/grok-tts" to p(LANG, EXTRA),
+
+        // 阶跃 StepFun：input / voice / response_format / sample_rate
+        //      + extra_body{volume, text_normalization, instruction(≤200字), pronunciation_map, voice_label}
+        //      ⚠️ 现行文档里**没有 speed**；本仓库 v0.5.14 曾核过"语速 0.5~2"，先保留放行（被忽略无副作用）。
+        "step/stepaudio-2.5-tts" to p(INSTR, VOL, RATE, LANG, EXTRA),
+        "step/step-tts-mini" to p(INSTR, VOL, RATE, LANG, EXTRA),
+
+        // MiMo 小米：messages（user=自然语言指令 / assistant=待合成文本）+ audio{format, voice}
+        //      没有数值语速/音调/音量/种子；指令与 audio tags 都支持。
+        "mimo/mimo-v2.5-tts" to p(INSTR, EXTRA),
+        "mimo/mimo-v2.5-tts-voiceclone" to p(INSTR, EXTRA),
+        "mimo/mimo-v2.5-tts-voicedesign" to p(INSTR, EXTRA),
+
+        // IndexTTS（开源；本 App 按硅基流动托管接入）：POST {base}/audio/speech
+        //      参数：model / input / voice / speed[0.25,4.0] / response_format / gain
+        "index-tts/IndexTeam/IndexTTS-2" to p(RATE, EXTRA),
+
+        // 本机系统 TTS：TextToSpeech.setSpeechRate / setPitch
+        "system/系统引擎" to p(RATE, PITCH)
     )
 
     /** 厂商级兜底（模型不在上表时用）——只写核实到厂商级的结论 */
@@ -79,7 +107,13 @@ object TtsCaps {
         "elevenlabs" to p(RATE, SEED, EXTRA),
         "minimax" to p(RATE, VOL, PITCH, INSTR, EXTRA),
         "fish" to p(RATE, VOL, INSTR, EXTRA),
-        "gemini" to p(INSTR, EXTRA)
+        "gemini" to p(INSTR, EXTRA),
+        "xai" to p(LANG, EXTRA),
+        "step" to p(INSTR, VOL, RATE, LANG, EXTRA),
+        "mimo" to p(INSTR, EXTRA),
+        "index-tts" to p(RATE, EXTRA),
+        "system" to p(RATE, PITCH),
+        "custom" to p(EXTRA, SEED)          // 自定义渠道：端点由用户填，种子也放行（支持就用）
     )
 
     /** 逐家出处（给人看，也写进 README） */
@@ -91,7 +125,12 @@ object TtsCaps {
         "Fish Audio" to SRC_FISH,
         "Groq" to SRC_GROQ,
         "Gemini" to SRC_GEMINI,
-        "xAI / Step / MiMo / IndexTTS / 系统 / 自定义" to SRC_TODO
+        "xAI" to SRC_XAI,
+        "Step 阶跃" to SRC_STEP,
+        "MiMo 小米" to SRC_MIMO,
+        "IndexTTS（硅基流动托管）" to SRC_INDEX,
+        "本机系统 TTS" to "Android TextToSpeech：setSpeechRate / setPitch",
+        "自定义渠道" to "端点由用户填：只放行「额外参数」与「种子」（服务支持就用，不支持会被忽略）"
     )
 
     /** 该 (厂商,模型) 的已核能力集；null = 本表没有 → 调用方回退老逻辑 */
