@@ -437,4 +437,8 @@
     <string name="pfx_model">모델: </string>
     <string name="pfx_no_instr">주의: 이 모델은 감정/스타일 지시를 지원하지 않습니다. 그 항목은 비워 두세요.</string>
     <string name="smartfill_a_skip">— 이 모델은 스타일 지시 미지원(건너뜀)</string>
+    <string name="alarm_check_probe">진단</string>
+    <string name="alarm_check_snapshot">진단 스냅숏 복사</string>
+    <string name="alarm_check_snapshot_done">클립보드에 복사했고 alarm/probe.txt 에도 저장했습니다</string>
+    <string name="alarm_check_snapshot_note">읽기 전용 사실: 알림/채널/볼륨/방해 금지/정확한 알람/시스템에 알람이 남아 있는지/캐시 지문/최근 로그.</string>
 </resources>

@@ -437,4 +437,8 @@
     <string name="pfx_model">モデル：</string>
     <string name="pfx_no_instr">注意：このモデルは「感情／スタイル指示」に非対応。その項目は空のままにしてください。</string>
     <string name="smartfill_a_skip">— このモデルはスタイル指示に非対応（スキップ）</string>
+    <string name="alarm_check_probe">診断</string>
+    <string name="alarm_check_snapshot">診断スナップショットをコピー</string>
+    <string name="alarm_check_snapshot_done">クリップボードにコピーし、alarm/probe.txt にも保存しました</string>
+    <string name="alarm_check_snapshot_note">事実のみ：通知／チャンネル／音量／マナーモード／正確なアラーム／システムにアラームが残っているか／キャッシュ指紋／直近ログ。</string>
 </resources>

@@ -17,8 +17,29 @@ import java.util.Calendar
  */
 object AlarmScheduler {
 
-    // 2026-10-15 用户：几十字的稿子，LLM→TTS→收回**一分钟内**就能完，**3 小时纯属多余**。
-    const val LEAD_MS = 10L * 60 * 1000
+    // 2026-10-15 用户：几十字的稿子，LLM→TTS→收回**一分钟内**就能完，不需要提前那么久。
+    private const val LEAD_MIN = 2L
+    const val LEAD_MS = LEAD_MIN * 60 * 1000
+
+    /**
+     * 诊断探针用：**这几条闹钟现在还在不在系统里**。
+     * 用 `FLAG_NO_CREATE` 问系统"有没有这个 PendingIntent"——系统若把闹钟清掉了，这里就是 false。
+     * （只读，不创建、不取消。）
+     */
+    fun pendingAlive(ctx: Context): Map<String, Boolean> = mapOf(
+        "预生成(pregen)" to alive(ctx, RC_PREGEN, "pregen"),
+        "响铃(ring)" to alive(ctx, RC_RING, "ring"),
+        "贪睡(snooze)" to alive(ctx, RC_SNOOZE, "ring"),
+        "自检(test)" to alive(ctx, RC_TEST, "test")
+    )
+
+    private fun alive(ctx: Context, rc: Int, action: String): Boolean = runCatching {
+        val i = Intent(ctx, AlarmReceiver::class.java).putExtra("alarm_action", action)
+        PendingIntent.getBroadcast(
+            ctx, rc, i,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        ) != null
+    }.getOrDefault(false)
     private const val RC_PREGEN = 7101
     private const val RC_RING = 7102
     private const val RC_SNOOZE = 7103

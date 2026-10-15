@@ -2620,6 +2620,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             runCatching { startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
         }
 
+        // ④ 诊断快照（**只读事实**；用户 2026-10-15：先探针确认，再动手改）
+        section(getString(R.string.alarm_check_probe))
+        row(getString(R.string.alarm_check_snapshot), "", null) {
+            runCatching {
+                val txt = AlarmProbe.snapshot(this)
+                AlarmProbe.write(this)
+                val cm = getSystemService(android.content.ClipboardManager::class.java)
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText("alarm-probe", txt))
+                toast(getString(R.string.alarm_check_snapshot_done))
+            }
+        }
+        box.addView(note(getString(R.string.alarm_check_snapshot_note)))
+
         // ③ 底部：一键去应用详情（自启动 / 省电策略 都在这页）
         val btn = TextView(this).apply {
             text = getString(R.string.alarm_check_open_appinfo)

@@ -354,7 +354,14 @@
 
 **v0.2**：调参面板（音色 / 文本 / 情绪指令 / 语速 / 音调 / 音量 / 种子 / 格式 / 高级参数）→ 生成 → 试听 / 分享 / 导出到「下载」 → 本地记录（回填参数、换种子重抽）；**建音色**——手机选音频样本（干净人声，推荐 ≤20 秒 / 最长 60 秒）→ 上传 → 自动创建复刻音色并加入音色列表（本地保存）。
 
-</details>**v1.8.1**（2026-10-15）——补齐剩下 4 家 + 模型清单按官方现状更新
+</details>**v1.8.2**（2026-10-15）——闹钟：**删掉一切兜底发声** + 缩短预生成提前量 + 诊断探针
+- **删掉全部"系统铃声兜底"**（用户定调：*「如果这个闹钟不是我想要的音色，我宁可它不播放」*）：`playFallback()` / `playFallbackDirect()` / "服务起不来就播铃声"全删。不符合当前设置的语音 → **不出声**，只留通知 + 日志写明原因；播放报错 → 记 `what/extra` 后静默。
+- **预生成提前量 3 小时 → 2 分钟**；并删掉"离得近就不排预生成"那条分支（它是"到点必然没缓存"的入口）→ 现在**总是**排一次，若该时刻已过就立刻排。
+- **清理重复的「后台任务」频道**：历史上换过 channel id（`vt_keepalive` → `vt_keepalive2`）而旧的没删 → 启动时主动 `deleteNotificationChannel("vt_keepalive")`。
+- **新增诊断探针 `AlarmProbe.kt`**（用户原则：*凡依赖"ROM 会不会给"的行为，先探针确认事实，再写功能*）：一键快照 → 剪贴板 + `alarm/probe.txt`，内容只读事实 = 通知总开关/每个频道的 importance·sound·userSetSound/全屏意图/精确闹钟/**「系统里还有没有这条闹钟」(FLAG_NO_CREATE)**/电池优化/**闹钟流音量**/勿扰/缓存指纹/status.txt 尾部。入口：设置 → 闹钟 → 闹钟权限体检 → 诊断。
+- **查证结论（没改）**：`AlarmService.synthToFile` 里 `apiKey = ""` 曾疑为"非百炼取不到 Key"的元凶 → 读 `Synth.dispatch` 后确认**它会自己算 `providerKey(prov.id)`（百炼回退 `apiKey`）并覆盖**，传空是"没用到"而非"取不到" → **不是 bug，不动**。
+
+**v1.8.1**（2026-10-15）——补齐剩下 4 家 + 模型清单按官方现状更新
 - **xAI**：`POST /v1/tts` 字段只有 text/voice_id/language/codec/sample_rate/bit_rate → **没有风格指令、没有数值语速**（`language` 对应「语言提示」）。此前界面放行了指令/语速，已纠正。
 - **阶跃 StepFun**：官方在售是 `stepaudio-2.5-tts` / `step-tts-mini`（旧的 `stepaudio-3-tts` 文档里没有）→ 清单已换；参数 = instruction(≤200字) + volume + text_normalization/pronunciation_map/voice_label（走「额外参数」）。现行文档**没有 speed**，保留放行并在 `TtsCaps` 注释里标了冲突。
 - **MiMo 小米**（**修真 bug**）：官方地址是 `api.xiaomimimo.com/v1`、鉴权头是 **`api-key`**（原来写的 Bearer + api.mimo.mi.com → 必然 401/连不上）；模型 id 全小写：`mimo-v2.5-tts` / `-voiceclone` / `-voicedesign`；形状 = messages(user=自然语言指令, assistant=待合成文本) + audio{format,voice}。

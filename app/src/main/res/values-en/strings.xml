@@ -437,4 +437,8 @@
     <string name="pfx_model">Model: </string>
     <string name="pfx_no_instr">Note: this model does NOT support an emotion/style instruction — leave that empty.</string>
     <string name="smartfill_a_skip">— model has no style instruction (skipped)</string>
+    <string name="alarm_check_probe">Diagnostics</string>
+    <string name="alarm_check_snapshot">Copy diagnostic snapshot (send to me)</string>
+    <string name="alarm_check_snapshot_done">Copied to clipboard, also saved to alarm/probe.txt</string>
+    <string name="alarm_check_snapshot_note">Read-only facts: notifications/channels/volume/DND/exact alarm/whether the alarm still exists in the system/cache fingerprint/recent log.</string>
 </resources>

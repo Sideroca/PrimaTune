@@ -437,4 +437,8 @@
     <string name="pfx_model">模型：</string>
     <string name="pfx_no_instr">注意：该模型**不支持**「情绪/风格指令」，那一项请留空，不要写指令。</string>
     <string name="smartfill_a_skip">— 该模型不支持风格指令（已跳过）</string>
+    <string name="alarm_check_probe">诊断</string>
+    <string name="alarm_check_snapshot">复制诊断快照（发我）</string>
+    <string name="alarm_check_snapshot_done">已复制到剪贴板，也存到了 alarm/probe.txt</string>
+    <string name="alarm_check_snapshot_note">只读事实：通知/频道/音量/勿扰/精确闹钟/「系统里还有没有这条闹钟」/缓存指纹/最近日志。到点不响时，把这份发我。</string>
 </resources>
