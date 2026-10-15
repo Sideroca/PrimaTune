@@ -815,11 +815,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         // ── A) 情绪 / 风格指令 + 纠错表 → etInstr / etHotfix ──
+        //    2026-10-15 修"风格指令加工失败"：① 服务端强制 JSON（jsonMode）
+        //    ② 把 JSON 要求**放在 user 消息末尾**（模型对最后一句最敏感；只写在 system 里常被忽略）
         LlmClient.ask(
             store.llmBaseUrl, store.llmKey, store.llmModel,
             store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT },
-            head + getString(R.string.pfx_text) + "\n" + text,
-            store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+            head + getString(R.string.pfx_text) + "\n" + text +
+                "\n\n只输出 JSON（不要解释、不要代码块、不要引号）：" +
+                "{\"instruction\":\"一句自然语言风格指令\",\"hot_fix\":{\"replace\":[{\"错词\":\"正词\"}]}}",
+            store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel,
+            jsonMode = true
         ) { out, err ->
             ui {
                 instrRes = if (out == null) (err ?: getString(R.string.toast_req_fail))
@@ -880,7 +885,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 解析并应用 LLM 的建议（容错：从返回里抠出第一个 { ... } 再解析） */
-    private fun applySmartFill(raw: String): Boolean = try {
+    private fun applySmartFill(raw0: String): Boolean = try {
+        val raw = stripCodeFence(raw0)          // 模型爱加 ```json 围栏 → 先剥掉
         val s = raw.indexOf('{')
         val e = raw.lastIndexOf('}')
         if (s < 0 || e <= s) false else {
@@ -924,7 +930,7 @@ class MainActivity : AppCompatActivity() {
         tvTransEngine.text = getString(R.string.trans_engine_fmt, mode, eff)
     }
 
-    /** 选「翻译方式」：自动 / 只用 LLM / 只用免费接口（自绘行、✓ 靠右，与语言下拉同一套） */
+    /** 选「翻译方式」：自动 / 只用 LLM / 只用免费接口（自绘行；✓ **紧跟文字**，不再顶到卡片最右边） */
     private fun showTransEnginePick() {
         val c = Skin.colors(this)
         var pop: android.widget.PopupWindow? = null
@@ -940,7 +946,8 @@ class MainActivity : AppCompatActivity() {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16), dp(12), dp(16), dp(12))
+                // 2026-10-15 用户：这三项离卡片左边太远 → 左内距 16 → 10
+                setPadding(dp(10), dp(12), dp(16), dp(12))
                 isClickable = true
                 isFocusable = true
             }
@@ -948,9 +955,17 @@ class MainActivity : AppCompatActivity() {
                 text = name
                 setTextColor(if (on) c.acc else c.txt)
                 textSize = 14f
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                // 去掉 weight=1：否则 ✓ 被推到卡片最右边（用户 2026-10-15）
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
             })
-            if (on) row.addView(TextView(this).apply { text = "✓"; setTextColor(c.acc); textSize = 14f })
+            if (on) row.addView(TextView(this).apply {
+                text = "✓"
+                setTextColor(c.acc)
+                textSize = 14f
+                setPadding(dp(6), 0, 0, 0)          // ✓ 紧跟文字右边
+            })
             fx(row)
             row.setOnClickListener {
                 pop?.dismiss()

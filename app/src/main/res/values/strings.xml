@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML 模式（enable_ssml）</string>
     <string name="label_trans_langs">翻译语言（多选 · 点右边选择）</string>
     <string name="hint_trans_target">点此选择（可多选）</string>
-    <string name="btn_smartfill">✨ 智能填参（自动对口厂商 · 风格指令 · 情感标签 · 纠错表）</string>
+    <string name="btn_smartfill">✨ 智能填参（选厂商·风格指令·情感标签·纠错表）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">本次结果</string>
     <string name="label_history">本地记录</string>
@@ -281,7 +281,7 @@
     <string name="common_got_it">知道了</string>
     <string name="open_file_fail">无法打开所选文件</string>
     <string name="dur_unknown">时长未知</string>
-    <string name="smartfill_busy">✨ 正在并发请求：风格指令 / 情感标签…</string>
+    <string name="smartfill_busy">✨ 正在发送请求…</string>
     <string name="smartfill_ok">✅ 已按 LLM 建议填好：厂商 / 风格指令 / 纠错表</string>
     <string name="llm_trans_busy">LLM 翻译中…</string>
     <string name="llm_polish_busy">润色中…</string>
@@ -296,7 +296,7 @@
     <string name="trans_done">✅ 已翻译成 %1$s</string>
     <string name="trans_multi_done">✅ 已翻成 %1$s（译版在上 · 原文在下）</string>
     <string name="llm_trans_done">✅ LLM 已翻译成 %1$s</string>
-    <string name="smartfill_bad">⚠️ LLM 返回没法解析：%1$s</string>
+    <string name="smartfill_bad">LLM 返回没法解析：%1$s</string>
     <string name="trans_langs_toast">翻译语言：%1$s</string>
     <string name="voice_self_prefix">自建音色（前缀 %1$s）</string>
     <string name="clone_unsupported">当前厂商（%1$s）不支持声音复刻，请切到「阿里云百炼」再建音色</string>
@@ -420,7 +420,7 @@
     <string name="trans_engine_llm">只用 LLM</string>
     <string name="trans_engine_free">只用免费接口</string>
     <string name="trans_engine_fmt">%1$s ｜ 当前：%2$s</string>
-    <string name="trans_eff_free">免费接口（Google → MyMemory）</string>
+    <string name="trans_eff_free">免费接口（MyMemory）</string>
     <string name="trans_need_llm">「只用 LLM」要先在 设置 → 模型 → 润色 里填 LLM Key</string>
     <string name="alarm_prepared_stale">已准备 %1$d 段（⚠️ 但设置已改：会按**新音色/新提示词**重新生成，旧的不会播）</string>
     <string name="alarm_gen_note">保存后会生成一条新的语音（旧的会删掉）；到点直接播它。</string>

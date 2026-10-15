@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML モード（enable_ssml）</string>
     <string name="label_trans_langs">翻訳言語（複数・右で選択）</string>
     <string name="hint_trans_target">タップで選択（複数可）</string>
-    <string name="btn_smartfill">✨ スマート補完（プロバイダ・スタイル指示・感情タグ・誤り訂正表）</string>
+    <string name="btn_smartfill">✨ スマート補完（プロバイダ·スタイル·感情タグ·訂正表）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">今回の結果</string>
     <string name="label_history">記録</string>
@@ -281,7 +281,7 @@
     <string name="common_got_it">了解</string>
     <string name="open_file_fail">選択したファイルを開けません</string>
     <string name="dur_unknown">長さ不明</string>
-    <string name="smartfill_busy">✨ スタイル指示／感情タグを並行リクエスト中…</string>
+    <string name="smartfill_busy">✨ リクエスト送信中…</string>
     <string name="smartfill_ok">✅ LLM の提案どおりに入力しました：ベンダー / スタイル指示 / 訂正表</string>
     <string name="llm_trans_busy">LLM 翻訳中…</string>
     <string name="llm_polish_busy">校正中…</string>
@@ -296,7 +296,7 @@
     <string name="trans_done">✅ Translated to %1$s</string>
     <string name="trans_multi_done">✅ Translated into %1$s (translations on top, source below)</string>
     <string name="llm_trans_done">✅ LLM translated to %1$s</string>
-    <string name="smartfill_bad">⚠️ Could not parse the LLM reply: %1$s</string>
+    <string name="smartfill_bad">LLM の返答を解析できません：%1$s</string>
     <string name="trans_langs_toast">Translation languages: %1$s</string>
     <string name="voice_self_prefix">Cloned voice (prefix %1$s)</string>
     <string name="clone_unsupported">The current provider (%1$s) does not support voice cloning. Switch to Aliyun Bailian to create a voice.</string>
@@ -420,7 +420,7 @@
     <string name="trans_engine_llm">LLM のみ</string>
     <string name="trans_engine_free">無料 API のみ</string>
     <string name="trans_engine_fmt">%1$s ｜ 現在：%2$s</string>
-    <string name="trans_eff_free">無料 API（Google → MyMemory）</string>
+    <string name="trans_eff_free">無料 API（MyMemory）</string>
     <string name="trans_need_llm">「LLM のみ」には設定 → モデル → 推敲 で LLM キーが必要です</string>
     <string name="alarm_prepared_stale">%1$d 段キャッシュ済み（⚠️ 設定変更済み：**新しい音色/プロンプト**で再生成されます。古いものは再生されません）</string>
     <string name="alarm_gen_note">保存すると新しい音声を1つ生成します（古いものは削除）。時間になるとそれを再生します。</string>

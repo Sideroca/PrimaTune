@@ -57,21 +57,30 @@ object LlmClient {
     val DEFAULT_TRANS_PROMPT: String =
         "把用户给的内容翻译成 {target}。只输出译文，不要输出任何其他内容。"
 
-    /** 发送：system = 系统提示词，user = 本次上下文；成功回调 (文本, null) */
+    /**
+     * 发送：system = 系统提示词，user = 本次上下文；成功回调 (文本, null)
+     *
+     * @param jsonMode 要求服务端**强制 JSON 输出**（`response_format={"type":"json_object"}`）。
+     *   比在提示词里"求"模型守格式管用得多；服务端不认这个参数时（400）会自动撤掉重试一次。
+     */
     fun ask(
         baseUrl: String, key: String, model: String, system: String, user: String,
         maxTokens: Int = 0, temperature: Double = -1.0, level: String = "",
+        jsonMode: Boolean = false,
         onDone: (String?, String?) -> Unit
     ): Cancelled {
         val c = Cancelled()
         Thread {
             try {
                 val url = baseUrl.trimEnd('/') + "/chat/completions"
-                val body = JSONObject().apply {
+
+                fun bodyOf(useJson: Boolean, maxKey: String?): JSONObject = JSONObject().apply {
                     put("model", model)
                     if (temperature >= 0.0) put("temperature", temperature) else put("temperature", 0.3)
                     // token 预算：老模型用 max_tokens；OpenAI 新系只认 max_completion_tokens —— 400 时自动回退
-                    if (maxTokens > 0) put("max_tokens", maxTokens)
+                    if (maxTokens > 0 && maxKey != null) put(maxKey, maxTokens)
+                    // JSON 模式：让服务端强制 JSON（提示词里"求"模型守格式远不如这个稳）
+                    if (useJson) put("response_format", JSONObject().put("type", "json_object"))
                     // 思考档位：按厂商/域名映射成各家真实参数（结论沿用闪译已核对的结果）
                     if (level.isNotBlank()) {
                         val u = baseUrl.lowercase()
@@ -96,23 +105,9 @@ object LlmClient {
                         put(JSONObject().apply { put("role", "user"); put("content", user) })
                     })
                 }
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    readTimeout = 90_000
-                    doOutput = true
-                    setRequestProperty("Authorization", "Bearer " + key)
-                    setRequestProperty("Content-Type", "application/json")
-                }
-                conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-                var code = conn.responseCode
-                var raw = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                // 容错：有的服务只认 max_completion_tokens（不认 max_tokens）→ 400 时换一个再试一次
-                if (code == 400 && maxTokens > 0 && body.has("max_tokens")) {
-                    body.remove("max_tokens")
-                    body.put("max_completion_tokens", maxTokens)
-                    val conn2 = (URL(url).openConnection() as HttpURLConnection).apply {
+
+                fun fire(b: JSONObject): Pair<Int, String> {
+                    val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                         requestMethod = "POST"
                         connectTimeout = 15_000
                         readTimeout = 90_000
@@ -120,10 +115,26 @@ object LlmClient {
                         setRequestProperty("Authorization", "Bearer " + key)
                         setRequestProperty("Content-Type", "application/json")
                     }
-                    conn2.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-                    code = conn2.responseCode
-                    raw = (if (code in 200..299) conn2.inputStream else conn2.errorStream)
+                    conn.outputStream.use { it.write(b.toString().toByteArray(Charsets.UTF_8)) }
+                    val cc = conn.responseCode
+                    val rr = (if (cc in 200..299) conn.inputStream else conn.errorStream)
                         ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    return cc to rr
+                }
+
+                var useJson = jsonMode
+                var maxKey: String? = if (maxTokens > 0) "max_tokens" else null
+                var res = fire(bodyOf(useJson, maxKey))
+                var code = res.first
+                var raw = res.second
+                // 400 降级链：① 撤 response_format ② max_tokens → max_completion_tokens（各试一次）
+                if (code == 400 && useJson) {
+                    useJson = false
+                    res = fire(bodyOf(useJson, maxKey)); code = res.first; raw = res.second
+                }
+                if (code == 400 && maxKey == "max_tokens") {
+                    maxKey = "max_completion_tokens"
+                    res = fire(bodyOf(useJson, maxKey)); code = res.first; raw = res.second
                 }
                 if (c.cancelled) return@Thread
                 if (code !in 200..299) { onDone(null, "LLM 返回 " + code + "：" + raw.take(200)); return@Thread }

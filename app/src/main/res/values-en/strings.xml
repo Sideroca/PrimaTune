@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML mode (enable_ssml)</string>
     <string name="label_trans_langs">Translation languages (multi · tap to choose)</string>
     <string name="hint_trans_target">Tap to choose (multi)</string>
-    <string name="btn_smartfill">✨ Smart fill (provider · style instruction · emotion tags · hot-fix)</string>
+    <string name="btn_smartfill">✨ Smart fill (provider·style·tags·hot-fix)</string>
     <string name="btn_generate">Generate</string>
     <string name="label_result">This result</string>
     <string name="label_history">Records</string>
@@ -281,7 +281,7 @@
     <string name="common_got_it">Got it</string>
     <string name="open_file_fail">Cannot open the selected file</string>
     <string name="dur_unknown">Unknown duration</string>
-    <string name="smartfill_busy">✨ Requesting style instruction / emotion tags…</string>
+    <string name="smartfill_busy">✨ Sending request…</string>
     <string name="smartfill_ok">✅ Filled per LLM suggestions: vendor / style prompt / correction table</string>
     <string name="llm_trans_busy">LLM translating…</string>
     <string name="llm_polish_busy">Polishing…</string>
@@ -296,7 +296,7 @@
     <string name="trans_done">✅ 已翻译成 %1$s</string>
     <string name="trans_multi_done">✅ 已翻成 %1$s（译版在上 · 原文在下）</string>
     <string name="llm_trans_done">✅ LLM 已翻译成 %1$s</string>
-    <string name="smartfill_bad">⚠️ LLM 返回没法解析：%1$s</string>
+    <string name="smartfill_bad">Unparsable LLM reply: %1$s</string>
     <string name="trans_langs_toast">翻译语言：%1$s</string>
     <string name="voice_self_prefix">自建音色（前缀 %1$s）</string>
     <string name="clone_unsupported">当前厂商（%1$s）不支持声音复刻，请切到「阿里云百炼」再建音色</string>
@@ -420,7 +420,7 @@
     <string name="trans_engine_llm">LLM only</string>
     <string name="trans_engine_free">Free API only</string>
     <string name="trans_engine_fmt">%1$s | now: %2$s</string>
-    <string name="trans_eff_free">Free API (Google to MyMemory)</string>
+    <string name="trans_eff_free">Free API (MyMemory)</string>
     <string name="trans_need_llm">"LLM only" needs an LLM key (Settings - Model - Polish)</string>
     <string name="alarm_prepared_stale">%1$d clip(s) cached, but settings changed - it will regenerate with the NEW voice/prompt (the old ones will not play)</string>
     <string name="alarm_gen_note">Saving generates one brand-new clip (the old one is deleted) and plays exactly that at ring time.</string>
