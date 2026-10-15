@@ -55,7 +55,20 @@ object TtsModels {
      * - 非百炼厂商（OpenAI 系 / 自定义渠道）：只吃 文本 / 音色 / 模型（+ 可选风格指令）
      * - 百炼：千问系走 HTTP，只有 text / voice / language_type[/instructions]；CosyVoice 与 Qwen-Audio-TTS 走 ws，参数齐全
      */
+    /**
+     * 参数能不能用 —— **唯一入口**。
+     *
+     * 2026-10-15 起分两层：
+     *  ① **模型级**：先查 [TtsCaps]（逐 (厂商,模型) 的已核能力表；出处见该文件注释）
+     *  ② **回退**：本表没这家的 → 走老逻辑（按形态 shape 判），**不会比现状更差**
+     */
     fun supports(providerId: String?, modelId: String?, param: String): Boolean {
+        TtsCaps.of(providerId, modelId)?.let { return param in it }
+        return supportsLegacy(providerId, modelId, param)
+    }
+
+    /** 老逻辑（按形态判）——仅当 [TtsCaps] 没这家的数据时才用到 */
+    private fun supportsLegacy(providerId: String?, modelId: String?, param: String): Boolean {
         val prov = TtsProviders.byId(providerId)
         val viaBailian = prov == null || prov.shape == "dashscope"
         if (!viaBailian) {

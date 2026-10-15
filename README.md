@@ -354,7 +354,20 @@
 
 **v0.2**：调参面板（音色 / 文本 / 情绪指令 / 语速 / 音调 / 音量 / 种子 / 格式 / 高级参数）→ 生成 → 试听 / 分享 / 导出到「下载」 → 本地记录（回填参数、换种子重抽）；**建音色**——手机选音频样本（干净人声，推荐 ≤20 秒 / 最长 60 秒）→ 上传 → 自动创建复刻音色并加入音色列表（本地保存）。
 
-</details>**v1.7.9**（2026-10-15）
+</details>**v1.8.0**（2026-10-15）——**参数能力表下沉到「模型级」**
+- 新增 `TtsCaps.kt`：逐 **(厂商, 模型)** 声明支持的参数（rate/pitch/volume/seed/instruction/langhints/hotfix/extra/ssml）。
+  查询顺序：**模型级 → 厂商级 → 老逻辑（按形态）**，所以不会比现状更差；`TtsModels.supports()` 仍是唯一入口，界面零改动。
+- **本轮按官方文档核过**（出处见 `TtsCaps.kt`）：
+  - **ElevenLabs**：`speed` **v3 不支持**（只在 v4/v4_turbo 放行）；audio tags 只在 v3/v4；SSML break 只在 v2 系。
+  - **OpenAI**：`gpt-4o-mini-tts` 支持 `instructions`（风格指令）；`speed` 0.25~4。
+  - **MiniMax**：`t2a_v2` 的 `voice_setting{speed,vol,pitch}` + `emotion` + `pronunciation_dict`。
+  - **Fish Audio**：`prosody.speed` 0.5~2 + volume；**s1 用圆括号情绪标签**、s2 系用方括号。
+  - **Groq**：官方在售只有 `canopylabs/orpheus-v1-english`（支持 vocal directions）与 `orpheus-arabic-saudi`（不支持）→ **旧的 `playai-tts` 已从清单移除**（选中必失败）。
+  - **Gemini**：Gemini-TTS 走 prompt/style + inline tags，**无数值语速/音调**。
+  - **阿里云百炼**：沿用既有逐模型结论（ws 系全套 / http 系只有语言提示 / Instruct 才有指令）。
+- ⚠️ **仍待核**（本轮没查到官方原文，沿用现状，已在代码里标注）：**xAI / Step 阶跃 / MiMo 小米 / IndexTTS / 系统 TTS / 自定义渠道**。
+
+**v1.7.9**（2026-10-15）
 - **「智能填参」不再管纠错表**（用户 2026-10-15）：`hot_fix` 是发给 TTS 的**发音修正**参数（多音字/专名注音），该由用户按需手填 → 智能填参只回 **风格指令**；按钮文案去掉"纠错表"；LLM 也不再被要求吐 `provider`（厂商/模型/支持参数一律由**软件**先查好再拼进请求）。
 - 顺带：该模型**不支持风格指令**时直接**跳过**那条请求（状态显示"已跳过"），不再白跑一次还报失败。
 

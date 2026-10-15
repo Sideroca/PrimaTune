@@ -43,8 +43,11 @@ object TtsProviders {
         ),
         P(
             "groq", "Groq", "https://api.groq.com/openai/v1", "openai", "gsk_…",
-            listOf("canopylabs/orpheus-v1-english", "playai-tts"),
-            formats = listOf("mp3_256", "mp3_128")
+            // 2026-10-15 按 Groq 官方 TTS 文档核过：官方只列 orpheus 这两个
+            // （english 支持 vocal directions＝风格标签；arabic-saudi 不支持）。
+            // 旧的 playai-tts 已不在官方在售清单里 → 移除，避免用户选中后必失败。
+            listOf("canopylabs/orpheus-v1-english", "canopylabs/orpheus-arabic-saudi"),
+            formats = listOf("wav24", "mp3_256", "mp3_128")
         ),
         P(
             "step", "Step 阶跃星辰", "https://api.stepfun.com/v1", "openai", "…",
