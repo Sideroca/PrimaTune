@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML 模式（enable_ssml）</string>
     <string name="label_trans_langs">翻译语言（多选 · 点右边选择）</string>
     <string name="hint_trans_target">点此选择（可多选）</string>
-    <string name="btn_smartfill">✨ 智能填参（选厂商·风格指令·情感标签·纠错表）</string>
+    <string name="btn_smartfill">✨ 智能填参（自动对齐厂商·风格指令·情感标签）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">本次结果</string>
     <string name="label_history">本地记录</string>
@@ -434,4 +434,7 @@
     <string name="smartfill_tag_none">模型没给出带标签的文本</string>
     <string name="smartfill_prov_switched">🔁 已按音色自动切换厂商：%1$s</string>
     <string name="smartfill_prov_nokey">⚠️ 该音色属于「%1$s」，但没存 Key，未自动切换</string>
+    <string name="pfx_model">模型：</string>
+    <string name="pfx_no_instr">注意：该模型**不支持**「情绪/风格指令」，那一项请留空，不要写指令。</string>
+    <string name="smartfill_a_skip">— 该模型不支持风格指令（已跳过）</string>
 </resources>

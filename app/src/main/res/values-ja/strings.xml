@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML モード（enable_ssml）</string>
     <string name="label_trans_langs">翻訳言語（複数・右で選択）</string>
     <string name="hint_trans_target">タップで選択（複数可）</string>
-    <string name="btn_smartfill">✨ スマート補完（プロバイダ·スタイル·感情タグ·訂正表）</string>
+    <string name="btn_smartfill">✨ スマート補完（プロバイダ自動照合·スタイル·感情タグ）</string>
     <string name="btn_generate">生成</string>
     <string name="label_result">今回の結果</string>
     <string name="label_history">記録</string>
@@ -434,4 +434,7 @@
     <string name="smartfill_tag_none">モデルがタグ付き本文を返しませんでした</string>
     <string name="smartfill_prov_switched">🔁 音色に合わせてプロバイダを自動切替：%1$s</string>
     <string name="smartfill_prov_nokey">⚠️ この音色は「%1$s」のものですが Key 未保存のため切り替えません</string>
+    <string name="pfx_model">モデル：</string>
+    <string name="pfx_no_instr">注意：このモデルは「感情／スタイル指示」に非対応。その項目は空のままにしてください。</string>
+    <string name="smartfill_a_skip">— このモデルはスタイル指示に非対応（スキップ）</string>
 </resources>

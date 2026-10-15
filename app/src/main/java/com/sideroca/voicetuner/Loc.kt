@@ -22,13 +22,18 @@ object Loc {
 
     fun current(ctx: Context): String = Store(ctx).lang
 
-    /** 应用保存的语言（AppCompat per-app locale；变了会自动重建界面） */
+    /**
+     * 应用保存的语言（AppCompat per-app locale；**变了**才会重建界面）。
+     *
+     * ⚠️ 2026-10-15：**值没变就不要再 set 一次** —— `setApplicationLocales` 每次调用都会
+     * 触发一次语言核对/可能的界面重建，冷启动时它就在首帧之前 → 白屏翻倍。
+     */
     fun apply(ctx: Context) {
         val code = current(ctx)
-        AppCompatDelegate.setApplicationLocales(
-            if (code.isBlank()) LocaleListCompat.getEmptyLocaleList()
-            else LocaleListCompat.forLanguageTags(code)
-        )
+        val want = if (code.isBlank()) LocaleListCompat.getEmptyLocaleList()
+        else LocaleListCompat.forLanguageTags(code)
+        if (AppCompatDelegate.getApplicationLocales() == want) return      // 已经是这个语言 → 什么也不做
+        AppCompatDelegate.setApplicationLocales(want)
     }
 
     /** 设置并立即生效 */

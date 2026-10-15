@@ -95,6 +95,16 @@ object Wp {
     }
 
     /** 应用到一个槽位：img 垫底、scrim 遮罩（主题底色 + 浓度 0~100） */
+    /** 解码结果在内存里存最近几张（key = path@mtime）——避免每次冷启动/重进都在主线程解码 */
+    private val mem = HashMap<String, Bitmap>()
+
+    /**
+     * 铺壁纸 + 遮罩。
+     *
+     * ⚠️ 2026-10-15：**解码不再在主线程**。以前这里同步 `decode(path)`（≤3000px JPEG，两次
+     * BitmapFactory 扫描 + EXIF 摆正），冷启动时就在首帧之前跑 → 白屏 2~3s。
+     * 现在：遮罩/可见性立刻生效，解码丢后台线程，解完再 `post` 回 UI 贴图。
+     */
     fun applySlot(ctx: Context, img: ImageView?, scrim: View?, path: String?, scrimPct: Int, baseColor: Int) {
         if (img == null || scrim == null) return
         if (path.isNullOrEmpty() || !File(path).exists()) {
@@ -105,21 +115,38 @@ object Wp {
             return
         }
         val key = path + "@" + File(path).lastModified()
-        if (img.tag != key || img.drawable == null) {
-            val bmp = decode(path)
-            if (bmp == null) {
-                img.setImageDrawable(null)
-                img.tag = null
-                img.visibility = View.GONE
-                scrim.visibility = View.GONE
-                return
-            }
-            img.setImageBitmap(bmp)
-            img.tag = key
-        }
-        img.visibility = View.VISIBLE
+        // 遮罩与可见性不依赖解码，先做（不阻塞首帧）
         val a = scrimPct.coerceIn(0, 100) * 255 / 100
         scrim.setBackgroundColor(Color.argb(a, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor)))
         scrim.visibility = if (a == 0) View.GONE else View.VISIBLE
+        if (img.tag == key && img.drawable != null) return
+        synchronized(mem) {
+            val hit = mem[key]
+            if (hit != null && !hit.isRecycled) {
+                img.setImageBitmap(hit)
+                img.tag = key
+                img.visibility = View.VISIBLE
+                return
+            }
+        }
+        img.tag = key
+        img.visibility = View.VISIBLE
+        Thread {
+            val bmp = decode(path)
+            if (bmp == null) {
+                img.post {
+                    if (img.tag == key) {
+                        img.setImageDrawable(null)
+                        img.visibility = View.GONE
+                    }
+                }
+                return@Thread
+            }
+            synchronized(mem) {
+                if (mem.size > 4) mem.clear()      // 只留最近几张（不 recycle：可能还被别的 ImageView 用着）
+                mem[key] = bmp
+            }
+            img.post { if (img.tag == key) img.setImageBitmap(bmp) }
+        }.start()
     }
 }

@@ -268,13 +268,16 @@ class MainActivity : AppCompatActivity() {
         takes.addAll(store.loadTakes())
         renderHistory()
         migrateDurationsAsync()
-        runCatching { AlarmScheduler.apply(this) }   // 已保存的闹钟：启动时补排（幂等）
-        runCatching {                                    // 闹钟：打开应用时若还没预生成好 → 补跑（前台，不受后台限制）
-            val ac = AlarmCfg.from(store.alarmJson)
-            if (ac.enabled && (store.alarmDir.listFiles()?.none { it.isFile && it.length() > 0 } ?: true)) {
-                androidx.core.content.ContextCompat.startForegroundService(
-                    this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
-                )
+        // 闹钟补排 / 预生成**挪到首帧之后**跑（用户 2026-10-15：冷启动白屏 3s+）
+        window.decorView.post {
+            runCatching { AlarmScheduler.apply(this) }   // 已保存的闹钟：启动时补排（幂等）
+            runCatching {                                // 闹钟：还没预生成好 → 补跑（前台，不受后台限制）
+                val ac = AlarmCfg.from(store.alarmJson)
+                if (ac.enabled && (store.alarmDir.listFiles()?.none { it.isFile && it.length() > 0 } ?: true)) {
+                    androidx.core.content.ContextCompat.startForegroundService(
+                        this, Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "pregen")
+                    )
+                }
             }
         }
 
@@ -290,8 +293,12 @@ class MainActivity : AppCompatActivity() {
         ) {
             runCatching { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 77) }
         }
-        applyLook()
+        // ⚠️ 这里**不再调 applyLook()**：onResume 紧跟着就会调一次
+        //    （以前冷启动 = 换肤两次：整棵视图树重刷 + 壁纸解码，白屏元凶之一）
     }
+
+    /** 冷启动第一次 onResume：onCreate 已经 loadTakes + renderHistory 过一遍了，别再整表重载 */
+    private var firstResume = true
 
     override fun onResume() {
         super.onResume()
@@ -300,7 +307,8 @@ class MainActivity : AppCompatActivity() {
         // （以前 App 里没有任何地方能停，划掉最近任务也停不掉，只能干等——体验最差的那个 bug）
         runCatching { AlarmService.stopIfRinging(this) }
         // 设置页可能删/改过记录、音色、隐藏列表 → 以 Store 为准整表重载（Store = 唯一数据源）
-        reloadFromStore()
+        // 冷启动第一次不重载：onCreate 刚读过一遍（省掉"再读一次 JSON + 再建 25 张记录卡 + 再换肤"）
+        if (firstResume) firstResume = false else reloadFromStore()
         // 设置页点了「回填」→ 在这里应用（跨页交接）
         val pendingFill = store.pendingFillId
         if (pendingFill.isNotBlank()) {
@@ -783,11 +791,15 @@ class MainActivity : AppCompatActivity() {
         val voice = if (voiceIsCustom) getString(R.string.voice_custom) else (allVoices().firstOrNull { it.id == currentVoiceId }?.name ?: "")
         // 当前 TTS 厂商 + 它接受的参数：**系统按当前配置自动附带**（不让模型去猜 provider）
         val prov = TtsProviders.byId(store.providerId)
+        // 该模型吃不吃"情绪/风格指令"（由**软件**按数据判定，不让 LLM 猜）
+        val instrOk = TtsModels.supports(store.providerId, store.lastModel, "instruction")
         val head = buildString {
             if (prov != null) {
                 append(getString(R.string.pfx_provider)).append(prov.name).append("（").append(prov.id).append("）\n")
+                append(getString(R.string.pfx_model)).append(store.lastModel.ifBlank { getString(R.string.not_specified) }).append('\n')
                 val params = TtsModels.supportedNames(store.providerId, store.lastModel)
                 append(getString(R.string.pfx_params)).append(if (params.isEmpty()) getString(R.string.params_only_text_voice) else params.joinToString("、")).append('\n')
+                if (!instrOk) append(getString(R.string.pfx_no_instr)).append('\n')   // 例如 CosyVoice 之外的普通 Qwen-TTS
             }
             append(getString(R.string.pfx_voice)).append(voice.ifBlank { getString(R.string.not_specified) }).append('\n')
             val role = store.rolePrompt(roleVoiceId())
@@ -807,7 +819,11 @@ class MainActivity : AppCompatActivity() {
             val a = instrRes!!
             val b = tagRes!!
             tvStatus.text = buildString {
-                append(if (a == OK) getString(R.string.smartfill_a_ok) else getString(R.string.smartfill_a_bad, a))
+                append(when (a) {
+                    OK -> getString(R.string.smartfill_a_ok)
+                    SKIP -> getString(R.string.smartfill_a_skip)      // 该模型不吃风格指令
+                    else -> getString(R.string.smartfill_a_bad, a)
+                })
                 append("　")
                 append(if (b == OK) getString(R.string.smartfill_b_ok) else getString(R.string.smartfill_b_bad, b))
                 if (!alignNote.isNullOrBlank()) append('\n').append(alignNote)
@@ -817,12 +833,16 @@ class MainActivity : AppCompatActivity() {
         // ── A) 情绪 / 风格指令 + 纠错表 → etInstr / etHotfix ──
         //    2026-10-15 修"风格指令加工失败"：① 服务端强制 JSON（jsonMode）
         //    ② 把 JSON 要求**放在 user 消息末尾**（模型对最后一句最敏感；只写在 system 里常被忽略）
-        LlmClient.ask(
+        //    ③ 该模型本来就不吃风格指令（如普通 Qwen-TTS）→ 直接跳过，别让 LLM 白写
+        if (!instrOk) {
+            instrRes = SKIP
+            settle()
+        } else LlmClient.ask(
             store.llmBaseUrl, store.llmKey, store.llmModel,
             store.llmPrompt.ifBlank { LlmClient.DEFAULT_PROMPT },
             head + getString(R.string.pfx_text) + "\n" + text +
                 "\n\n只输出 JSON（不要解释、不要代码块、不要引号）：" +
-                "{\"instruction\":\"一句自然语言风格指令\",\"hot_fix\":{\"replace\":[{\"错词\":\"正词\"}]}}",
+                "{\"instruction\":\"一句自然语言风格指令\"}",
             store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel,
             jsonMode = true
         ) { out, err ->
@@ -855,8 +875,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 两条请求共用的"成功"哨兵（别用字面量散在各处） */
+    /** 两条请求共用的哨兵（别用字面量散在各处） */
     private val OK = "OK"
+    private val SKIP = "SKIP"
 
     /** 去掉 ```json / ``` 之类的围栏（模型很爱加） */
     private fun stripCodeFence(s: String): String =
@@ -885,20 +906,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 解析并应用 LLM 的建议（容错：从返回里抠出第一个 { ... } 再解析） */
+    /**
+     * 解析并应用 LLM 的建议（容错：剥围栏 → 抠第一个 `{ … }` 再解析）。
+     *
+     * ⚠️ 2026-10-15 用户要求：**「智能填参」不再管纠错表（`hot_fix`）**。
+     * 那是发给 TTS 的**发音修正**参数（多音字/专名注音），属于"用户按需手填"的东西，
+     * 不该让 LLM 顺手改；厂商/模型的基础条件也由**软件**拼好，不回头相信 LLM 的 `provider`。
+     * → 这里只认 `instruction`（风格指令）。
+     */
     private fun applySmartFill(raw0: String): Boolean = try {
         val raw = stripCodeFence(raw0)          // 模型爱加 ```json 围栏 → 先剥掉
         val s = raw.indexOf('{')
         val e = raw.lastIndexOf('}')
         if (s < 0 || e <= s) false else {
             val o = JSONObject(raw.substring(s, e + 1))
-            val pid = o.optString("provider").trim()
-            if (pid.isNotBlank() && TtsProviders.byId(pid) != null) store.providerId = pid
             val instr = o.optString("instruction").trim()
-            if (instr.isNotEmpty()) etInstr.setText(instr)
-            val hf = o.optJSONObject("hot_fix")
-            if (hf != null) etHotfix.setText(hf.toString())
-            syncVoiceUi()
-            true
+            if (instr.isEmpty()) false else {
+                etInstr.setText(instr)
+                true
+            }
         }
     } catch (ex: Exception) {
         false

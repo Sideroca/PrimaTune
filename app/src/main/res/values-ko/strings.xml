@@ -122,7 +122,7 @@
     <string name="label_ssml">SSML 모드 (enable_ssml)</string>
     <string name="label_trans_langs">번역 언어 (다중 · 오른쪽에서 선택)</string>
     <string name="hint_trans_target">탭하여 선택 (다중)</string>
-    <string name="btn_smartfill">✨ 스마트 채우기 (공급자·스타일·감정태그·교정표)</string>
+    <string name="btn_smartfill">✨ 스마트 채우기 (공급자 자동 정렬·스타일·감정태그)</string>
     <string name="btn_generate">생성</string>
     <string name="label_result">이번 결과</string>
     <string name="label_history">기록</string>
@@ -434,4 +434,7 @@
     <string name="smartfill_tag_none">모델이 태그된 본문을 주지 않았습니다</string>
     <string name="smartfill_prov_switched">🔁 음색에 맞춰 공급자를 자동 전환: %1$s</string>
     <string name="smartfill_prov_nokey">⚠️ 이 음색은 %1$s 소속이지만 Key 가 없어 전환하지 않았습니다</string>
+    <string name="pfx_model">모델: </string>
+    <string name="pfx_no_instr">주의: 이 모델은 감정/스타일 지시를 지원하지 않습니다. 그 항목은 비워 두세요.</string>
+    <string name="smartfill_a_skip">— 이 모델은 스타일 지시 미지원(건너뜀)</string>
 </resources>

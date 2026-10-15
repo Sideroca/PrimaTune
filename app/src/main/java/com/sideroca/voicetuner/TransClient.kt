@@ -43,7 +43,9 @@ object TransClient {
         val c = Cancelled()
         Thread {
             val tc = codeOf(targetName)
-            val order = if (lastGood == "mm") listOf("mm", "google") else listOf("google", "mm")
+            // 2026-10-15 用户：我们一直用的免费翻译就是 MyMemory（Google 端点在国内基本连不上，
+            // 每次冷启动都先白等一次它的超时）→ **改成 MyMemory 优先**，失败再退 Google
+            val order = if (lastGood == "google") listOf("google", "mm") else listOf("mm", "google")
             for (src in order) {
                 val out = if (src == "google") tryGoogle(text, tc) else tryMyMemory(text, tc, email)
                 if (c.cancelled) return@Thread
@@ -70,7 +72,7 @@ object TransClient {
             for (t in targets) {
                 if (c.cancelled) return@Thread
                 val tc = codeOf(t)
-                val order = if (used == "mm") listOf("mm", "google") else listOf("google", "mm")
+                val order = if (used == "google") listOf("google", "mm") else listOf("mm", "google")
                 for (src in order) {
                     val r = if (src == "google") tryGoogle(text, tc) else tryMyMemory(text, tc, email)
                     if (r != null) { out[t] = r; used = src; break }
