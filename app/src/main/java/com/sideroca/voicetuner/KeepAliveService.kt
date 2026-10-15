@@ -24,6 +24,9 @@ class KeepAliveService : Service() {
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: "正在后台处理…"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
+            // 2026-10-15 用户：**不允许出现两个同名频道**。历史上换过 id（vt_keepalive → vt_keepalive2），
+            // 旧的那个还躺在系统里（设置页里就是两条"后台任务"）→ 这里主动删掉遗留。
+            runCatching { nm?.deleteNotificationChannel("vt_keepalive") }
             if (nm != null && nm.getNotificationChannel(CH) == null) {
                 // ⚠️ 通道 ID 故意带了 `2`（用户 2026-10-14）：
                 //    旧通道 `vt_keepalive` 已经在用户机上**创建过**了，而**通知通道的"重要级别"一经创建就不可改**

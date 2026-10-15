@@ -33,9 +33,10 @@ class AlarmReceiver : BroadcastReceiver() {
         try {
             ContextCompat.startForegroundService(context, i)
         } catch (e: Exception) {
-            // ④ 后台不给起服务 → **接收器里直接播**（绝不静默）
-            if (action == "ring") AlarmService.playFallbackDirect(context)
-            else runCatching { context.startService(i) }
+            // ④ 后台不许起前台服务 → **不再用系统铃声顶替**（用户 2026-10-15：宁可不出声也不播错的）。
+            //    只记日志 + 保留已挂出的通知，让人知道"这次没出声、原因是服务没起来"。
+            AlarmService.logStatus(context, "服务起不来（${e.javaClass.simpleName}: ${e.message}）→ 本次不出声")
+            if (action != "ring") runCatching { context.startService(i) }
         }
     }
 }

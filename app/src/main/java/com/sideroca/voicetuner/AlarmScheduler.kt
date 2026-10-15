@@ -17,7 +17,8 @@ import java.util.Calendar
  */
 object AlarmScheduler {
 
-    const val LEAD_MS = 3L * 60 * 60 * 1000      // 提前 3 小时预生成
+    // 2026-10-15 用户：几十字的稿子，LLM→TTS→收回**一分钟内**就能完，**3 小时纯属多余**。
+    const val LEAD_MS = 10L * 60 * 1000
     private const val RC_PREGEN = 7101
     private const val RC_RING = 7102
     private const val RC_SNOOZE = 7103
@@ -31,16 +32,11 @@ object AlarmScheduler {
         val ring = nextTrigger(cfg, now)
         val lead = ring - now
         setAlarmClock(ctx, RC_RING, "ring", ring)
-        if (lead > LEAD_MS + 5 * 60_000L) {
-            setAlarmClock(ctx, RC_PREGEN, "pregen", ring - LEAD_MS)
-            AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)} 预生成=${fmt(ring - LEAD_MS)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}")
-        } else {
-            // ⚠️ 离响铃太近（不足"提前 3 小时 + 5 分钟"）→ **不排预生成闹钟**。
-            // 保存时已经立刻跑过一次预生成；若那时也没跑到 +60s 再跑一次，
-            // 两次生成会**互相删档**（用户 2026-10-09 报的"已准备 1 段却响了系统铃声"就是这个）。
-            // 到点若还没好，响铃流程会自己等 30 秒（见 AlarmService.startRingFlow）。
-            AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)}（离现在仅 ${lead / 60_000} 分钟 → **不排**预生成闹钟，保存时已生成；到点若没好在响铃里等 30 秒） 精确闹钟=${canExact(ctx)}")
-        }
+        // 预生成**总是**排一次：时间 = 响铃前 LEAD_MS；若这个时刻已过（比如刚设一个 5 分钟后的闹钟）
+        // → 立刻排（now+5s）。不再有"离得近就不排"那条分支——那等于把失败留给到点。
+        val preAt = maxOf(ring - LEAD_MS, now + 5_000L)
+        setAlarmClock(ctx, RC_PREGEN, "pregen", preAt)
+        AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)} 预生成=${fmt(preAt)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}")
     }
 
     private fun fmt(t: Long): String =

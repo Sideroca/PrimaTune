@@ -370,7 +370,7 @@
     <string name="alarm_prepared">已准备 %1$d 段语音</string>
     <string name="alarm_not_prepared">未准备</string>
     <string name="alarm_pregen_started">已开始预生成，几秒后再看</string>
-    <string name="alarm_voice_fail">语音未就绪，改用系统铃声</string>
+    <string name="alarm_voice_fail">语音未就绪（本次不出声，等生成好）</string>
     <string name="alarm_need_voice_first">当前厂商还没有可用音色：先去主页「＋ 建音色」</string>
     <string name="alarm_engine">引擎</string>
     <string name="alarm_voice_mismatch">⚠ 与当前厂商不符，请重选音色</string>
@@ -407,7 +407,7 @@
     <string name="alarm_check_step_autostart_note">＝允许系统在后台把本应用拉起来。闹钟到点就靠它；不开可能不响（这个开关 App 无权自己开，必须你手动点）。</string>
     <string name="alarm_check_perms">② 权限清单</string>
     <string name="alarm_check_open_appinfo">打开应用详情（自启动 / 省电 都在这页）</string>
-    <string name="alarm_too_soon">离响铃不到 5 分钟：语音可能来不及生成，到点会先响系统铃声、随后自动切成人声</string>
+    <string name="alarm_too_soon">离响铃不到 5 分钟：语音可能来不及生成；到点若还没好，本次就不出声（不会再用系统铃声顶替）</string>
     <string name="alarm_need_fullscreen">要让闹钟到点**弹整屏响铃页**，需要「全屏通知」权限（安卓 14+ 默认不授予，只给电话/闹钟类应用）。不开的话到点只会弹一条横幅通知。去开启？</string>
     <string name="alarm_check_page">③ 到点「弹响铃页」要两道（缺一不弹）</string>
     <string name="alarm_check_step_popup">后台弹出界面（小米 / 澎湃）</string>

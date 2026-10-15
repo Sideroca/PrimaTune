@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -49,7 +48,7 @@ class AlarmService : Service() {
         const val NOTI_RING = 7302
 
         /** 生成窗口：无预生成时，现场生成这么久还没好就保持系统铃声 */
-        private const val LIVE_GEN_LIMIT_MS = 30_000L
+        private const val LIVE_GEN_LIMIT_MS = 60_000L   // 几十字稿 1 分钟内能成；超时＝失败
 
         /**
          * 预生成缓存的**配置指纹**。
@@ -107,7 +106,7 @@ class AlarmService : Service() {
          * 主页 onResume / 响铃页「停止」/ 外部调用都走它。
          */
         fun stopIfRinging(ctx: Context): Boolean {
-            if (!ringing && directPlayer == null) return false
+            if (!ringing) return false
             return runCatching {
                 ctx.startService(Intent(ctx, AlarmService::class.java).putExtra(EXTRA, "stop"))
                 stopDirect()
@@ -116,8 +115,6 @@ class AlarmService : Service() {
             }.getOrDefault(false)
         }
 
-        /** 接收器「直接播」用的静态播放器 + 唤醒锁（后台不给起前台服务时的最后一道兜底）。 */
-        @Volatile private var directPlayer: MediaPlayer? = null
         @Volatile private var directWake: PowerManager.WakeLock? = null
 
         /** 抢一把短唤醒锁（30 分钟）：到点后 CPU 别睡回去。 */
@@ -192,38 +189,12 @@ class AlarmService : Service() {
         }
 
         /**
-         * 后台**不给**起前台服务时的兜底：**接收器里直接播**系统铃声（闹钟声→铃声→通知声）。
-         * 配合唤醒锁，短时间内进程不会被回收；响铃页 / 通知仍由接收器负责挂出。
+         * 停止（只清状态）。
+         *
+         * ⚠️ 2026-10-15 用户定调：**删掉一切"兜底发声"**——
+         * 「如果这个闹钟不是我想要的音色，我宁可它不播放」。用系统铃声顶替 = 对 bug 的容忍，不再保留。
          */
-        fun playFallbackDirect(ctx: Context) {
-            if (directPlayer != null) return
-            wakeUp(ctx)
-            ringing = true
-            for (t in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION)) {
-                val uri = RingtoneManager.getDefaultUri(t) ?: continue
-                val ok = runCatching {
-                    val mp = MediaPlayer()
-                    mp.setAudioAttributes(
-                        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
-                    )
-                    mp.setDataSource(ctx, uri)
-                    mp.isLooping = true
-                    mp.setVolume(1f, 1f)
-                    mp.prepare(); mp.start()
-                    directPlayer = mp
-                }.isSuccess
-                if (ok) break
-            }
-            // 兜底自停：最多响 5 分钟（万一没人接手停止，也**不会永远响下去**——
-            // 用户 2026-10-10 报的"开 App、划掉任务栏都停不掉"就是这么来的）
-            Handler(Looper.getMainLooper()).postDelayed({ stopDirect() }, 5 * 60_000L)
-        }
-
         fun stopDirect() {
-            runCatching { directPlayer?.stop() }
-            runCatching { directPlayer?.release() }
-            directPlayer = null
             ringing = false
             releaseWake()
         }
@@ -265,7 +236,8 @@ class AlarmService : Service() {
                 startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_selfcheck_running)), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
                 status("自检：系统闹钟把进程拉起来了 ✅（这条就是「广播有没有送达」的铁证）")
                 vol = 1f
-                playFallback()
+                if (cachedFiles().isNotEmpty()) { files = cachedFiles(); idx = 0; playCurrent() }
+                else status("自检：没有可用语音 → 不出声（自检只验「系统会不会把进程拉起来」）")
                 handler.postDelayed({ stopPlayback(); stopSelf() }, 12_000)
             }
             "snooze" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
@@ -460,8 +432,8 @@ class AlarmService : Service() {
         }
         // 没有缓存 → 先响系统铃声（绝不静默）；然后**轮询等缓存**——很可能是"保存闹钟那一刻的预生成"
         // 还在跑（旧代码把缓存删了在重做）。30 秒内一出现就切成 AI 人声；若压根没人生成，才自己起一次。
-        status("响铃：无缓存 → 先响系统铃声；等预生成（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
-        playFallback()
+        // 2026-10-15：**不再**先用系统铃声顶上——不符合当前设置的语音，就**不出声**，只等现场生成
+        status("响铃：没有符合当前设置的语音 → **不出声**，现场生成中（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
         updateRingNoti(getString(R.string.alarm_voice_fail))
         if (!generating) Thread { runCatching { generate() } }.start()
         pollForVoice(SystemClock.elapsedRealtime(), silent = false)
@@ -529,33 +501,12 @@ class AlarmService : Service() {
             mp.isLooping = false
             mp.setVolume(vol, vol)
             mp.setOnCompletionListener { idx = (idx + 1) % files.size; playCurrent() }
-            mp.setOnErrorListener { _, _, _ -> playFallback(); true }
+            mp.setOnErrorListener { _, what, extra -> status("播放失败：what=$what extra=$extra → 不出声"); true }
             mp.prepare(); mp.start()
             player = mp
-        }.onFailure { playFallback() }
+        }.onFailure { status("播放异常：${it.javaClass.simpleName}: ${it.message} → 不出声") }
     }
 
-    private fun playFallback() {
-        // 闹钟声 → 铃声 → 通知声，逐个试（有些设备没有默认"闹钟"音）
-        for (t in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION)) {
-            val uri = RingtoneManager.getDefaultUri(t) ?: continue
-            val ok = runCatching {
-                player?.release()
-                val mp = MediaPlayer()
-                mp.setAudioAttributes(
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
-                )
-                mp.setDataSource(this, uri)
-                mp.isLooping = true
-                mp.setVolume(vol, vol)
-                mp.prepare(); mp.start()
-                player = mp
-            }.isSuccess
-            if (ok) { status("兜底铃声已播（type=$t）"); return }
-        }
-        status("兜底铃声：系统没有可用的默认提示音 → 只能静默")
-    }
 
     private fun stopPlayback() {
         runCatching { player?.stop() }
