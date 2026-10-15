@@ -30,7 +30,7 @@ object AlarmProbe {
 
         sb.append("==== 玲珑调音 · 闹钟诊断快照 ====\n")
         line("时间", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
-        line("设备", "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        line("设备", "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
 
         // ① 精确闹钟
         runCatching {

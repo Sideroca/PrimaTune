@@ -7,11 +7,10 @@ import android.content.Intent
 import androidx.core.content.ContextCompat
 
 /**
- * 闹钟到点 → ①**先**把通知 + 全屏响铃页挂出去 ②起前台服务播放 ③服务起不来就**在接收器里直接播**。
+ * 闹钟到点 → ①**先**把通知 + 全屏响铃页挂出去 ②起前台服务播放。
  *
- * 「不打开 App 就不响」的加固（用户 2026-10-08）：修前只要 `startForegroundService` 抛
- * `ForegroundServiceStartNotAllowedException`（被 runCatching 吞掉），就**只剩一条通知、一点声都没有**。
- * 现在通知先挂、播放器在接收器里兜底，**任何一步失败都不会静默**。
+ * 2026-10-15 用户定调：**不再用系统铃声兜底**——服务起不来时只记日志 + 留通知，
+ * 「如果这个闹钟不是我想要的音色，我宁可它不播放」。
  */
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

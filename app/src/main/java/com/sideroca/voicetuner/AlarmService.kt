@@ -29,9 +29,10 @@ import java.util.concurrent.TimeUnit
 /**
  * AI 闹钟前台服务：
  *  - `pregen`：**提前数小时**跑 —— LLM 写词 → 逐条 TTS（**存 WAV**）→ 落到 `filesDir/alarm/`；
- *  - `ring`  ：到点播放（按序、音量恒定）。**绝不静默**：
- *      ① 有预生成 → 直接播 AI 人声；
- *      ② 没预生成 → **立刻**响系统铃声，同时现场生成，**30 秒内**生成好就切成 AI 人声；
+ *  - `ring`  ：到点播放（按序、音量恒定）。**只播"当前设置的那段语音"**（用户 2026-10-15 定调）：
+ *      ① 有匹配的预生成 → 直接播 AI 人声；
+ *      ② 没有 → **不出声**，同时现场生成（≤60 秒），生成好立刻播；生成不出来就保持静音；
+ *      （**不再**用系统铃声顶替——那是对 bug 的容忍，不是功能）；
  *  - `snooze` / `dismiss`：通知按钮 / 响铃页按钮。
  *
  * 「不打开 App 就不响」的加固（用户 2026-10-08）：
@@ -47,7 +48,7 @@ class AlarmService : Service() {
         private const val NOTI_PREGEN = 7301
         const val NOTI_RING = 7302
 
-        /** 生成窗口：无预生成时，现场生成这么久还没好就保持系统铃声 */
+        /** 生成窗口：没有可用语音时，现场生成这么久还没好 → **保持静音**（不再用系统铃声顶替） */
         private const val LIVE_GEN_LIMIT_MS = 60_000L   // 几十字稿 1 分钟内能成；超时＝失败
 
         /**
@@ -403,10 +404,10 @@ class AlarmService : Service() {
     @Volatile private var stopped = false
 
     /**
-     * 响铃：**绝不静默**。
-     *  - 有预生成 → 直接播 AI 人声；
-     *  - 没预生成 → **立刻**响系统铃声，同时现场生成（LLM→TTS）；**30 秒内**成功 → 切成 AI 人声。
-     * 先把**全屏响铃页 + 高优先级通知**挂出去（即播放链路出意外，用户也看得到、点得到）。
+     * 响铃：**只播"当前设置的那段语音"**（用户 2026-10-15：宁可静音，也不播错的）。
+     *  - 有匹配的预生成 → 直接播 AI 人声；
+     *  - 没有 → **不出声**，同时现场生成（LLM→TTS）；**60 秒内**成功 → 立刻播；生成不出来就保持静音。
+     * 无论哪种情况，都先把**全屏响铃页 + 高优先级通知**挂出去（让人看得到、点得到）。
      */
     private fun startRingFlow(isManualTest: Boolean = false) {
         if (ringing) { status("响铃：已在响，忽略这次重复触发（防两个播放器叠在一起）"); return }
@@ -420,9 +421,7 @@ class AlarmService : Service() {
             updateRingNoti(ringWho(this))
             idx = 0; playCurrent(); return
         }
-        // ⚠️ **手动测试**且没有可用语音 → **绝不要拿系统铃声冒充 AI 闹钟**
-        // （用户 2026-10-14 的困惑："点预生成却响了系统铃声"——其实他点的是「立即响一次」，
-        //  而那时缓存刚换了音色被判无效 → 退成了系统铃声，看起来就像"预生成变成响铃"）
+        // ⚠️ 手动测试且没有可用语音 → **绝不要拿系统铃声冒充 AI 闹钟**（那正是用户 2026-10-14 的困惑来源）
         if (isManualTest) {
             status("手测：没有可用的闹钟语音 → 不出声，只提示（先点「预生成」）")
             updateRingNoti(getString(R.string.alarm_test_no_voice))
@@ -430,9 +429,8 @@ class AlarmService : Service() {
             pollForVoice(SystemClock.elapsedRealtime(), silent = true)
             return
         }
-        // 没有缓存 → 先响系统铃声（绝不静默）；然后**轮询等缓存**——很可能是"保存闹钟那一刻的预生成"
-        // 还在跑（旧代码把缓存删了在重做）。30 秒内一出现就切成 AI 人声；若压根没人生成，才自己起一次。
-        // 2026-10-15：**不再**先用系统铃声顶上——不符合当前设置的语音，就**不出声**，只等现场生成
+        // 没有缓存 → **不出声**（宁可静音也不播错的），等缓存出现再播——很可能是"保存闹钟那一刻的
+        // 预生成"还在跑。60 秒内一出现就播；压根没人生成 → 自己起一次。
         status("响铃：没有符合当前设置的语音 → **不出声**，现场生成中（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
         updateRingNoti(getString(R.string.alarm_voice_fail))
         if (!generating) Thread { runCatching { generate() } }.start()
@@ -458,7 +456,7 @@ class AlarmService : Service() {
                 } else {
                     status(
                         if (silent) "手测：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍没有语音（本次不出声）"
-                        else "响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → 保持系统铃声"
+                        else "响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → **保持静音**（不再用系统铃声顶替）"
                     )
                 }
             }

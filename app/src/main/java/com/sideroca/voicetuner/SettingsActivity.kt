@@ -2622,7 +2622,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
         // ④ 诊断快照（**只读事实**；用户 2026-10-15：先探针确认，再动手改）
         section(getString(R.string.alarm_check_probe))
-        row(getString(R.string.alarm_check_snapshot), "", null) {
+        row(getString(R.string.alarm_check_snapshot), "") {
             runCatching {
                 val txt = AlarmProbe.snapshot(this)
                 AlarmProbe.write(this)

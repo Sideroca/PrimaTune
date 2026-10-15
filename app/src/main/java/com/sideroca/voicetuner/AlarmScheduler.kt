@@ -21,6 +21,11 @@ object AlarmScheduler {
     private const val LEAD_MIN = 2L
     const val LEAD_MS = LEAD_MIN * 60 * 1000
 
+    private const val RC_PREGEN = 7101
+    private const val RC_RING = 7102
+    private const val RC_SNOOZE = 7103
+    private const val RC_TEST = 7104
+
     /**
      * 诊断探针用：**这几条闹钟现在还在不在系统里**。
      * 用 `FLAG_NO_CREATE` 问系统"有没有这个 PendingIntent"——系统若把闹钟清掉了，这里就是 false。
@@ -40,10 +45,6 @@ object AlarmScheduler {
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         ) != null
     }.getOrDefault(false)
-    private const val RC_PREGEN = 7101
-    private const val RC_RING = 7102
-    private const val RC_SNOOZE = 7103
-    private const val RC_TEST = 7104
 
     fun apply(ctx: Context) {
         val cfg = AlarmCfg.from(Store(ctx).alarmJson)
@@ -51,7 +52,6 @@ object AlarmScheduler {
         if (!cfg.enabled) { AlarmService.logStatus(ctx, "调度：闹钟未启用 → 已取消全部"); return }
         val now = System.currentTimeMillis()
         val ring = nextTrigger(cfg, now)
-        val lead = ring - now
         setAlarmClock(ctx, RC_RING, "ring", ring)
         // 预生成**总是**排一次：时间 = 响铃前 LEAD_MS；若这个时刻已过（比如刚设一个 5 分钟后的闹钟）
         // → 立刻排（now+5s）。不再有"离得近就不排"那条分支——那等于把失败留给到点。
