@@ -451,4 +451,5 @@
     <string name="rec_recover_msg">오디오 파일 %1$d개가 색인에 없습니다. 복구할까요? 추가만 하며 기존 기록은 건드리지 않습니다.</string>
     <string name="rec_recover_go">복구</string>
     <string name="rec_recover_ok">%1$d개 복구했습니다</string>
+    <string name="rec_fav_partial">★ 즐겨찾기 %1$d/%2$d</string>
 </resources>

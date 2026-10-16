@@ -874,8 +874,14 @@ class SettingsActivity : AppCompatActivity() {
         r1.addView(pick, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { rightMargin = dp(8f) })
-        addChip(r1, getString(R.string.rec_fav, favs.size), recOnlyFav) {
-            recOnlyFav = true; recVoiceId = null; buildRecords()
+        // 2026-10-17 用户："记录页不支持同时选音色 + 收藏" → 收藏改成**开关**，且**不动**音色筛选；
+        // 数字显示"现存 / 总数"（收藏了但记录已被抹掉的那些，不该再算进列表里）
+        val favAlive = favs.count { id -> takesAll.any { it.id == id } }
+        val favLabel = if (favAlive == favs.size) getString(R.string.rec_fav, favs.size)
+                       else getString(R.string.rec_fav_partial, favAlive, favs.size)
+        addChip(r1, favLabel, recOnlyFav) {
+            recOnlyFav = !recOnlyFav
+            buildRecords()
         }
         llRecTop.addView(r1)
     }

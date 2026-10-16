@@ -129,7 +129,8 @@ class MainActivity : AppCompatActivity() {
     // 改为在"建卡本身"上提速（见 Skin.matchByConstantState 的建表缓存）。
     private val HISTORY_PREVIEW = 25
     /** 每次「显示更多」**再**追加多少条（渐进加载，避免一次建上千个 View） */
-    private val HISTORY_PAGE = 100
+    // 2026-10-17 用户："点按钮不要展开 100 条，展开 25 条吧"
+    private val HISTORY_PAGE = 25
     private var createDlg: AlertDialog? = null
     private var createFileTv: TextView? = null
     private var createStatus: TextView? = null
@@ -179,6 +180,10 @@ class MainActivity : AppCompatActivity() {
 
     /** 本地记录是否已展开全部（默认只渲染最近 HISTORY_PREVIEW 条） */
     private var historyShown = HISTORY_PREVIEW
+
+    /** 冷启动首屏只建这么多张（首帧后自动补齐）；第二遍起（JIT 热了）直接全建 */
+    private val COLD_FIRST_ROWS = 8
+    private var coldHistRender = true
 
     /** 当前音色（自绘选择器）：voiceIsCustom = 选了「自定义音色 ID…」 */
     private var currentVoiceId: String = ""
@@ -2068,11 +2073,22 @@ class MainActivity : AppCompatActivity() {
         // 首屏只建最近 25 条；之后每次「显示更多」**再追加 100 条**（增量，不重建已建行）——
         // 记录成百上千条时，避免一次建出上千个 View 造成卡顿
         historyShown = minOf(maxOf(historyShown, HISTORY_PREVIEW), list.size)
-        appendHistoryRange(list, 0, historyShown)
-        mark("记录卡：${historyShown} 张视图建完")
-        if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
+        // 2026-10-17：冷启动**先只建 8 张**让首帧尽快出来，**首帧之后自动补齐到 25**（不用她多点一下）。
+        //   依据：实测"建 25 张卡"冷启动要 334ms，但第二遍只要 9ms → 贵在类加载/JIT，不在逻辑。
+        val first = if (coldHistRender) minOf(COLD_FIRST_ROWS, historyShown) else historyShown
+        appendHistoryRange(list, 0, first)
+        mark("记录卡：首屏 $first 张（快）")
+        if (first < historyShown) {
+            llHistory.post {
+                appendHistoryRange(list, first, historyShown)
+                if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
+                Skin.apply(llHistory, Skin.colors(this))
+                mark("记录卡：首帧后补齐到 $historyShown 张")
+            }
+        } else if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
         Skin.apply(llHistory, Skin.colors(this))
         mark("记录卡：换肤完成")
+        coldHistRender = false
         // 重建后把滚动位置放回去（post：等新布局完成再滚，ScrollView 自己会夹到合法范围）
         if (keepY > 0) runCatching { svRoot.post { svRoot.scrollTo(0, keepY) } }
     }

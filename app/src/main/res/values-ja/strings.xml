@@ -451,4 +451,5 @@
     <string name="rec_recover_msg">音声ファイルが %1$d 件ありますが索引にありません。復元しますか？（追加のみ・既存は変更しません）</string>
     <string name="rec_recover_go">復元</string>
     <string name="rec_recover_ok">%1$d 件復元しました</string>
+    <string name="rec_fav_partial">★ お気に入り %1$d/%2$d</string>
 </resources>

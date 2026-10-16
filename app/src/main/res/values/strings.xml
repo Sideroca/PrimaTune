@@ -451,4 +451,5 @@
     <string name="rec_recover_msg">有 %1$d 条音频文件还在手机上，但不在记录索引里（多半是被之前那个 bug 抹掉的）。补回记录吗？**只补不删**，不影响现有记录。</string>
     <string name="rec_recover_go">补回</string>
     <string name="rec_recover_ok">已补回 %1$d 条</string>
+    <string name="rec_fav_partial">★ 收藏 %1$d/%2$d</string>
 </resources>

@@ -409,7 +409,12 @@ class Store(context: Context) {
             tmp.writeText(text)
             if (file.exists()) {
                 try {
-                    file.copyTo(File(file.parentFile, file.name + ".bak"), overwrite = true)
+                    // 2026-10-17：多留一代 —— 先把现有 .bak 挪成 .bak2，再写新的 .bak。
+                    // 用户丢过 9 条记录，只留一代 .bak 时，"最近一次写入"就把证据覆盖掉了。
+                    val bak = File(file.parentFile, file.name + ".bak")
+                    val bak2 = File(file.parentFile, file.name + ".bak2")
+                    if (bak.exists()) runCatching { bak.copyTo(bak2, overwrite = true) }
+                    file.copyTo(bak, overwrite = true)
                 } catch (e: Exception) {
                     // 备份失败不影响主流程
                 }
@@ -478,13 +483,13 @@ class Store(context: Context) {
     fun countRecoverable(): Int = runCatching {
         val have = loadTakes().map { it.id }.toSet()
         var n = 0
-        bakFile()?.takeIf { it.exists() }?.let { bak ->
+        bakFiles().forEach { bak ->
             runCatching {
                 val arr = JSONArray(bak.readText())
                 for (i in 0 until arr.length()) {
                     val id = arr.getJSONObject(i).optString("id")
-                    if (id.isNotBlank() && id !in have && File(indexFile.parentFile, id + ".wav").exists()) n++
-                    else if (id.isNotBlank() && id !in have && File(indexFile.parentFile, id + ".mp3").exists()) n++
+                    if (id.isBlank() || id in have) continue
+                    if (File(indexFile.parentFile, id + ".wav").exists() || File(indexFile.parentFile, id + ".mp3").exists()) n++
                 }
             }
         }
@@ -492,6 +497,12 @@ class Store(context: Context) {
     }.getOrDefault(0)
 
     private fun bakFile() = File(indexFile.parentFile, indexFile.name + ".bak")
+
+    /** 两代备份（.bak = 上一次、.bak2 = 上上次）——恢复时都读 */
+    private fun bakFiles(): List<File> = listOf(
+        File(indexFile.parentFile, indexFile.name + ".bak"),
+        File(indexFile.parentFile, indexFile.name + ".bak2")
+    ).filter { it.exists() }
 
     /** 音频文件在、索引里没有的那些文件（排除 index/status 之类） */
     private fun orphanAudioFiles(): List<File> {
@@ -513,8 +524,7 @@ class Store(context: Context) {
         val have = cur.map { it.id }.toMutableSet()
         var added = 0
         runCatching {
-            val bak = bakFile()
-            if (bak.exists()) {
+            bakFiles().forEach { bak ->
                 val arr = JSONArray(bak.readText())
                 for (i in 0 until arr.length()) {
                     val t = Take.fromJson(arr.getJSONObject(i))

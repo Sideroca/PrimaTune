@@ -451,4 +451,5 @@
     <string name="rec_recover_msg">%1$d audio file(s) exist but are missing from the index. Recover them? Add-only; existing records are untouched.</string>
     <string name="rec_recover_go">Recover</string>
     <string name="rec_recover_ok">Recovered %1$d</string>
+    <string name="rec_fav_partial">★ Favorites %1$d/%2$d</string>
 </resources>
