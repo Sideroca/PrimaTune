@@ -88,6 +88,19 @@ object AlarmProbe {
             line("可播 wav 段数", fs.size)
         }
 
+        // ⑥.5 主页面状态 + 索引里最新 5 条（用户 2026-10-17 报"新生成的记录不出现在第 1 条"）
+        runCatching {
+            line("主页面角色筛选", MainActivity.diagFilterVoiceId ?: "（无）")
+            line("最近一次落库的记录 id", MainActivity.diagLastTakeId ?: "（无）")
+            val newest = Store(ctx).loadTakes().sortedByDescending { it.createdAt }.take(5)
+            newest.forEach { t ->
+                sb.append("    最新: ").append(t.id)
+                    .append("  ").append(java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US)
+                        .format(java.util.Date(t.createdAt)))
+                    .append("  ").append(t.voiceName).append('\n')
+            }
+        }
+
         // ⑦ 记录 / 收藏（用户 2026-10-17 报"收藏 15 条，设置页只显示五六条"→ 先用事实分清是
         //    "被筛选藏了" 还是 "记录本身丢了"）
         runCatching {

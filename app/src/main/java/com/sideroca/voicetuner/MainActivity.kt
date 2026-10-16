@@ -1795,8 +1795,15 @@ class MainActivity : AppCompatActivity() {
 
             override fun onFinished(audio: ByteArray) {
                 try {
-                    val take = saveTake(req, fmt, audio)
-                    ui { onTakeReady(take) }
+                    // 2026-10-17 修：**后台线程只写文件**；内存列表 + 索引的改动一律回主线程做。
+                    // （以前 saveTake 在合成回调线程里 `takes.add(0,…)` + `saveTakes(…)`，与主线程的
+                    //  `reloadFromStore()`（clear+addAll）/`renderHistory()` 抢同一份列表
+                    //  → 新记录可能"没进列表"——用户报的"本次结果不再出现在本地记录第 1 条"）
+                    val take = saveTakeFile(req, fmt, audio)
+                    ui {
+                        addTakeAndPersist(take)
+                        onTakeReady(take)
+                    }
                 } catch (e: Exception) {
                     ui {
                         finishBusy()
@@ -1827,7 +1834,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveTake(req: SynthRequest, fmt: Fmt, audio: ByteArray): Take {
+    /** **只写文件 + 造 Take**（可在后台线程跑）。**不要**在这里改内存列表 / 存索引。 */
+    private fun saveTakeFile(req: SynthRequest, fmt: Fmt, audio: ByteArray): Take {
         // 扩展名/格式按"真实字节"来（有的厂商返回 mp3，别叫成 .wav）
         val isWav = audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()
         // 记录格式：WAV 按 WAV 档位 key；本来就是 mp3 档位的保留 mp3_256/mp3_128（否则回填会丢档位）
@@ -1856,13 +1864,24 @@ class MainActivity : AppCompatActivity() {
             durationMs = probeDurationMs(file),
             createdAt = System.currentTimeMillis()
         )
+        return take
+    }
+
+    /** **主线程**：新记录插到列表头 + 裁到 100 条 + 存索引（与 UI 同线程，避免跨线程改同一份列表） */
+    private fun addTakeAndPersist(take: Take) {
         takes.add(0, take)
+        diagLastTakeId = take.id
         while (takes.size > 100) {
             val old = takes.removeAt(takes.size - 1)
             store.deleteFile(old)
         }
         store.saveTakes(takes)
-        return take
+    }
+
+    companion object {
+        /** 诊断用（只读事实）：主页面当前的角色筛选 / 最近一次落库的记录 id */
+        @Volatile var diagFilterVoiceId: String? = null
+        @Volatile var diagLastTakeId: String? = null
     }
 
     private fun onTakeReady(take: Take) {
@@ -2080,6 +2099,7 @@ class MainActivity : AppCompatActivity() {
         mark("记录卡：首屏 $first 张（快）")
         if (first < historyShown) {
             llHistory.post {
+                if (llHistory.childCount != first) return@post   // 期间又重建过 → 放弃这次补齐
                 appendHistoryRange(list, first, historyShown)
                 if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
                 Skin.apply(llHistory, Skin.colors(this))
@@ -2715,6 +2735,7 @@ class MainActivity : AppCompatActivity() {
             fx(tv)
             tv.setOnClickListener {
                 filterVoiceId = id
+                diagFilterVoiceId = id
                 renderHistory()
                 pop?.dismiss()
             }
