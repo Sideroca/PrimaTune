@@ -442,4 +442,8 @@
     <string name="alarm_check_snapshot_done">클립보드에 복사했고 alarm/probe.txt 에도 저장했습니다</string>
     <string name="alarm_check_snapshot_note">읽기 전용 사실: 알림/채널/볼륨/방해 금지/정확한 알람/시스템에 알람이 남아 있는지/캐시 지문/최근 로그.</string>
     <string name="alarm_channel_quiet">알람 준비(무음)</string>
+    <string name="alarm_check_job">60초 후 테스트 작업 등록(JobScheduler)</string>
+    <string name="alarm_check_job_ok">등록했습니다. 앱을 최근 목록에서 밀어 지운 뒤 1분 후 다시 스냅숏을 복사하세요.</string>
+    <string name="alarm_check_job_fail">등록 실패(이 자체가 사실)</string>
+    <string name="alarm_check_job_note">목적: 앱을 지운 뒤에도 시스템이 깨워 주는지 확인. status.txt 에 줄이 있으면 가능.</string>
 </resources>

@@ -442,4 +442,8 @@
     <string name="alarm_check_snapshot_done">已复制到剪贴板，也存到了 alarm/probe.txt</string>
     <string name="alarm_check_snapshot_note">只读事实：通知/频道/音量/勿扰/精确闹钟/「系统里还有没有这条闹钟」/缓存指纹/最近日志。到点不响时，把这份发我。</string>
     <string name="alarm_channel_quiet">闹钟准备（静默）</string>
+    <string name="alarm_check_job">排一个 60 秒后的测试作业（JobScheduler）</string>
+    <string name="alarm_check_job_ok">已排。**现在把玲珑调音从最近任务里划掉**，等一分钟再点「复制诊断快照」看有没有那一行</string>
+    <string name="alarm_check_job_fail">登记失败（这本身就是一条事实：系统不给排队）</string>
+    <string name="alarm_check_job_note">目的：确认「划掉 App 后，系统还会不会叫我们起来干活」。看到 status.txt 里有「作业跑到了 ✅」= 能；没有 = 这台 ROM 连作业也拦（那就别改走这条路）。</string>
 </resources>

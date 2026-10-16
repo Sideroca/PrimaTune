@@ -2633,6 +2633,16 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
         box.addView(note(getString(R.string.alarm_check_snapshot_note)))
 
+        // ⑤ 探针作业（用户原则：先确认"ROM 给不给"，再开发）
+        row(getString(R.string.alarm_check_job), "") {
+            runCatching {
+                val ok = ProbeJobService.schedule(this, 60_000)
+                toast(getString(if (ok) R.string.alarm_check_job_ok else R.string.alarm_check_job_fail))
+                if (ok) AlarmService.logStatus(this, "探针：已登记 60 秒后的测试作业（请把 App 划掉，等着看 status.txt）")
+            }
+        }
+        box.addView(note(getString(R.string.alarm_check_job_note)))
+
         // ③ 底部：一键去应用详情（自启动 / 省电策略 都在这页）
         val btn = TextView(this).apply {
             text = getString(R.string.alarm_check_open_appinfo)

@@ -247,6 +247,8 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- 生命周期
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        tStart = android.os.SystemClock.elapsedRealtime()
+        mark("onCreate 开始")
         if (!Store(this).langChosen) {                       // 首次安装：先选语言
             startActivity(Intent(this, WelcomeActivity::class.java))
             finish()
@@ -254,6 +256,7 @@ class MainActivity : AppCompatActivity() {
         }
         Loc.apply(this)          // 界面语言（per-app locale）
         setContentView(R.layout.activity_main)
+        mark("setContentView 之后（窗口已铺）")
         // 卡片顶距只由卡片自己的 paddingTop 决定（把"卡片里第一个元素"的上边距清零，避免两者叠加）
         LayoutFix.flattenCardFirstTop(window.decorView, dp(8))
         store = Store(this)
@@ -261,15 +264,19 @@ class MainActivity : AppCompatActivity() {
         customVoices.addAll(store.loadCustomVoices())
         hiddenVoices.addAll(store.hiddenVoices)
         bindViews()
+        mark("bindViews 之后")
         setupVoicePicker()
         setupSliders()
         setupActions()
+        mark("setup* 之后")
 
         takes.addAll(store.loadTakes())
         renderHistory()
+        mark("读记录 + 建首屏记录卡 之后")
         migrateDurationsAsync()
         // 闹钟补排 / 预生成**挪到首帧之后**跑（用户 2026-10-15：冷启动白屏 3s+）
         window.decorView.post {
+            mark("首帧之后（decorView.post）")
             runCatching { AlarmScheduler.apply(this) }   // 已保存的闹钟：启动时补排（幂等）
             runCatching {                                // 闹钟：还没预生成好 → 补跑（前台，不受后台限制）
                 val ac = AlarmCfg.from(store.alarmJson)
@@ -302,7 +309,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        mark("onResume 开始")
         applyLook()
+        mark("applyLook 之后（整树换肤 + 壁纸）")
         // 用户 2026-10-10：闹钟正响时打开 App → **立刻停止响铃**。
         // （以前 App 里没有任何地方能停，划掉最近任务也停不掉，只能干等——体验最差的那个 bug）
         runCatching { AlarmService.stopIfRinging(this) }
@@ -378,6 +387,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** v0.3：主题 + 壁纸统一入口（设置页改完回来即生效） */
+    // ── 启动耗时打点（2026-10-17 探针）：只记事实，不改逻辑。
+    //    产物：filesDir/startup.txt（保留最近 ~8KB），点「诊断快照」时也会一起带出来。
+    private var tStart = 0L
+    private fun mark(label: String) {
+        if (tStart == 0L) return
+        runCatching {
+            val f = java.io.File(filesDir, "startup.txt")
+            if (f.length() > 8000) f.delete()
+            f.appendText(
+                java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date()) +
+                    String.format(java.util.Locale.US, "  +%5d ms  %s%n",
+                        android.os.SystemClock.elapsedRealtime() - tStart, label)
+            )
+        }
+    }
+
     private fun applyLook() {
         val c = Skin.colors(this)
         Skin.applyWindow(this, c)

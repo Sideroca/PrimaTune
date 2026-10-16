@@ -442,4 +442,8 @@
     <string name="alarm_check_snapshot_done">クリップボードにコピーし、alarm/probe.txt にも保存しました</string>
     <string name="alarm_check_snapshot_note">事実のみ：通知／チャンネル／音量／マナーモード／正確なアラーム／システムにアラームが残っているか／キャッシュ指紋／直近ログ。</string>
     <string name="alarm_channel_quiet">アラーム準備（サイレント）</string>
+    <string name="alarm_check_job">60 秒後のテストジョブを登録（JobScheduler）</string>
+    <string name="alarm_check_job_ok">登録しました。アプリを履歴から消して 1 分後にもう一度スナップショットを取ってください。</string>
+    <string name="alarm_check_job_fail">登録できませんでした（これ自体が事実）</string>
+    <string name="alarm_check_job_note">目的：アプリを消した後もシステムが起動してくれるか confirm する。status.txt に行があれば「可能」。</string>
 </resources>

@@ -88,7 +88,34 @@ object AlarmProbe {
             line("可播 wav 段数", fs.size)
         }
 
-        // ⑦ 最近日志（status.txt 尾部）
+        // ⑦ 记录 / 收藏（用户 2026-10-17 报"收藏 15 条，设置页只显示五六条"→ 先用事实分清是
+        //    "被筛选藏了" 还是 "记录本身丢了"）
+        runCatching {
+            val all = Store(ctx).loadTakes()
+            val favs = Store(ctx).favTakes
+            val hit = all.count { it.id in favs }
+            line("记录总数", all.size)
+            line("收藏 id 总数", favs.size)
+            line("收藏里能在记录中找到的", "$hit 条" + if (hit < favs.size) " ← **差 ${favs.size - hit} 条**" else "")
+            line("记录里有无重复 id", all.size != all.map { it.id }.toSet().size)
+            if (hit < favs.size) {
+                val missing = favs.filter { f -> all.none { it.id == f } }
+                sb.append("    其中前 5 个找不到的收藏 id：").append(missing.take(5).joinToString("、")).append('\n')
+            }
+        }
+
+        // ⑧ 启动耗时（startup.txt 尾部）——用户 2026-10-17：打开 App 还是有点慢
+        runCatching {
+            val f = java.io.File(ctx.filesDir, "startup.txt")
+            if (f.exists()) {
+                sb.append("---- startup.txt 最近 12 行 ----\n")
+                f.readLines().takeLast(12).forEach { sb.append(it).append('\n') }
+            } else {
+                sb.append("（还没有 startup.txt —— 说明这一版 App 还没启动过）\n")
+            }
+        }
+
+        // ⑨ 最近日志（status.txt 尾部）
         runCatching {
             val f = File(Store(ctx).alarmDir, "status.txt")
             if (f.exists()) {

@@ -117,6 +117,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaPlayback" />
 
+        <!-- 探针作业：只回答"划掉 App 后系统还会不会叫我们起来"（不参与任何业务） -->
+        <service
+            android:name=".ProbeJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <receiver
             android:name=".AlarmReceiver"
             android:exported="false" />
