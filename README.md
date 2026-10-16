@@ -356,6 +356,11 @@
 
 </details>
 
+**v1.9.1**（2026-10-17）——**取消记录条数上限**（用户定调：*"不许设置任何上限，用户磁盘爆了，那是用户的事情"*）
+- 移除 `addTakeAndPersist()` 里的 `while (takes.size > 100) { removeAt(last); deleteFile(old) }`。
+  以前**每生成一条、就静默删掉最旧一条（连音频文件一起）**；现在只有用户自己点 ✕ 或「清空」才会删。
+- （另外两处上限与记录无关，保留：配色卡"显示全部"分页 20 行、厂商 Base URL 历史 10 条。）
+
 **v1.9.0**（2026-10-17）——修「新生成的记录不出现在本地记录第 1 条」
 - 根因（代码事实）：`saveTake` 跑在**合成回调线程**里，却在那里 `takes.add(0,…)` + `store.saveTakes(takes)`；主线程同时在 `reloadFromStore()`（clear+addAll）/`renderHistory()` 里动同一份列表 → 新记录可能被清掉或看不见。
 - 改法：`saveTakeFile()` **只写文件**（可在后台线程）；新增 `addTakeAndPersist()` 在**主线程**做「插列表头 + 裁 100 条 + 存索引」。

@@ -1871,10 +1871,9 @@ class MainActivity : AppCompatActivity() {
     private fun addTakeAndPersist(take: Take) {
         takes.add(0, take)
         diagLastTakeId = take.id
-        while (takes.size > 100) {
-            val old = takes.removeAt(takes.size - 1)
-            store.deleteFile(old)
-        }
+        // 2026-10-17 用户明确定调：**不许设置任何上限**——"用户磁盘爆了，那是用户的事情"。
+        // （以前这里 while (takes.size > 100) 会**自动删最旧一条并删音频文件**；已移除。
+        //   现在只有用户自己点 ✕ 或「清空」才会删。）
         store.saveTakes(takes)
     }
 
