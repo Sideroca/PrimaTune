@@ -125,9 +125,9 @@ class MainActivity : AppCompatActivity() {
     private val REQ_PICK_AUDIO = 1001
     private val MAX_SAMPLE_BYTES = 15L * 1024 * 1024
     /** 本地记录首屏最多渲染多少条（其余点「显示全部」再看）——直接决定冷启动要建多少 View */
-    // 2026-10-17 启动提速：25 -> 8（实测「读记录+建首屏记录卡」那一步占 330~500ms；
-    // 「显示更多」照旧每次 +100 条，功能不变，代价只是「快速下滑时要多按一次/多等一下」）
-    private val HISTORY_PREVIEW = 8
+    // 2026-10-17：曾试过 25 → 8（省 ~200ms），用户不接受"首屏太少" → **恢复 25**，
+    // 改为在"建卡本身"上提速（见 Skin.matchByConstantState 的建表缓存）。
+    private val HISTORY_PREVIEW = 25
     /** 每次「显示更多」**再**追加多少条（渐进加载，避免一次建上千个 View） */
     private val HISTORY_PAGE = 100
     private var createDlg: AlertDialog? = null
@@ -2069,8 +2069,10 @@ class MainActivity : AppCompatActivity() {
         // 记录成百上千条时，避免一次建出上千个 View 造成卡顿
         historyShown = minOf(maxOf(historyShown, HISTORY_PREVIEW), list.size)
         appendHistoryRange(list, 0, historyShown)
+        mark("记录卡：${historyShown} 张视图建完")
         if (list.size > historyShown) llHistory.addView(buildHistoryMoreRow(list))
         Skin.apply(llHistory, Skin.colors(this))
+        mark("记录卡：换肤完成")
         // 重建后把滚动位置放回去（post：等新布局完成再滚，ScrollView 自己会夹到合法范围）
         if (keepY > 0) runCatching { svRoot.post { svRoot.scrollTo(0, keepY) } }
     }
@@ -2121,6 +2123,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildRow(take: Take): View {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.VERTICAL
+        val rowColors = Skin.colors(this)          // 每行只取一次（原来一行要取 3~4 次）
         row.background = ContextCompat.getDrawable(this, R.drawable.bg_row)
         Skin.setRole(row, "row")
         // 上/右不再留内边距 → ✕ 的判定方块才能真正贴住卡片那两条边
@@ -2146,7 +2149,7 @@ class MainActivity : AppCompatActivity() {
         val x = TextView(this)
         x.text = "✕"
         x.textSize = 9f                             // 字形面积再 −10%
-        x.setTextColor(Skin.Colors.mix(cDim, Skin.colors(this).bg, 0.15f))   // 比次文字再浅 15%
+        x.setTextColor(Skin.Colors.mix(cDim, rowColors.bg, 0.15f))   // 比次文字再浅 15%
         x.gravity = android.view.Gravity.TOP or android.view.Gravity.END
         val xInset = (3.5f * resources.displayMetrics.density).toInt()   // 字形内距 3.5dp
         x.setPadding(0, xInset, xInset, 0)
@@ -2288,7 +2291,7 @@ class MainActivity : AppCompatActivity() {
 
         // 播放进度：一条 2dp 细线（播放时才出现）
         val prog = View(this)
-        prog.background = Skin.shapeDp(this, Skin.colors(this).acc, null, 0f)   // 圆角 0 → 不撞 Skin 的角色
+        prog.background = Skin.shapeDp(this, rowColors.acc, null, 0f)   // 圆角 0 → 不撞 Skin 的角色
         prog.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(2)
         ).apply { topMargin = dp(8) }

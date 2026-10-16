@@ -255,14 +255,27 @@ object Skin {
         }
     }
 
-    /** 备用识别：与同资源同主题新加载的 drawable 比对 ConstantState */
+    /**
+     * 备用识别：与同资源新加载的 drawable 比对 ConstantState。
+     *
+     * ⚠️ 2026-10-17 提速：原来是**每次调用都现加载 6 个 drawable** 再逐个比 ——
+     * 记录页 25 张卡、每卡十几个视图，一次换肤就是上百次 XML inflate，白吃一两百毫秒。
+     * 现在**每个 Context 只建一次**「ConstantState → 资源 id」表，之后纯查表。
+     */
+    private val bgStateCache =
+        java.util.WeakHashMap<Context, HashMap<android.graphics.drawable.Drawable.ConstantState, Int>>()
+
     private fun matchByConstantState(v: View, gd: GradientDrawable): Int {
         val cs = gd.constantState ?: return 0
-        for (id in BG_RES) {
-            val ref = androidx.core.content.ContextCompat.getDrawable(v.context, id) ?: continue
-            if (ref.constantState == cs) return id
+        val map = bgStateCache.getOrPut(v.context) {
+            val m = HashMap<android.graphics.drawable.Drawable.ConstantState, Int>()
+            for (id in BG_RES) {
+                androidx.core.content.ContextCompat.getDrawable(v.context, id)
+                    ?.constantState?.let { m[it] = id }
+            }
+            m
         }
-        return 0
+        return map[cs] ?: 0
     }
 
     private fun near(a: Float, b: Float): Boolean = a > 0f && abs(a - b) <= 2.5f
