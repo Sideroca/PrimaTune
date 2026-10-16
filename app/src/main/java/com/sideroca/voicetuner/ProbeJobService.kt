@@ -35,7 +35,12 @@ class ProbeJobService : JobService() {
         fun schedule(ctx: Context, delayMs: Long): Boolean = try {
             val js = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             val b = JobInfo.Builder(JOB_ID, ComponentName(ctx, ProbeJobService::class.java))
-                .setOverrideDeadline(delayMs)          // "最迟 X 毫秒后必须跑"（JobScheduler 的准确说法）
+                // ⚠️ 2026-10-17 第一次探针**白做了**：只写 setOverrideDeadline 时，系统会**立刻**跑
+                //（那是"最迟"，不是"至少"）→ 结果是在 App 还在前台时就跑了，什么也没证明。
+                // 正确姿势：setMinimumLatency（不早于）+ 3 倍 deadline（最迟）——
+                // 这样"划掉 App 之后才出现那行"才算真凭据。
+                .setMinimumLatency(delayMs)                // 不早于 X 毫秒
+                .setOverrideDeadline(delayMs * 3)          // 最迟 3X 毫秒
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_NONE)
             if (Build.VERSION.SDK_INT >= 26) b.setRequiresBatteryNotLow(false)
             js.schedule(b.build()) == JobScheduler.RESULT_SUCCESS

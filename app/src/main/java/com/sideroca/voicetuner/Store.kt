@@ -474,6 +474,74 @@ class Store(context: Context) {
 
     private val takesLock = Any()
 
+    /** 可恢复的条数（= .bak 里多的 + 音频孤儿）；用于在记录页提示 */
+    fun countRecoverable(): Int = runCatching {
+        val have = loadTakes().map { it.id }.toSet()
+        var n = 0
+        bakFile()?.takeIf { it.exists() }?.let { bak ->
+            runCatching {
+                val arr = JSONArray(bak.readText())
+                for (i in 0 until arr.length()) {
+                    val id = arr.getJSONObject(i).optString("id")
+                    if (id.isNotBlank() && id !in have && File(indexFile.parentFile, id + ".wav").exists()) n++
+                    else if (id.isNotBlank() && id !in have && File(indexFile.parentFile, id + ".mp3").exists()) n++
+                }
+            }
+        }
+        n + orphanAudioFiles().size
+    }.getOrDefault(0)
+
+    private fun bakFile() = File(indexFile.parentFile, indexFile.name + ".bak")
+
+    /** 音频文件在、索引里没有的那些文件（排除 index/status 之类） */
+    private fun orphanAudioFiles(): List<File> {
+        val have = loadTakes().map { it.id }.toSet()
+        val exts = setOf("wav", "mp3", "m4a", "opus", "ogg")
+        return indexFile.parentFile?.listFiles()?.filter { f ->
+            f.isFile && f.extension.lowercase() in exts && f.nameWithoutExtension !in have
+        } ?: emptyList()
+    }
+
+    /**
+     * **恢复丢失的记录**（用户 2026-10-17：收藏 15 条只显示 6 条）。
+     *  ① 先吃 `index.json.bak`（元数据完整：原文/音色/时长都在）
+     *  ② 再收"音频在、索引里没有"的孤儿（元数据残缺，用文件名 + mtime 尽力补）
+     *  **只增不删**；返回补回来的条数。
+     */
+    fun recoverTakes(): Int = synchronized(takesLock) {
+        val cur = loadTakes()
+        val have = cur.map { it.id }.toMutableSet()
+        var added = 0
+        runCatching {
+            val bak = bakFile()
+            if (bak.exists()) {
+                val arr = JSONArray(bak.readText())
+                for (i in 0 until arr.length()) {
+                    val t = Take.fromJson(arr.getJSONObject(i))
+                    if (t.id.isNotBlank() && t.id !in have && fileOf(t).exists()) {
+                        cur.add(t); have.add(t.id); added++
+                    }
+                }
+            }
+            orphanAudioFiles().forEach { f ->
+                val ext = f.extension.lowercase()
+                cur.add(
+                    Take(
+                        id = f.nameWithoutExtension, fileName = f.name,
+                        voiceName = "（恢复）", voiceId = "",
+                        text = "（原文缺失·从音频文件恢复）", instruction = "",
+                        rate = 1.0, pitch = 1.0, volume = 50, seed = 0,
+                        format = if (ext == "wav") "wav24" else "mp3",
+                        model = "", durationMs = 0, createdAt = f.lastModified()
+                    )
+                )
+                have.add(f.nameWithoutExtension); added++
+            }
+            if (added > 0) { cur.sortByDescending { it.createdAt }; saveTakes(cur) }
+        }
+        added
+    }
+
     fun saveTakes(takes: List<Take>) {
         try {
             val arr = JSONArray()

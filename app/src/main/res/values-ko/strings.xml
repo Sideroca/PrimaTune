@@ -446,4 +446,9 @@
     <string name="alarm_check_job_ok">등록했습니다. 앱을 최근 목록에서 밀어 지운 뒤 1분 후 다시 스냅숏을 복사하세요.</string>
     <string name="alarm_check_job_fail">등록 실패(이 자체가 사실)</string>
     <string name="alarm_check_job_note">목적: 앱을 지운 뒤에도 시스템이 깨워 주는지 확인. status.txt 에 줄이 있으면 가능.</string>
+    <string name="rec_recover">기록에 없는 오디오 %1$d개 → 눌러서 복구(추가만)</string>
+    <string name="rec_recover_title">잃어버린 기록 복구</string>
+    <string name="rec_recover_msg">오디오 파일 %1$d개가 색인에 없습니다. 복구할까요? 추가만 하며 기존 기록은 건드리지 않습니다.</string>
+    <string name="rec_recover_go">복구</string>
+    <string name="rec_recover_ok">%1$d개 복구했습니다</string>
 </resources>

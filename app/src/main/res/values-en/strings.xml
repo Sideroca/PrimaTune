@@ -446,4 +446,9 @@
     <string name="alarm_check_job_ok">Scheduled. Now swipe Prima Tune away from recents, wait a minute, then copy the snapshot again.</string>
     <string name="alarm_check_job_fail">Could not schedule (that itself is a fact)</string>
     <string name="alarm_check_job_note">Goal: find out whether the system still wakes us up after the app is swiped away. "作业跑到了" in status.txt = yes.</string>
+    <string name="rec_recover">%1$d audio file(s) not in records → tap to recover (add-only)</string>
+    <string name="rec_recover_title">Recover missing records</string>
+    <string name="rec_recover_msg">%1$d audio file(s) exist but are missing from the index. Recover them? Add-only; existing records are untouched.</string>
+    <string name="rec_recover_go">Recover</string>
+    <string name="rec_recover_ok">Recovered %1$d</string>
 </resources>

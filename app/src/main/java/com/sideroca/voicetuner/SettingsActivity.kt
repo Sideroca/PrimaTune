@@ -783,7 +783,36 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun buildRecords() {
         buildRecTop()
+        showRecoverRowIfAny()
         renderRecList()
+    }
+
+    /** 有"音频在、记录里没有"的 → 给一个**只补不删**的恢复入口（用户 2026-10-17 丢过 9 条） */
+    private fun showRecoverRowIfAny() {
+        val n = runCatching { store.countRecoverable() }.getOrDefault(0)
+        if (n <= 0) return
+        val c = Skin.colors(this)
+        val tv = TextView(this)
+        tv.text = getString(R.string.rec_recover, n)
+        tv.textSize = 13f
+        tv.setTextColor(c.acc)
+        tv.setPadding(dp(2f), dp(8f), dp(2f), dp(8f))
+        tv.isClickable = true; tv.isFocusable = true
+        fx(tv)
+        tv.setOnClickListener {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.rec_recover_title))
+                .setMessage(getString(R.string.rec_recover_msg, n))
+                .setPositiveButton(getString(R.string.rec_recover_go)) { _, _ ->
+                    val got = store.recoverTakes()
+                    toast(getString(R.string.rec_recover_ok, got))
+                    buildRecords()
+                }
+                .setNegativeButton(getString(R.string.common_cancel), null)
+                .create()
+                .also { d -> d.setOnShowListener { skinDialog(d) }; d.show() }
+        }
+        llRecTop.addView(tv)
     }
 
     private fun recVoiceName(id: String): String =

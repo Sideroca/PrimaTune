@@ -125,7 +125,9 @@ class MainActivity : AppCompatActivity() {
     private val REQ_PICK_AUDIO = 1001
     private val MAX_SAMPLE_BYTES = 15L * 1024 * 1024
     /** 本地记录首屏最多渲染多少条（其余点「显示全部」再看）——直接决定冷启动要建多少 View */
-    private val HISTORY_PREVIEW = 25
+    // 2026-10-17 启动提速：25 -> 8（实测「读记录+建首屏记录卡」那一步占 330~500ms；
+    // 「显示更多」照旧每次 +100 条，功能不变，代价只是「快速下滑时要多按一次/多等一下」）
+    private val HISTORY_PREVIEW = 8
     /** 每次「显示更多」**再**追加多少条（渐进加载，避免一次建上千个 View） */
     private val HISTORY_PAGE = 100
     private var createDlg: AlertDialog? = null

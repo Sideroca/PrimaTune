@@ -446,4 +446,9 @@
     <string name="alarm_check_job_ok">登録しました。アプリを履歴から消して 1 分後にもう一度スナップショットを取ってください。</string>
     <string name="alarm_check_job_fail">登録できませんでした（これ自体が事実）</string>
     <string name="alarm_check_job_note">目的：アプリを消した後もシステムが起動してくれるか confirm する。status.txt に行があれば「可能」。</string>
+    <string name="rec_recover">記録に無い音声が %1$d 件 → タップで復元（追加のみ）</string>
+    <string name="rec_recover_title">失われた記録の復元</string>
+    <string name="rec_recover_msg">音声ファイルが %1$d 件ありますが索引にありません。復元しますか？（追加のみ・既存は変更しません）</string>
+    <string name="rec_recover_go">復元</string>
+    <string name="rec_recover_ok">%1$d 件復元しました</string>
 </resources>
