@@ -3311,28 +3311,34 @@ class MainActivity : AppCompatActivity() {
 
     /** 修正旧记录里离谱的时长：重算 + 修头（一次性）。后台线程跑，避免启动时主线程做大量 I/O */
     private fun migrateDurationsAsync() {
+        // ⚠️ 2026-10-17 重写（用户报"收藏 15 条只显示五六条"）：
+        //  旧实现＝「拿 onCreate 的内存快照 → 后台线程晚点再整体 saveTakes」——
+        //  这期间**新生成的记录会被旧快照覆盖掉**（索引里消失，音频还在），而且只在"某条时长对不上"时触发
+        //  → 症状正是"时有时无"。现在：① 以**磁盘**为准；② 只改**要改的那几条**；③ 只做一次。
+        val stamp = java.io.File(filesDir, "durations_fixed.flag")
+        if (stamp.exists()) return
         Thread {
-            val work = takes.toMutableList()
-            var fixed = false
-            for (i in work.indices) {
-                val t = work[i]
-                if (!t.format.startsWith("wav")) continue
-                val f = store.fileOf(t)
-                if (!f.exists()) continue
-                fixWavHeader(f)
-                val d = probeDurationMs(f)
-                if (d > 0 && d != t.durationMs) {
-                    work[i] = t.copy(durationMs = d)
-                    fixed = true
+            runCatching {
+                val fixed = HashMap<String, Take>()
+                for (t in store.loadTakes()) {
+                    if (!t.format.startsWith("wav")) continue
+                    val f = store.fileOf(t)
+                    if (!f.exists()) continue
+                    fixWavHeader(f)
+                    val d = probeDurationMs(f)
+                    if (d > 0 && d != t.durationMs) fixed[t.id] = t.copy(durationMs = d)
                 }
-            }
-            if (fixed) {
-                store.saveTakes(work)
-                ui {
-                    takes.clear()
-                    takes.addAll(work)
-                    renderHistory()
+                if (fixed.isNotEmpty()) {
+                    store.patchTakes { list ->
+                        for (i in list.indices) fixed[list[i].id]?.let { list[i] = it }
+                    }
+                    ui {
+                        // 只更新对应条目，**不整体替换**（否则又会抹掉期间新增的记录）
+                        for (i in takes.indices) fixed[takes[i].id]?.let { takes[i] = it }
+                        renderHistory()
+                    }
                 }
+                stamp.writeText("ok")
             }
         }.start()
     }

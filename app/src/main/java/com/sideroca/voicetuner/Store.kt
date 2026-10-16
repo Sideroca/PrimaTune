@@ -457,6 +457,23 @@ class Store(context: Context) {
         return list
     }
 
+    /**
+     * **读-改-写**：在**磁盘上的当前列表**上做改动再存回。
+     *
+     * ⚠️ 2026-10-17：不要拿"很久以前的内存快照"整体覆盖（`saveTakes(旧快照)`）——
+     * 那会把这期间**新增的记录抹掉**（用户报"收藏 15 条只显示五六条"、且时有时无，
+     * 根因就是后台的时长迁移线程用 onCreate 的快照覆盖了索引）。
+     */
+    fun patchTakes(change: (MutableList<Take>) -> Unit) {
+        synchronized(takesLock) {
+            val list = loadTakes()
+            change(list)
+            saveTakes(list)
+        }
+    }
+
+    private val takesLock = Any()
+
     fun saveTakes(takes: List<Take>) {
         try {
             val arr = JSONArray()
