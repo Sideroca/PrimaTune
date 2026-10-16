@@ -876,10 +876,9 @@ class SettingsActivity : AppCompatActivity() {
         ).apply { rightMargin = dp(8f) })
         // 2026-10-17 用户："记录页不支持同时选音色 + 收藏" → 收藏改成**开关**，且**不动**音色筛选；
         // 数字显示"现存 / 总数"（收藏了但记录已被抹掉的那些，不该再算进列表里）
+        // 2026-10-17 用户：**不要显示缺失了几条**（那个 6/15 看着烦）→ 只显示"列表里能找到的条数"
         val favAlive = favs.count { id -> takesAll.any { it.id == id } }
-        val favLabel = if (favAlive == favs.size) getString(R.string.rec_fav, favs.size)
-                       else getString(R.string.rec_fav_partial, favAlive, favs.size)
-        addChip(r1, favLabel, recOnlyFav) {
+        addChip(r1, getString(R.string.rec_fav, favAlive), recOnlyFav) {
             recOnlyFav = !recOnlyFav
             buildRecords()
         }
@@ -934,6 +933,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /** 列表：按 收藏 / 角色 / 搜索词（关键词·角色·日期）过滤后渲染 */
+    /** 记录页分页：首屏 / 每次追加（用户 2026-10-17："进记录页明显卡顿" → 一次性建上百张卡是原因） */
+    private val REC_FIRST = 20
+    private val REC_STEP = 20
+    private var recShown = REC_FIRST
+    private var recFilterSig = ""
+
     private fun renderRecList() {
         llRecords.removeAllViews()
         val c = Skin.colors(this)
@@ -969,7 +974,11 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-        takes.forEachIndexed { idx, t ->
+        // 筛选条件变了 → 回到首屏（否则"看了 200 条又换筛选"会继续建 200 张）
+        val sig = "$recOnlyFav|$recVoiceId|$q"
+        if (sig != recFilterSig) { recFilterSig = sig; recShown = REC_FIRST }
+        val shown = takes.take(recShown)
+        shown.forEachIndexed { idx, t ->
             if (idx > 0) {
                 val dv = View(this)
                 dv.setBackgroundColor((c.line and 0x00FFFFFF) or (0x66 shl 24))
@@ -1168,6 +1177,22 @@ class SettingsActivity : AppCompatActivity() {
             box.setOnClickListener { toggleAll() }
 
             llRecords.addView(box)
+        }
+        // 还有更多 → 给一行「显示更多」（与首页同一套手感）
+        if (takes.size > shown.size) {
+            val more = TextView(this)
+            more.text = getString(R.string.rec_more, takes.size - shown.size)
+            more.textSize = 13.5f
+            more.setTextColor(c.acc)
+            more.gravity = Gravity.CENTER
+            more.setPadding(dp(2f), dp(14f), dp(2f), dp(14f))
+            more.isClickable = true; more.isFocusable = true
+            fx(more)
+            more.setOnClickListener {
+                recShown += REC_STEP
+                renderRecList()
+            }
+            llRecords.addView(more)
         }
     }
 

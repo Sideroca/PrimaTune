@@ -452,4 +452,5 @@
     <string name="rec_recover_go">Recover</string>
     <string name="rec_recover_ok">Recovered %1$d</string>
     <string name="rec_fav_partial">★ Favorites %1$d/%2$d</string>
+    <string name="rec_more">Show more (%1$d left)</string>
 </resources>

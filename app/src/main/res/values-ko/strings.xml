@@ -452,4 +452,5 @@
     <string name="rec_recover_go">복구</string>
     <string name="rec_recover_ok">%1$d개 복구했습니다</string>
     <string name="rec_fav_partial">★ 즐겨찾기 %1$d/%2$d</string>
+    <string name="rec_more">더 보기 (%1$d개 남음)</string>
 </resources>

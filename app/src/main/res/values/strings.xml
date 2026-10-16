@@ -452,4 +452,5 @@
     <string name="rec_recover_go">补回</string>
     <string name="rec_recover_ok">已补回 %1$d 条</string>
     <string name="rec_fav_partial">★ 收藏 %1$d/%2$d</string>
+    <string name="rec_more">显示更多（还有 %1$d 条）</string>
 </resources>
