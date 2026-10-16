@@ -44,7 +44,9 @@ class AlarmService : Service() {
 
     companion object {
         const val EXTRA = "alarm_action"
-        private const val CH = "vt_alarm"
+        private const val CH = "vt_alarm"                 // 到点响铃用（HIGH：要弹全屏响铃页）
+        /** 预生成等"幕后"通知用：LOW + 静音 + 不弹（用户 2026-10-16：生成时不该在屏幕前端弹东西） */
+        private const val CH_QUIET = "vt_alarm_quiet"
         private const val NOTI_PREGEN = 7301
         const val NOTI_RING = 7302
 
@@ -136,10 +138,23 @@ class AlarmService : Service() {
 
         fun ensureChannel(ctx: Context) {
             val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+            // 2026-10-16：**清掉遗留频道**。历史上 KeepAliveService 换过 id（vt_keepalive → vt_keepalive2），
+            // 旧的那个还躺在系统里（设置页里就是两条同名「后台任务」）。以前只在 KeepAliveService 启动时删，
+            // 而它可能很久不启动 → 改成**任何服务起来时都删一次**（幂等）。
+            runCatching { nm.deleteNotificationChannel("vt_keepalive") }
             if (nm.getNotificationChannel(CH) == null) {
                 nm.createNotificationChannel(
                     NotificationChannel(CH, ctx.getString(R.string.alarm_channel), NotificationManager.IMPORTANCE_HIGH).apply {
                         setShowBadge(true); enableVibration(true)
+                    }
+                )
+            }
+            if (nm.getNotificationChannel(CH_QUIET) == null) {
+                nm.createNotificationChannel(
+                    NotificationChannel(CH_QUIET, ctx.getString(R.string.alarm_channel_quiet), NotificationManager.IMPORTANCE_LOW).apply {
+                        setShowBadge(false)
+                        enableVibration(false)
+                        setSound(null, null)          // 静音
                     }
                 )
             }
@@ -262,7 +277,7 @@ class AlarmService : Service() {
     }
 
     private fun pregenNoti(title: String, text: String): Notification =
-        NotificationCompat.Builder(this, CH)
+        NotificationCompat.Builder(this, CH_QUIET)     // 幕后通知：静音、不弹
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title).setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).setShowWhen(false).build()
@@ -275,7 +290,7 @@ class AlarmService : Service() {
 
     // ---------------------------------------------------------------- 预生成
     /** 生成到 alarmDir；成功（≥1 段可播）返回 true。失败原因：缺 LLM Key / 没选音色 / LLM 或 TTS 出错。 */
-    private fun generate(): Boolean {
+    private fun generate(live: Boolean = false): Boolean {
         if (generating) { status("pregen 跳过：已有一次生成在进行中（防互相删档）"); return false }
         generating = true
         try {
@@ -297,18 +312,34 @@ class AlarmService : Service() {
                 status("pregen 失败：音色「${cfg.voiceName}」是**百炼**音色，而当前 TTS 厂商是 $pname0($pid0) → 请把闹钟音色改选成 $pname0 的音色")
                 return false
             }
-            val msgs = writeMessages(store, cfg)
+            // 方案 B：**离响铃还 >3 分钟**才允许"30 秒失败后再给 90 秒"；到点现场生成（live）一律不重试
+            val leftMs = if (live) 0L else (AlarmScheduler.nextTrigger(cfg, System.currentTimeMillis()) - System.currentTimeMillis())
+            val msgs = writeMessages(store, cfg, allowLongRetry = !live && leftMs > 3 * 60_000L)
             if (msgs == null) { status("pregen 失败：LLM 没写出合格文案（或超时）"); return false }
             status("LLM 写出 ${msgs.size} 条（字数 ${msgs.map { charCount(it) }}）")
-            var i = 0
-            for (m in msgs) {
-                i++
-                val e = synthToFile(store, cfg, m, File(tmp, String.format("%02d.wav", i)))
-                if (e != null) {
-                    status("pregen 失败：第 $i 条 TTS 失败（厂商=${TtsProviders.byId(cfg.providerId.ifBlank { store.providerId })?.name ?: cfg.providerId}，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）：$e")
-                    return false
-                }
-                status("TTS 第 $i 条已存盘（tmp）")
+            // 2026-10-16 提速：多条**并行**合成（以前串行 → N 条＝N 倍等待）
+            val errs = java.util.Collections.synchronizedList(ArrayList<String>())
+            val done = CountDownLatch(msgs.size)
+            msgs.forEachIndexed { i, m ->
+                Thread {
+                    // try/finally：万一 synthToFile 抛了，也要把闩放掉——否则主线程要白等到 180 秒
+                    try {
+                        // 预生成可慢（跟网络层 120s 对齐）；到点现场生成只给 60s（响铃不能干等）
+                        val e = synthToFile(store, cfg, m, File(tmp, String.format("%02d.wav", i + 1)), if (live) 60 else 120)
+                        if (e != null) errs.add("第 ${i + 1} 条：$e")
+                        else status("TTS 第 ${i + 1} 条已存盘（tmp）")
+                    } catch (t: Throwable) {
+                        errs.add("第 ${i + 1} 条：异常 ${t.javaClass.simpleName}: ${t.message}")
+                    } finally {
+                        done.countDown()
+                    }
+                }.start()
+            }
+            done.await(180, TimeUnit.SECONDS)
+            if (errs.isNotEmpty()) {
+                val who = TtsProviders.byId(cfg.providerId.ifBlank { store.providerId })?.name ?: cfg.providerId
+                status("pregen 失败：TTS 失败（厂商=$who，模型=${cfg.model.ifBlank { store.lastModel }}，音色=${cfg.voiceName}/${cfg.voiceId.take(14)}）→ ${errs.joinToString("；")}")
+                return false
             }
             val made = tmp.listFiles()?.filter { it.isFile && it.length() > 0 }?.sortedBy { it.name } ?: emptyList()
             if (made.isEmpty()) { status("pregen 失败：没有产出可播的语音"); return false }
@@ -326,31 +357,52 @@ class AlarmService : Service() {
         }
     }
 
-    /** 让 LLM 写 N 条（每条 ≥ minChars 字）；不达标**重试一次** */
-    private fun writeMessages(store: Store, cfg: AlarmCfg): List<String>? {
-        repeat(2) { attempt ->
-            val sys = "你是闹钟语音撰稿人。"
-            val user = buildString {
-                append("音色/角色：").append(cfg.voiceName.ifBlank { "未指定" }).append('\n')
-                val role = store.rolePrompt(cfg.voiceId)
-                if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
-                if (cfg.prompt.isNotBlank()) append("要求：").append(cfg.prompt).append('\n')
-                append("请写 ").append(cfg.count).append(" 条**互不相同**的闹钟问候/叮嘱，每条**不少于 ")
-                    .append(cfg.minChars).append(" 字**。")
-                if (attempt > 0) append("（上一次太短了，这次务必满足字数）")
-                append("只输出 JSON 字符串数组，例如 [\"第一条\",\"第二条\"]，不要解释。")
-            }
+    /**
+     * 让 LLM 写 N 条（每条 ≥ minChars 字）。
+     *
+     * ⚠️ 2026-10-16 **提速**（用户："总觉得很慢"；日志里 00:33→00:35 那两分钟就卡在这一步）：
+     *  ① **强制关思考**（`level = "off"`）——几十字的闹钟问候不需要推理；
+     *     **只影响闹钟这一条链路**，用户在别处设的思考档位/温度一概不动；
+     *  ② 送 `max_tokens`（没设或过大 → 400）——免得模型长篇大论；
+     *  ③ **只给一次机会、超时 30 秒**（旧的是"90 秒 × 重试一次" ＝ 最坏 **3 分钟**）；
+     *     字数不达标就**直接用** + 记一行日志，不再重跑（重跑往往还是那个长度）。
+     */
+    private fun writeMessages(store: Store, cfg: AlarmCfg, allowLongRetry: Boolean): List<String>? {
+        val sys = "你是闹钟语音撰稿人。"
+        val user = buildString {
+            append("音色/角色：").append(cfg.voiceName.ifBlank { "未指定" }).append('\n')
+            val role = store.rolePrompt(cfg.voiceId)
+            if (role.isNotBlank()) append("角色提示词：").append(role).append('\n')
+            if (cfg.prompt.isNotBlank()) append("要求：").append(cfg.prompt).append('\n')
+            append("请写 ").append(cfg.count).append(" 条**互不相同**的闹钟问候/叮嘱，每条**不少于 ")
+                .append(cfg.minChars).append(" 字**。")
+            append("只输出 JSON 字符串数组，例如 [\"第一条\",\"第二条\"]，不要解释。")
+        }
+        val maxTok = if (store.llmMaxTokens in 1..400) store.llmMaxTokens else 400
+
+        // 一次尝试：固定"关思考"（几十字的问候不需要推理），等 timeoutSec 秒
+        fun once(timeoutSec: Int): List<String> {
             val latch = CountDownLatch(1)
             var out: String? = null
             LlmClient.ask(
                 store.llmBaseUrl, store.llmKey, store.llmModel, sys, user,
-                store.llmMaxTokens, store.llmTemp / 10.0, store.llmLevel
+                maxTok, store.llmTemp / 10.0, "off"
             ) { res, _ -> out = res; latch.countDown() }
-            latch.await(90, TimeUnit.SECONDS)
-            val list = parseMessages(out, cfg)
-            if (list.isNotEmpty() && list.all { charCount(it) >= cfg.minChars }) return list
+            latch.await(timeoutSec.toLong(), TimeUnit.SECONDS)
+            return parseMessages(out, cfg)
         }
-        return null
+
+        var list = once(30)
+        if (list.isEmpty() && allowLongRetry) {
+            // 方案 B（用户 2026-10-16 选）：**离响铃还早**时才再给一次 90 秒机会——
+            // 服务商侧耗时波动很大（实测 3s / 9s / 70s / 116s），给慢的那次留活路；到点现场生成不重试。
+            status("LLM 30 秒没回 → 离响铃还 >3 分钟，再给一次 90 秒机会")
+            list = once(90)
+        }
+        if (list.isEmpty()) return null
+        if (list.any { charCount(it) < cfg.minChars })
+            status("LLM 文案偏短（${list.map { charCount(it) }}，要求 ≥${cfg.minChars}）→ 直接用，不再重跑")
+        return list
     }
 
     private fun parseMessages(raw: String?, cfg: AlarmCfg): List<String> {
@@ -372,7 +424,7 @@ class AlarmService : Service() {
     }
 
     /** 把一条文本合成为 WAV 落到文件（阻塞等待回调） */
-    private fun synthToFile(store: Store, cfg: AlarmCfg, text: String, out: File): String? {   // null=成功；否则=错误原因
+    private fun synthToFile(store: Store, cfg: AlarmCfg, text: String, out: File, timeoutSec: Int = 120): String? {   // null=成功；否则=错误原因
         val latch = CountDownLatch(1); var ok = false; var err: String? = null
         val req = SynthRequest(
             apiKey = "", workspace = store.workspace, model = cfg.model.ifBlank { store.lastModel }, voice = cfg.voiceId,
@@ -396,8 +448,8 @@ class AlarmService : Service() {
         }
         runCatching { Synth.dispatch(this, store, req, null, "wav", DashScopeClient(), cb, cfg.providerId) }
             .onFailure { err = it.message }
-        latch.await(60, TimeUnit.SECONDS)
-        return if (ok) null else (err ?: "无响应/超时（60 秒）")
+        latch.await(timeoutSec.toLong(), TimeUnit.SECONDS)
+        return if (ok) null else (err ?: "无响应/超时（${timeoutSec} 秒）")
     }
 
     // ---------------------------------------------------------------- 播放
@@ -425,7 +477,7 @@ class AlarmService : Service() {
         if (isManualTest) {
             status("手测：没有可用的闹钟语音 → 不出声，只提示（先点「预生成」）")
             updateRingNoti(getString(R.string.alarm_test_no_voice))
-            if (!generating) Thread { runCatching { generate() } }.start()
+            if (!generating) Thread { runCatching { generate(live = true) } }.start()
             pollForVoice(SystemClock.elapsedRealtime(), silent = true)
             return
         }
@@ -433,7 +485,7 @@ class AlarmService : Service() {
         // 预生成"还在跑。60 秒内一出现就播；压根没人生成 → 自己起一次。
         status("响铃：没有符合当前设置的语音 → **不出声**，现场生成中（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
         updateRingNoti(getString(R.string.alarm_voice_fail))
-        if (!generating) Thread { runCatching { generate() } }.start()
+        if (!generating) Thread { runCatching { generate(live = true) } }.start()
         pollForVoice(SystemClock.elapsedRealtime(), silent = false)
     }
 

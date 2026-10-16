@@ -441,4 +441,5 @@
     <string name="alarm_check_snapshot">診断スナップショットをコピー</string>
     <string name="alarm_check_snapshot_done">クリップボードにコピーし、alarm/probe.txt にも保存しました</string>
     <string name="alarm_check_snapshot_note">事実のみ：通知／チャンネル／音量／マナーモード／正確なアラーム／システムにアラームが残っているか／キャッシュ指紋／直近ログ。</string>
+    <string name="alarm_channel_quiet">アラーム準備（サイレント）</string>
 </resources>

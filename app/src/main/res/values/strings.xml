@@ -441,4 +441,5 @@
     <string name="alarm_check_snapshot">复制诊断快照（发我）</string>
     <string name="alarm_check_snapshot_done">已复制到剪贴板，也存到了 alarm/probe.txt</string>
     <string name="alarm_check_snapshot_note">只读事实：通知/频道/音量/勿扰/精确闹钟/「系统里还有没有这条闹钟」/缓存指纹/最近日志。到点不响时，把这份发我。</string>
+    <string name="alarm_channel_quiet">闹钟准备（静默）</string>
 </resources>

@@ -441,4 +441,5 @@
     <string name="alarm_check_snapshot">Copy diagnostic snapshot (send to me)</string>
     <string name="alarm_check_snapshot_done">Copied to clipboard, also saved to alarm/probe.txt</string>
     <string name="alarm_check_snapshot_note">Read-only facts: notifications/channels/volume/DND/exact alarm/whether the alarm still exists in the system/cache fingerprint/recent log.</string>
+    <string name="alarm_channel_quiet">Alarm preparation (silent)</string>
 </resources>

@@ -55,6 +55,16 @@ object AlarmScheduler {
         setAlarmClock(ctx, RC_RING, "ring", ring)
         // 预生成**总是**排一次：时间 = 响铃前 LEAD_MS；若这个时刻已过（比如刚设一个 5 分钟后的闹钟）
         // → 立刻排（now+5s）。不再有"离得近就不排"那条分支——那等于把失败留给到点。
+        //
+        // ⚠️ 2026-10-16 提速：**刚刚才生成过**（保存 App 时那次，通常几秒~几十秒前）就别再排一次 ——
+        //    日志里"00:33:01 pregen 开始 / 00:33:06 pregen 开始"那种重复跑两遍就是这么来的。
+        //    用最新 wav 的落盘时间判（10 分钟内算"刚生成过"）；不影响"每天重新生成"。
+        val newest = Store(ctx).alarmDir.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".wav") }?.maxOfOrNull { it.lastModified() } ?: 0L
+        if (newest > 0 && now - newest < 10 * 60_000L) {
+            AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)}（${(now - newest) / 1000} 秒前刚生成过 → **不重复排**预生成） 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}")
+            return
+        }
         val preAt = maxOf(ring - LEAD_MS, now + 5_000L)
         setAlarmClock(ctx, RC_PREGEN, "pregen", preAt)
         AlarmService.logStatus(ctx, "调度：响铃=${fmt(ring)} 预生成=${fmt(preAt)} 精确闹钟=${canExact(ctx)} 重复=${cfg.repeat}")
