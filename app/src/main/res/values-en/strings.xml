@@ -230,8 +230,8 @@
     <string name="cat_modern">Modern Classics 18</string>
     <string name="cat_chinese">🏮 Chinese Traditional Colors 46</string>
     <string name="cat_attrs">Wallpaper Attributes</string>
-    <string name="icon_style_default">Purple · Default</string>
-    <string name="icon_style_a">Chip</string>
+    <string name="icon_style_default">Chip · Default</string>
+    <string name="icon_style_purple">Violet</string>
     <string name="icon_style_b">Rose</string>
     <string name="icon_style_c">Mixer</string>
     <string name="toast_backfill_done">Parameters backfilled</string>
@@ -459,4 +459,16 @@
     <string name="rec_recover_ok">Recovered %1$d</string>
     <string name="rec_fav_partial">★ Favorites %1$d/%2$d</string>
     <string name="rec_more">Show more (%1$d left)</string>
+    <string name="backup_title">Backup &amp; Restore</string>
+    <string name="backup_note">Backup includes all local records, audio, custom voices and favorites (API keys excluded). Export a zip before uninstalling; restore it here after reinstalling. Restore only adds, never deletes.</string>
+    <string name="backup_export">Export backup</string>
+    <string name="backup_import">Restore from backup</string>
+    <string name="backup_exporting">Exporting…</string>
+    <string name="backup_importing">Restoring…</string>
+    <string name="backup_export_ok">Exported %1$d records (%2$d audio files)</string>
+    <string name="backup_import_ok">Restored %1$d records, %2$d voices</string>
+    <string name="backup_fail">Backup failed: %1$s</string>
+    <string name="backup_empty">Nothing to back up yet</string>
+    <string name="backup_import_none">No restorable records in this backup (audio may be missing)</string>
+    <string name="backup_zip_name">PrimaTune-backup-%1$s.zip</string>
 </resources>

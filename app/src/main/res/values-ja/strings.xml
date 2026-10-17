@@ -230,8 +230,8 @@
     <string name="cat_modern">モダンクラシック 18</string>
     <string name="cat_chinese">🏮 中国伝統色 46</string>
     <string name="cat_attrs">壁紙属性</string>
-    <string name="icon_style_default">紫・デフォルト</string>
-    <string name="icon_style_a">チップ</string>
+    <string name="icon_style_default">チップ・デフォルト</string>
+    <string name="icon_style_purple">バイオレット</string>
     <string name="icon_style_b">ローズ</string>
     <string name="icon_style_c">ミキサー</string>
     <string name="toast_backfill_done">パラメータを復元しました</string>
@@ -459,4 +459,16 @@
     <string name="rec_recover_ok">%1$d 件復元しました</string>
     <string name="rec_fav_partial">★ お気に入り %1$d/%2$d</string>
     <string name="rec_more">さらに表示（残り %1$d 件）</string>
+    <string name="backup_title">バックアップと復元</string>
+    <string name="backup_note">バックアップには全記録・音声・自作音色・お気に入りが含まれます（API Key は含みません）。アンインストール前に zip を書き出し、再インストール後にここから復元してください。復元は追加のみで、既存データは削除しません。</string>
+    <string name="backup_export">バックアップを書き出す</string>
+    <string name="backup_import">バックアップから復元</string>
+    <string name="backup_exporting">書き出し中…</string>
+    <string name="backup_importing">復元中…</string>
+    <string name="backup_export_ok">%1$d 件の記録（音声 %2$d 件）を書き出しました</string>
+    <string name="backup_import_ok">%1$d 件の記録、%2$d 個の音色を復元しました</string>
+    <string name="backup_fail">バックアップに失敗：%1$s</string>
+    <string name="backup_empty">バックアップできる記録/音色がありません</string>
+    <string name="backup_import_none">このバックアップに復元できる記録がありません（音声が欠けている可能性）</string>
+    <string name="backup_zip_name">PrimaTune-バックアップ-%1$s.zip</string>
 </resources>

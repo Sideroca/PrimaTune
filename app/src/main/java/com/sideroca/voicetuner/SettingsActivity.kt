@@ -140,6 +140,7 @@ class SettingsActivity : AppCompatActivity() {
         llProviders = findViewById(R.id.llProviders)
         llVoices = findViewById(R.id.llVoices)
         llRecords = findViewById(R.id.llRecords)
+        setupBackup()
         btnSaveAll = findViewById(R.id.btnSaveAll)
         cardPalette = findViewById(R.id.cardPalette)
         cardIndicator = findViewById(R.id.cardIndicator)
@@ -715,11 +716,25 @@ class SettingsActivity : AppCompatActivity() {
 
     /** 记录页：试听（用系统 MediaPlayer 直接播本地文件） */
     private var recPlayer: android.media.MediaPlayer? = null
+    /** 设置页试听的 AudioFocus 代号（旧 completion 迟到时避免误停新播放） */
+    private var recFocusToken = 0
+
+    /** 停掉设置页自己的试听（被首页/另一条试听顶掉时也会走这里） */
+    private fun stopRecPlayback() {
+        try { recPlayer?.stop() } catch (e: Exception) { /* ignore */ }
+        try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
+        recPlayer = null
+        if (recFocusToken != 0) {
+            AudioFocus.abandon(this, recFocusToken)
+            recFocusToken = 0
+        }
+    }
 
     private fun playHistory(t: Take) {
         try {
-            recPlayer?.release()
-            AudioFocus.request(this) { }
+            stopRecPlayback()
+            // 统一由 AudioFocus 仲裁：新的播放会先让上一个持有者停下（跨 Activity 防叠音）
+            recFocusToken = AudioFocus.request(this) { stopRecPlayback() }
             val f = store.fileOf(t)
             if (!f.exists()) {
                 Toast.makeText(this, getString(R.string.file_missing), Toast.LENGTH_SHORT).show()
@@ -737,12 +752,105 @@ class SettingsActivity : AppCompatActivity() {
                 start()
                 setOnCompletionListener {
                     it.release()
-                    AudioFocus.abandon(this@SettingsActivity)
+                    if (recPlayer === it) {
+                        recPlayer = null
+                        if (recFocusToken != 0) {
+                            AudioFocus.abandon(this@SettingsActivity, recFocusToken)
+                            recFocusToken = 0
+                        }
+                    }
+                }
+                setOnErrorListener { mp, _, _ ->
+                    if (recPlayer === mp) stopRecPlayback()
+                    true
                 }
             }
         } catch (e: Exception) {
+            stopRecPlayback()
             Toast.makeText(this, getString(R.string.play_fail, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // ---------------------------------------------------------------- 备份 / 恢复
+    private fun setupBackup() {
+        val btnExport = findViewById<TextView>(R.id.btnBackupExport)
+        val btnImport = findViewById<TextView>(R.id.btnBackupImport)
+        listOf(btnExport, btnImport).forEach { fx(it) }
+        btnExport.setOnClickListener { startBackupExport() }
+        btnImport.setOnClickListener { startBackupImport() }
+    }
+
+    private fun startBackupExport() {
+        if (store.loadTakes().isEmpty() && store.loadCustomVoices().isEmpty()) {
+            Toast.makeText(this, getString(R.string.backup_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
+            .format(java.util.Date())
+        val i = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/zip"
+            putExtra(Intent.EXTRA_TITLE, getString(R.string.backup_zip_name, stamp))
+        }
+        startActivityForResult(i, REQ_BACKUP_EXPORT)
+    }
+
+    private fun startBackupImport() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream"))
+        }
+        startActivityForResult(i, REQ_BACKUP_IMPORT)
+    }
+
+    private fun runBackupExport(uri: android.net.Uri) {
+        Toast.makeText(this, getString(R.string.backup_exporting), Toast.LENGTH_SHORT).show()
+        Thread {
+            val r = runCatching { Backup.export(this, store, uri) }
+            runOnUiThread {
+                r.onSuccess {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.backup_export_ok, it.takes, it.audio),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }.onFailure {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.backup_fail, it.message ?: ""),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun runBackupImport(uri: android.net.Uri) {
+        Toast.makeText(this, getString(R.string.backup_importing), Toast.LENGTH_SHORT).show()
+        Thread {
+            val r = runCatching { Backup.import(this, store, uri) }
+            runOnUiThread {
+                r.onSuccess {
+                    if (it.takes == 0 && it.voices == 0) {
+                        Toast.makeText(this, getString(R.string.backup_import_none), Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            getString(R.string.backup_import_ok, it.takes, it.voices),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    buildRecords()
+                }.onFailure {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.backup_fail, it.message ?: ""),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
     }
 
     /** 记录页：是否只看收藏 */
@@ -1845,6 +1953,16 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
 
+        // 备份 / 恢复
+        if (requestCode == REQ_BACKUP_EXPORT) {
+            data?.data?.let { runBackupExport(it) }
+            return
+        }
+        if (requestCode == REQ_BACKUP_IMPORT) {
+            data?.data?.let { runBackupImport(it) }
+            return
+        }
+
         // 记录页「下载」：写进用户选的位置
         if (requestCode == REQ_SAVE2) {
             val uri = data?.data
@@ -1922,14 +2040,28 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     }
 
     // ---------------------------------------------------------------- 快捷图标工坊（仿闪译）
-    /** 内置图标样式（App 自身图标 + 桌面入口都能用） */
+    /** 内置图标样式（App 自身图标 + 桌面入口都能用；default = 芯片） */
     private val iconStyles get() = listOf(
-        "default" to getString(R.string.icon_style_default),
-        "a" to getString(R.string.icon_style_a),          // 原「银环比」→ 旋钮图（用户 2026-10-06）
-        "b" to getString(R.string.icon_style_b),          // 原「白方框」→ 红玫瑰（方形图，取景时点一下即可完整框住）
-        "c" to getString(R.string.icon_style_c)
+        "default" to getString(R.string.icon_style_default),   // 芯片（默认 App 图标）
+        "purple" to getString(R.string.icon_style_purple),     // 原「紫·默认」→ 改名，改成可选样式
+        "b" to getString(R.string.icon_style_b),               // 红玫瑰
+        "c" to getString(R.string.icon_style_c)                // 调音台
+    )
+    private val iconAliases = mapOf(
+        "default" to ".IconStyleDefault",
+        "purple" to ".IconStyleD",
+        "b" to ".IconStyleB",
+        "c" to ".IconStyleC"
     )
     private var curIconStyle = "default"
+
+    /** 旧数据兼容：a = 旧「芯片」键；d = purple 的别名 */
+    private fun normalizeIconKey(k: String?): String = when {
+        k == "a" -> "default"
+        k == "d" -> "purple"
+        k == "purple" || k == "b" || k == "c" -> k
+        else -> "default"
+    }
 
 
 
@@ -1938,7 +2070,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         IconStyles.compose(this, key, size)
 
     private fun setupIconWorkshop() {
-        curIconStyle = store.appIconStyle
+        curIconStyle = normalizeIconKey(store.appIconStyle)
         ivIconPreview.outlineProvider = object : android.view.ViewOutlineProvider() {
             override fun getOutline(v: View, o: android.graphics.Outline) {
                 o.setRoundRect(0, 0, v.width, v.height, 26f * resources.displayMetrics.density)
@@ -1957,27 +2089,39 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     private fun renderIconStyleChips() {
         llIconStyles.removeAllViews()
+        llIconStyles.orientation = LinearLayout.VERTICAL
         val c = Skin.colors(this)
-        for ((key, label) in iconStyles) {
+        var row: LinearLayout? = null
+        for ((index, pair) in iconStyles.withIndex()) {
+            val (key, label) = pair
+            if (index % 2 == 0) {
+                row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                llIconStyles.addView(
+                    row,
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { if (index > 0) topMargin = dp(6f) }
+                )
+            }
             val tv = TextView(this)
             tv.text = label
             tv.textSize = 12.5f
             tv.isSingleLine = true
             tv.maxLines = 1
+            tv.ellipsize = android.text.TextUtils.TruncateAt.END
+            tv.gravity = Gravity.CENTER
             val sel = key == curIconStyle
             tv.isSelected = sel
-            tv.setPadding(dp(13f), dp(7f), dp(13f), dp(7f))
+            tv.setPadding(dp(8f), dp(7f), dp(8f), dp(7f))
             tv.background = Skin.shapeDp(this, if (sel) c.sel else c.card2, if (sel) c.sel else c.line, 96f, 100, 1f)
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true; tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener { applyAppIconStyle(key, tell = true) }
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.rightMargin = dp(8f)
+            val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            if (index % 2 == 0) lp.rightMargin = dp(4f)
             tv.layoutParams = lp
-            llIconStyles.addView(tv)
+            row?.addView(tv)
         }
     }
 
@@ -1989,25 +2133,23 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     /**
      * 切 App 自身图标。
-     * 说明：目前只有「紫·默认」这一张做得够干净，另外三套作为 App 图标效果不好 →
-     * 选它们时**不再切 App 图标**，而是留给「创建桌面入口」当素材（那边可以自己截取）。
+     * 2026-10-17：芯片改为默认；四套样式都真正可切（不再是“只能看素材”）。
+     * 紫色只是其中一套，名字从「紫·默认」改成「紫罗兰」。
      */
-    private fun applyAppIconStyle(key: String, tell: Boolean) {
+    private fun applyAppIconStyle(key0: String, tell: Boolean) {
+        val key = normalizeIconKey(key0)
         curIconStyle = key
-        store.appIconStyle = if (key == "default") key else "default"
-        if (key != "default") {
-            renderIconStyleChips()
-            updateIconPreview()
-            if (tell) toast(getString(R.string.selected_material, iconStyles.firstOrNull { it.first == key }?.second ?: key) +
-                getString(R.string.icon_cut_hint))
-            return
-        }
-        val aliases = mapOf(
-            "default" to ".IconStyleDefault", "a" to ".IconStyleA",
-            "b" to ".IconStyleB", "c" to ".IconStyleC"
-        )
+        store.appIconStyle = key
         val pm = packageManager
-        for ((k, alias) in aliases) {
+        // 旧版遗留的 IconStyleA 与新的 default 是同一张芯片图；统一关掉，避免两个入口同时亮着
+        runCatching {
+            pm.setComponentEnabledSetting(
+                android.content.ComponentName(packageName, packageName + ".IconStyleA"),
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP
+            )
+        }
+        for ((k, alias) in iconAliases) {
             try {
                 pm.setComponentEnabledSetting(
                     android.content.ComponentName(packageName, packageName + alias),
@@ -2025,7 +2167,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             toast(getString(R.string.icon_switched, iconStyles.firstOrNull { it.first == key }?.second ?: key))
             // 关掉旧 alias 会让系统结束当前任务（看起来像"闪退回桌面"）→ 立刻用新别名把 App 拉回前台
             try {
-                val cn = android.content.ComponentName(packageName, packageName + (aliases[key] ?: ".IconStyleDefault"))
+                val cn = android.content.ComponentName(
+                    packageName, packageName + (iconAliases[key] ?: ".IconStyleDefault")
+                )
                 startActivity(
                     Intent().setComponent(cn)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -2240,17 +2384,12 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     override fun onPause() {
         super.onPause()
         // 离开设置页就停掉试听（否则回到主页时可能和新生成的结果"两个声音一起响"）
-        try { recPlayer?.stop() } catch (e: Exception) { /* ignore */ }
-        try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
-        recPlayer = null
-        AudioFocus.abandon(this)
+        stopRecPlayback()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try { recPlayer?.release() } catch (e: Exception) { /* ignore */ }
-        recPlayer = null
-        AudioFocus.abandon(this)
+        stopRecPlayback()
     }
 
     /** 点按水波（+ root 时在该卡片里迸"留痕"星点） */
@@ -2828,5 +2967,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         private const val REQ_CROP_ICON = 2006
         private const val REQ_CROP_MAIN = 2003
         private const val REQ_CROP_PAGE = 2004
+        private const val REQ_BACKUP_EXPORT = 2021
+        private const val REQ_BACKUP_IMPORT = 2022
     }
 }

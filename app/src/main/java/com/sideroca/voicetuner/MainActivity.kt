@@ -142,6 +142,8 @@ class MainActivity : AppCompatActivity() {
 
     private var player: MediaPlayer? = null
     private var playingId: String? = null
+    /** 当前记录播放的 AudioFocus 代号（旧 completion 迟到时用它避免误停新播放） */
+    private var playerFocusToken = 0
     /** 正在播放那行的细进度条 */
     private var playingProgress: View? = null
 
@@ -149,6 +151,7 @@ class MainActivity : AppCompatActivity() {
     private var previewPlayer: MediaPlayer? = null
     private var previewCall: Cancellable? = null
     private var previewToken = 0
+    private var previewFocusToken = 0
     private val progTick = object : Runnable {
         override fun run() {
             val mp = player ?: return
@@ -213,9 +216,13 @@ class MainActivity : AppCompatActivity() {
     private var genTextOverride: String? = null
     /** 多版本翻译：所有译版都写进「合成文本」框（每行一版）；这里留一份清单给「生成＝全部生成」用 */
     private val transVersions = mutableListOf<String>()
-    /** 多译版「删除即整行清掉」：正在被删的行号（-1 = 无）与该行累计删掉的字数 */
+    /** 多译版「删除即整版清掉」：正在被删的版本下标（-1 = 无）与该版累计删掉的字数 */
     private var trDelLine = -1
     private var trDelHits = 0
+    /** 最近一次文本变更（TextWatcher 的 onTextChanged 原始参数，用来区分“删除/打字/组词”） */
+    private var editStart = 0
+    private var editRemoved = 0
+    private var editAdded = 0
     private lateinit var btnYi: TextView
     private lateinit var btnRun: TextView
     private lateinit var btnRole: TextView
@@ -504,10 +511,15 @@ class MainActivity : AppCompatActivity() {
         //（放在 etSeed 初始化之后挂，避免启动路径上 watcher 先触发、lateinit 还没就绪）
         etText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                editStart = start; editRemoved = before; editAdded = count
+            }
             override fun afterTextChanged(s: android.text.Editable?) {
                 if (::etSeed.isInitialized && etSeed.text.isNotEmpty()) etSeed.setText("")
-                handleMultiVersionEdit(s?.toString() ?: "")
+                val composing = (s as? android.text.Spannable)?.let {
+                    android.view.inputmethod.BaseInputConnection.getComposingSpanStart(it) >= 0
+                } ?: false
+                handleMultiVersionEdit(s?.toString() ?: "", editStart, editRemoved, editAdded, composing)
             }
         })
         btnDice = findViewById(R.id.btnDice)
@@ -718,46 +730,73 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 「多译版」状态下（一次翻出好几版，都写进「合成文本」框、每行一版）：
-     * **在一行里连续删到 2 个字** → **整行删除**（这版消失、其余译版上移）。
+     * 「多译版」状态下（一次翻出好几版，都写进「合成文本」框、每版之间用换行分隔）：
+     * **在同一版里连续删到 2 个字** → **整版删除**（这一版消失、其余版上移）。
      * - 只删 1 个字时按兵不动（防手滑一下抹掉整版），但让 `transVersions` 与文本保持同步；
-     * - 打字 / 替换 / 整段清空 → 退出多译版模式（沿用原行为）。
-     * 用户 2026-10-08 指定。
+     * - 打字 / 替换 / 整段清空 → 退出多译版模式（沿用原行为）；
+     * - **版本内部可以含换行**（多段原文的译文）——按“版本块”定位，不再按行号；
+     * - 输入法组词中的插入不退出模式（否则 `transVersions` 会被提前清空，后面再删就没反应）。
+     * 用户 2026-10-08 指定；2026-10-17 重写为块定位。
      */
-    private fun handleMultiVersionEdit(newText: String) {
+    private fun handleMultiVersionEdit(
+        newText: String, start: Int, removed: Int, added: Int, composing: Boolean
+    ) {
         if (transVersions.isEmpty()) { trDelLine = -1; trDelHits = 0; return }
         val old = transVersions.joinToString("\n")
         if (newText == old) return
-        if (newText.length >= old.length) {              // 打字 / 替换 / 清空 → 退出多译版模式
-            transVersions.clear(); trDelLine = -1; trDelHits = 0
+
+        // 打字 / 替换 → 退出多译版模式；输入法“组词中”的插入不算
+        if (added > 0) {
+            if (!composing) { transVersions.clear(); trDelLine = -1; trDelHits = 0 }
             return
         }
+        if (removed <= 0) return
         if (newText.isEmpty()) {                         // 整段删光
             transVersions.clear(); trDelLine = -1; trDelHits = 0
             return
         }
-        val lines = newText.split("\n")
-        if (lines.size < transVersions.size - 1) {       // 一次少了 ≥2 行 = 批量编辑 → 退出模式
+
+        // 每一版在整段文本里的起点（版本内部可以含换行）
+        val starts = IntArray(transVersions.size)
+        var pos = 0
+        for (i in transVersions.indices) {
+            starts[i] = pos
+            pos += transVersions[i].length + 1           // + 版间分隔换行
+        }
+
+        // 定位删除起点落在哪一版；落在版间换行上 = 跨版编辑 → 退出模式
+        var vi = -1
+        for (i in transVersions.indices) {
+            val s = starts[i]
+            val e = s + transVersions[i].length
+            if (start in s until e || (i == transVersions.lastIndex && start == e)) { vi = i; break }
+        }
+        if (vi < 0) { transVersions.clear(); trDelLine = -1; trDelHits = 0; return }
+
+        val vs = starts[vi]
+        val ve = vs + transVersions[vi].length
+        if (start < vs || start + removed > ve) {         // 选中内容跨了版本/换行
             transVersions.clear(); trDelLine = -1; trDelHits = 0
             return
         }
-        // 删除：按"公共前缀"定位改动落在第几行
-        var p = 0
-        val cap = minOf(old.length, newText.length)
-        while (p < cap && old[p] == newText[p]) p++
-        val line = old.substring(0, p).count { it == '\n' }
-        val removed = old.length - newText.length
-        if (line == trDelLine) trDelHits += removed else { trDelLine = line; trDelHits = removed }
-        if (trDelHits < 2) {                             // 只删了 1 个字：先不动，保持同步
-            if (lines.size == transVersions.size) { transVersions.clear(); transVersions.addAll(lines) }
+
+        val local = start - vs
+        val localEnd = local + removed
+        if (vi == trDelLine) trDelHits += removed else { trDelLine = vi; trDelHits = removed }
+
+        if (trDelHits < 2) {                             // 只删了 1 个字：先不动整版，但同步这一版
+            transVersions[vi] = transVersions[vi].removeRange(local, localEnd)
             return
         }
-        // 删够 2 个字 → 整行删除
+        // 删够 2 个字 → 整版删除（只删这一版）
         trDelLine = -1; trDelHits = 0
-        if (line !in transVersions.indices) { transVersions.clear(); return }
-        transVersions.removeAt(line)
+        transVersions.removeAt(vi)
+        if (transVersions.isEmpty()) {
+            etText.setText("")
+            return
+        }
         val joined = transVersions.joinToString("\n")
-        val caret = transVersions.take(line).sumOf { it.length + 1 }.coerceIn(0, joined.length)
+        val caret = transVersions.take(vi).sumOf { it.length + 1 }.coerceIn(0, joined.length)
         etText.setText(joined)
         etText.setSelection(caret)
     }
@@ -1929,7 +1968,7 @@ class MainActivity : AppCompatActivity() {
         stopPlayback()
         // 申请音频焦点：音乐/播客会先暂停，我们放完它们自动续播
         // ——"新的生成好了自动播放"就能打断正在响的声音，而不是两个声音叠着
-        AudioFocus.request(this) { stopPlayback(); refreshPlayButtons() }
+        playerFocusToken = AudioFocus.request(this) { stopPlayback(); refreshPlayButtons() }
         val file = store.fileOf(take)
         if (!file.exists()) {
             toast(getString(R.string.file_missing))
@@ -1946,12 +1985,16 @@ class MainActivity : AppCompatActivity() {
             )
             mp.setDataSource(file.absolutePath)
             mp.setOnCompletionListener {
-                stopPlayback()
-                refreshPlayButtons()
+                if (player === mp) {
+                    stopPlayback()
+                    refreshPlayButtons()
+                }
             }
             mp.setOnErrorListener { _, what, extra ->
-                stopPlayback()
-                refreshPlayButtons()
+                if (player === mp) {
+                    stopPlayback()
+                    refreshPlayButtons()
+                }
                 toast(getString(R.string.play_err, what, extra))
                 true
             }
@@ -1986,7 +2029,10 @@ class MainActivity : AppCompatActivity() {
         playingId = null
         playingProgress = null
         mainHandler.removeCallbacks(progTick)
-        AudioFocus.abandon(this)      // 交还焦点 → 刚才暂停的音乐自动续播
+        if (playerFocusToken != 0) {
+            AudioFocus.abandon(this, playerFocusToken)  // 交还焦点 → 刚才暂停的音乐自动续播
+            playerFocusToken = 0
+        }
     }
 
     private fun refreshPlayButtons() {
@@ -2084,7 +2130,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun playPreviewFile(file: File, onBusy: (Boolean) -> Unit) {
         try {
-            AudioFocus.request(this) { stopVoicePreview() }
+            previewFocusToken = AudioFocus.request(this) { stopVoicePreview() }
             val mp = MediaPlayer()
             previewPlayer = mp
             mp.setAudioAttributes(
@@ -2106,7 +2152,6 @@ class MainActivity : AppCompatActivity() {
             onBusy(false)
         } catch (e: Exception) {
             stopVoicePreview()
-            AudioFocus.abandon(this)
             onBusy(false)
             toast(getString(R.string.play_fail, e.message ?: ""))
         }
@@ -2121,7 +2166,10 @@ class MainActivity : AppCompatActivity() {
         if (mp != null) {
             runCatching { if (mp.isPlaying) mp.stop() }
             runCatching { mp.release() }
-            AudioFocus.abandon(this)
+        }
+        if (previewFocusToken != 0) {
+            AudioFocus.abandon(this, previewFocusToken)
+            previewFocusToken = 0
         }
     }
 

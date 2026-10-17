@@ -19,7 +19,8 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/ic_launcher_a"
+        android:roundIcon="@mipmap/ic_launcher_a"
         android:label="@string/app_name_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.VoiceTuner">
@@ -31,14 +32,15 @@
             android:windowSoftInputMode="adjustResize" />
 
         <!-- 「软件图标样式」：每套样式一个 alias，运行时 enable/disable 切换。
-             默认样式（紫色 styleD）出厂即启用；其余默认关闭。 -->
+             2026-10-17 起默认样式 = 芯片（IconStyleDefault → ic_launcher_a）；
+             紫色改成可选样式 IconStyleD（→ 旧 ic_launcher），名字见 strings。 -->
         <activity-alias
             android:name=".IconStyleDefault"
             android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
+            android:icon="@mipmap/ic_launcher_a"
             android:label="@string/app_name_launcher"
-            android:roundIcon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_a"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -75,6 +77,19 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_c"
             android:label="@string/app_name_launcher"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconStyleD"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name_launcher"
+            android:roundIcon="@mipmap/ic_launcher"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

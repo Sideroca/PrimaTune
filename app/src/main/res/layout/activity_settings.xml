@@ -777,6 +777,52 @@
                     android:orientation="vertical"
                     android:padding="14dp">
 
+                    <!-- 备份与恢复：卸载重装后把记录/音频/自建音色/收藏拿回来 -->
+                    <LinearLayout style="@style/VtCard">
+                        <TextView style="@style/VtLabel" android:text="@string/backup_title" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:lineSpacingExtra="3dp"
+                            android:text="@string/backup_note"
+                            android:textColor="@color/dim"
+                            android:textSize="12sp" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal">
+                            <TextView
+                                android:id="@+id/btnBackupExport"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_btn_primary"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:padding="12dp"
+                                android:text="@string/backup_export"
+                                android:textColor="#FFFFFF"
+                                android:textSize="14sp" />
+                            <TextView
+                                android:id="@+id/btnBackupImport"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:padding="12dp"
+                                android:text="@string/backup_import"
+                                android:textColor="@color/dim"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
                     <LinearLayout style="@style/VtCard">
                         <!-- 先筛选（一排），再搜索栏（一行）——三行堆一起太挤 -->
                         <LinearLayout

@@ -392,6 +392,22 @@ class Store(context: Context) {
     fun newAudioFile(ext: String): File =
         File(dir, "vt_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().take(6) + "." + ext)
 
+    /** 记录音频目录（备份 / 恢复用） */
+    fun historyDir(): File = dir
+
+    /** 恢复时按原文件名写入音频；只接受常见音频扩展名，防路径穿越。 */
+    fun restoreAudioFile(name: String, input: java.io.InputStream): File? {
+        val safe = name.substringAfterLast('/').substringAfterLast('\\')
+        if (safe.isBlank() || safe.contains("..")) return null
+        val ext = safe.substringAfterLast('.', "").lowercase()
+        if (ext !in setOf("wav", "mp3", "m4a", "opus", "ogg")) return null
+        val f = File(dir, safe)
+        if (!f.exists() || f.length() == 0L) {
+            f.outputStream().use { out -> input.copyTo(out) }
+        }
+        return f
+    }
+
     fun fileOf(take: Take): File = File(dir, take.fileName)
 
     fun deleteFile(take: Take) {

@@ -230,8 +230,8 @@
     <string name="cat_modern">모던 클래식 18</string>
     <string name="cat_chinese">🏮 중국 전통색 46</string>
     <string name="cat_attrs">배경 속성</string>
-    <string name="icon_style_default">보라 · 기본</string>
-    <string name="icon_style_a">칩</string>
+    <string name="icon_style_default">칩 · 기본</string>
+    <string name="icon_style_purple">바이올렛</string>
     <string name="icon_style_b">로즈</string>
     <string name="icon_style_c">믹서</string>
     <string name="toast_backfill_done">파라미터 복원 완료</string>
@@ -459,4 +459,16 @@
     <string name="rec_recover_ok">%1$d개 복구했습니다</string>
     <string name="rec_fav_partial">★ 즐겨찾기 %1$d/%2$d</string>
     <string name="rec_more">더 보기 (%1$d개 남음)</string>
+    <string name="backup_title">백업 및 복원</string>
+    <string name="backup_note">백업에는 모든 기록, 오디오, 사용자 음색, 즐겨찾기가 포함됩니다(API Key 제외). 삭제 전에 zip을 내보내고, 재설치 후 여기서 복원하세요. 복원은 추가만 하며 기존 데이터를 삭제하지 않습니다.</string>
+    <string name="backup_export">백업 내보내기</string>
+    <string name="backup_import">백업에서 복원</string>
+    <string name="backup_exporting">내보내는 중…</string>
+    <string name="backup_importing">복원 중…</string>
+    <string name="backup_export_ok">기록 %1$d개(오디오 %2$d개)를 내보냈습니다</string>
+    <string name="backup_import_ok">기록 %1$d개, 음색 %2$d개를 복원했습니다</string>
+    <string name="backup_fail">백업 실패: %1$s</string>
+    <string name="backup_empty">백업할 기록/음색이 없습니다</string>
+    <string name="backup_import_none">이 백업에 복원할 기록이 없습니다(오디오 누락 가능)</string>
+    <string name="backup_zip_name">PrimaTune-백업-%1$s.zip</string>
 </resources>
