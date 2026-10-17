@@ -144,6 +144,11 @@ class MainActivity : AppCompatActivity() {
     private var playingId: String? = null
     /** 正在播放那行的细进度条 */
     private var playingProgress: View? = null
+
+    // 音色「试听」（长按删除卡片左侧按钮）：独立于记录播放器，避免动到记录行状态
+    private var previewPlayer: MediaPlayer? = null
+    private var previewCall: Cancellable? = null
+    private var previewToken = 0
     private val progTick = object : Runnable {
         override fun run() {
             val mp = player ?: return
@@ -1998,6 +2003,128 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ---------------------------------------------------------------- 音色试听（长按删除卡片）
+    /**
+     * 试听某个音色：用**该音色所属厂商**的 Key/模型合成一句很短的样本，缓存到 cacheDir 后播放。
+     *
+     * 为什么要“所属厂商”：音色 ID 跨厂商不通用（cosyvoice-* 属百炼；自建音色记了 providerId）。
+     * 百炼的 cosyvoice-* 还必须用 cosyvoice 模型（当前若选了 qwen-tts 会失败）→ 这里强制 v3.5-plus。
+     */
+    private fun previewVoice(voiceId: String, onBusy: (Boolean) -> Unit) {
+        val pid = VoiceProviders.of(voiceId, customVoices) ?: store.providerId
+        val prov = TtsProviders.byId(pid)
+        val key = store.providerKey(pid).ifBlank { if (pid == "aliyun-bailian") store.apiKey else "" }
+        if (prov?.shape != "system" && key.isBlank()) {
+            toast(getString(R.string.toast_need_key))
+            return
+        }
+        val currentModel = TtsModels.idOf(etModel.text.toString().trim())
+        val model = when {
+            pid == VoiceProviders.BAILIAN && voiceId.startsWith("cosyvoice-") &&
+                currentModel.startsWith("cosyvoice-") -> currentModel
+            pid == VoiceProviders.BAILIAN && voiceId.startsWith("cosyvoice-") -> "cosyvoice-v3.5-plus"
+            pid == store.providerId && currentModel.isNotBlank() -> currentModel
+            !prov?.models.isNullOrEmpty() -> prov!!.models.first()
+            else -> store.lastModel
+        }
+        if (model.isBlank() && prov?.shape != "system") {
+            toast(getString(R.string.voice_preview_fail, getString(R.string.label_model)))
+            return
+        }
+
+        stopPlayback()          // 试听前先停记录播放，避免两个声音叠在一起
+        refreshPlayButtons()
+        stopVoicePreview()
+        val token = previewToken
+        onBusy(true)
+
+        val req = SynthRequest(
+            apiKey = key, workspace = store.workspace.trim().ifEmpty { "ws-9y8n1gp7w6pg23tv" },
+            model = model, voice = voiceId,
+            text = getString(R.string.voice_preview_text), instruction = null,
+            rate = 1.0, pitch = 1.0, volume = 50, seed = 0,
+            format = "wav", sampleRate = 24000, bitRate = null, languageHints = null,
+            hotFixJson = null, extraJson = null, ssml = false
+        )
+        previewCall = Synth.dispatch(this, store, req, null, "wav", client, object : SynthCallback {
+            override fun onConnected() {}
+            override fun onStarted() {}
+            override fun onProgress(receivedBytes: Int) {}
+
+            override fun onFinished(audio: ByteArray) {
+                if (token != previewToken) return
+                if (audio.isEmpty()) {
+                    ui { if (token == previewToken) { onBusy(false); toast(getString(R.string.voice_preview_fail, "empty audio")) } }
+                    return
+                }
+                val isWav = audio.size > 12 && audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte()
+                val f = File(cacheDir, "voice_preview_" + voiceId.hashCode().toUInt().toString(16) + if (isWav) ".wav" else ".mp3")
+                val written = runCatching { f.writeBytes(audio) }.isSuccess
+                ui {
+                    if (token != previewToken) return@ui
+                    if (!written) {
+                        onBusy(false)
+                        toast(getString(R.string.voice_preview_fail, getString(R.string.save_failed)))
+                        return@ui
+                    }
+                    playPreviewFile(f, onBusy)
+                }
+            }
+
+            override fun onError(message: String) {
+                ui {
+                    if (token == previewToken) {
+                        onBusy(false)
+                        toast(getString(R.string.voice_preview_fail, message))
+                    }
+                }
+            }
+        }, pid)
+    }
+
+    private fun playPreviewFile(file: File, onBusy: (Boolean) -> Unit) {
+        try {
+            AudioFocus.request(this) { stopVoicePreview() }
+            val mp = MediaPlayer()
+            previewPlayer = mp
+            mp.setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            mp.setDataSource(file.absolutePath)
+            mp.setOnCompletionListener { stopVoicePreview() }
+            mp.setOnErrorListener { _, what, extra ->
+                stopVoicePreview()
+                onBusy(false)
+                toast(getString(R.string.play_err, what, extra))
+                true
+            }
+            mp.prepare()
+            mp.start()
+            onBusy(false)
+        } catch (e: Exception) {
+            stopVoicePreview()
+            AudioFocus.abandon(this)
+            onBusy(false)
+            toast(getString(R.string.play_fail, e.message ?: ""))
+        }
+    }
+
+    private fun stopVoicePreview() {
+        previewToken++                    // 让还在合成的回调自然失效
+        runCatching { previewCall?.cancel() }
+        previewCall = null
+        val mp = previewPlayer
+        previewPlayer = null
+        if (mp != null) {
+            runCatching { if (mp.isPlaying) mp.stop() }
+            runCatching { mp.release() }
+            AudioFocus.abandon(this)
+        }
+    }
+
     // ---------------------------------------------------------------- 分享 / 导出
     /** 分享前先把音频复制成"好名字"（对方收到的就是「音色·正文.wav」，而不是 vt_1759…_abc.wav） */
     private fun shareableOf(take: Take): File {
@@ -2389,21 +2516,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmClearHistory() {
-        if (takes.isEmpty()) {
+        // 2026-10-17 用户：本地记录选了某个音色后点「清空」→ **只清这个音色**；
+        // 只有筛选是「全部音色」时才清全部。
+        val target = filterVoiceId?.let { id -> takes.filter { it.voiceId == id } } ?: takes
+        if (target.isEmpty()) {
             toast(getString(R.string.toast_no_records))
             return
         }
+        val voiceName = filterVoiceId?.let { voiceNameOf(it) }
         val dlg = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.clear_title))
-            .setMessage(getString(R.string.clear_msg, takes.size))
+            .setTitle(
+                if (voiceName != null) getString(R.string.clear_voice_title, voiceName)
+                else getString(R.string.clear_title)
+            )
+            .setMessage(
+                if (voiceName != null) getString(R.string.clear_voice_msg, target.size)
+                else getString(R.string.clear_msg, target.size)
+            )
             .setPositiveButton(getString(R.string.clear_ok)) { _, _ ->
                 stopPlayback()
-                takes.forEach { store.deleteFile(it) }
-                takes.clear()
-                filterVoiceId = null
+                val ids = target.map { it.id }.toSet()
+                target.forEach { store.deleteFile(it) }
+                takes.removeAll { it.id in ids }
+                // 按音色清空 → 保留当前筛选（让用户看到「该音色暂无记录」）；
+                // 全部清空 → 筛选本来就是空的，无需改。
                 store.saveTakes(takes)
-                currentTake = null
-                cardResult.visibility = View.GONE
+                if (currentTake?.id?.let { it in ids } == true) {
+                    currentTake = null
+                    cardResult.visibility = View.GONE
+                }
                 renderHistory()
                 refreshPlayButtons()
                 toast(getString(R.string.toast_cleared))
@@ -2447,6 +2588,9 @@ class MainActivity : AppCompatActivity() {
                 val dlg = AlertDialog.Builder(this)
                     .setTitle(getString(R.string.vc_del_title))
                     .setMessage(getString(R.string.vc_del_msg, v.name))   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
+                    // 试听：放在按钮栏最左（AlertDialog 的 neutral 位），与「取消 / 删除」同一行；
+                    // 位置大体落在正文「「拉普兰德」」的左端下方（用户 2026-10-17 指定）。
+                    .setNeutralButton(getString(R.string.voice_preview), null)
                     .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                         if (cv != null) {
                             customVoices.removeAll { it.id == cv.id }
@@ -2469,7 +2613,21 @@ class MainActivity : AppCompatActivity() {
                     }
                     .setNegativeButton(getString(R.string.common_cancel), null)
                     .create()
-                dlg.setOnShowListener { skinDialog(dlg) }   // 跟随主题
+                dlg.setOnShowListener {
+                    skinDialog(dlg)   // 跟随主题
+                    val b = dlg.getButton(DialogInterface.BUTTON_NEUTRAL)
+                    if (b != null) {
+                        b.setTextColor(Skin.colors(this).acc)
+                        b.setOnClickListener {
+                            // 覆盖默认点击（默认会关掉弹窗）→ 试听时弹窗保持打开
+                            previewVoice(v.id) { busy ->
+                                b.text = getString(if (busy) R.string.voice_preview_loading else R.string.voice_preview)
+                                b.isEnabled = !busy
+                            }
+                        }
+                    }
+                }
+                dlg.setOnDismissListener { stopVoicePreview() }
                 dlg.show()
                 true
             }
@@ -2715,20 +2873,30 @@ class MainActivity : AppCompatActivity() {
         listBox.orientation = LinearLayout.VERTICAL
 
         fun addRow(label: String, tail: String, id: String?) {
+            val on = id == filterVoiceId
             val tv = TextView(this)
-            val prefix = if (id == filterVoiceId) "✓ " else "　 "
-            val text = prefix + label + if (tail.isEmpty()) "" else "  ·  " + tail
+            // 2026-10-17 用户：对号从名字左边移到**名字右边**；不再用全角空格占位，
+            // 整列文字因此自然左移（再配合下面略收左内距 = "适度往左"）。
+            val text = label + if (tail.isEmpty()) "" else "  ·  " + tail + if (on) "  ✓" else ""
             val ss = android.text.SpannableString(text)
             if (tail.isNotEmpty()) {
                 ss.setSpan(
                     android.text.style.ForegroundColorSpan(c.dim),
-                    text.length - tail.length, text.length, 0
+                    label.length + 5, label.length + 5 + tail.length, 0
+                )
+            }
+            if (on) {
+                ss.setSpan(
+                    android.text.style.ForegroundColorSpan(c.acc),
+                    text.length - 1, text.length, 0
                 )
             }
             tv.text = ss
             tv.setTextColor(c.txt)
             tv.textSize = 13f
-            tv.setPadding(dp(14), dp(12), dp(14), dp(12))
+            tv.isSingleLine = true
+            tv.ellipsize = android.text.TextUtils.TruncateAt.END
+            tv.setPadding(dp(10), dp(12), dp(12), dp(12))
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
@@ -2751,7 +2919,7 @@ class MainActivity : AppCompatActivity() {
         val panel = LinearLayout(this)
         panel.orientation = LinearLayout.VERTICAL
         panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
-        panel.setPadding(dp(6), dp(6), dp(6), dp(6))
+        panel.setPadding(dp(4), dp(6), dp(4), dp(6))
         panel.addView(sc)
 
         val rowCount = ids.size + 1
@@ -3403,5 +3571,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopPlayback()
+        stopVoicePreview()
     }
 }

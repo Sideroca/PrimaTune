@@ -69,6 +69,10 @@
     <string name="vc_empty">还没有音色：用「＋ 建音色」上传样本，或用下面的「自定义音色 ID」</string>
     <string name="vc_del_title">删除这个音色？</string>
     <string name="vc_del_msg">「%1$s」将从列表里移除。</string>
+    <string name="voice_preview">试听</string>
+    <string name="voice_preview_loading">试听中…</string>
+    <string name="voice_preview_text">你好，这是一段试听音频。</string>
+    <string name="voice_preview_fail">试听失败：%1$s</string>
     <string name="common_deleted">已删除</string>
     <string name="common_save">保存</string>
     <string name="hist_empty">暂无记录</string>
@@ -77,6 +81,8 @@
     <string name="hist_show_all">显示全部（共 %1$d 条）</string>
     <string name="clear_title">清空全部记录？</string>
     <string name="clear_msg">将删除 %1$d 条记录及其音频文件</string>
+    <string name="clear_voice_title">清空「%1$s」的记录？</string>
+    <string name="clear_voice_msg">将删除该音色的 %1$d 条记录及其音频文件</string>
     <string name="clear_ok">清空</string>
     <string name="toast_cleared">已清空</string>
     <string name="toast_no_records">没有记录</string>

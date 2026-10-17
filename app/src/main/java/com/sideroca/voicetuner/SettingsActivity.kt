@@ -896,10 +896,21 @@ class SettingsActivity : AppCompatActivity() {
         fun row(label: String, id: String?) {
             val tv = TextView(this)
             val on = id == recVoiceId
-            tv.text = (if (on) "✓ " else "　 ") + label
+            // 与首页记录筛选一致：对号放名字右边（不再占左侧全角空格），文字自然左移
+            val text = label + if (on) "  ✓" else ""
+            val ss = android.text.SpannableString(text)
+            if (on) {
+                ss.setSpan(
+                    android.text.style.ForegroundColorSpan(c.acc),
+                    text.length - 1, text.length, 0
+                )
+            }
+            tv.text = ss
             tv.setTextColor(if (on) c.acc else c.txt)
             tv.textSize = 14f
-            tv.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+            tv.isSingleLine = true
+            tv.ellipsize = android.text.TextUtils.TruncateAt.END
+            tv.setPadding(dp(12f), dp(12f), dp(14f), dp(12f))
             tv.isClickable = true
             tv.isFocusable = true
             fx(tv)
@@ -919,7 +930,7 @@ class SettingsActivity : AppCompatActivity() {
         val panel = LinearLayout(this)
         panel.orientation = LinearLayout.VERTICAL
         panel.background = Skin.shapeDp(this, c.bg, c.line, 12f)
-        panel.setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+        panel.setPadding(dp(4f), dp(6f), dp(4f), dp(6f))
         panel.addView(sc)
         val rows = ids.size + 1
         val h = minOf(dp(300f), dp(12f) + dp(46f) * rows)

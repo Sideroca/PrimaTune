@@ -69,6 +69,10 @@
     <string name="vc_empty">No voices yet: tap ＋ to clone one from a sample, or use Custom voice ID below</string>
     <string name="vc_del_title">Delete this voice?</string>
     <string name="vc_del_msg">%1$s will be removed from the list.</string>
+    <string name="voice_preview">Preview</string>
+    <string name="voice_preview_loading">Preparing…</string>
+    <string name="voice_preview_text">Hello, this is a voice preview.</string>
+    <string name="voice_preview_fail">Preview failed: %1$s</string>
     <string name="common_deleted">Deleted</string>
     <string name="common_save">Save</string>
     <string name="hist_empty">No records yet</string>
@@ -77,6 +81,8 @@
     <string name="hist_show_all">Show all (%1$d)</string>
     <string name="clear_title">Clear all records?</string>
     <string name="clear_msg">Will delete %1$d records and their audio files</string>
+    <string name="clear_voice_title">Clear records for “%1$s”?</string>
+    <string name="clear_voice_msg">Will delete %1$d records of this voice and their audio files</string>
     <string name="clear_ok">Clear</string>
     <string name="toast_cleared">Cleared</string>
     <string name="toast_no_records">No records</string>

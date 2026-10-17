@@ -69,6 +69,10 @@
     <string name="vc_empty">音色がありません：「＋」でサンプルから作成、または下の「カスタム音色 ID」</string>
     <string name="vc_del_title">この音色を削除しますか？</string>
     <string name="vc_del_msg">「%1$s」を一覧から削除します。</string>
+    <string name="voice_preview">試聴</string>
+    <string name="voice_preview_loading">試聴中…</string>
+    <string name="voice_preview_text">こんにちは、これは試聴用の音声です。</string>
+    <string name="voice_preview_fail">試聴に失敗：%1$s</string>
     <string name="common_deleted">削除しました</string>
     <string name="common_save">保存</string>
     <string name="hist_empty">記録はまだありません</string>
@@ -77,6 +81,8 @@
     <string name="hist_show_all">すべて表示（全 %1$d 件）</string>
     <string name="clear_title">すべての記録を消去しますか？</string>
     <string name="clear_msg">%1$d 件の記録と音声ファイルを削除します</string>
+    <string name="clear_voice_title">「%1$s」の記録を消去しますか？</string>
+    <string name="clear_voice_msg">この音色の %1$d 件の記録と音声ファイルを削除します</string>
     <string name="clear_ok">消去</string>
     <string name="toast_cleared">消去しました</string>
     <string name="toast_no_records">記録がありません</string>

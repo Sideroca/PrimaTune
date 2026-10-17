@@ -69,6 +69,10 @@
     <string name="vc_empty">음색이 없습니다: ＋로 샘플에서 만들거나 아래의 사용자 음색 ID를 쓰세요</string>
     <string name="vc_del_title">이 음색을 삭제할까요?</string>
     <string name="vc_del_msg">%1$s이(가) 목록에서 제거됩니다.</string>
+    <string name="voice_preview">미리 듣기</string>
+    <string name="voice_preview_loading">미리 듣는 중…</string>
+    <string name="voice_preview_text">안녕하세요, 이것은 미리 듣기 오디오입니다.</string>
+    <string name="voice_preview_fail">미리 듣기 실패: %1$s</string>
     <string name="common_deleted">삭제됨</string>
     <string name="common_save">저장</string>
     <string name="hist_empty">기록이 아직 없습니다</string>
@@ -77,6 +81,8 @@
     <string name="hist_show_all">모두 보기 (총 %1$d개)</string>
     <string name="clear_title">모든 기록을 비울까요?</string>
     <string name="clear_msg">%1$d개 기록과 오디오 파일을 삭제합니다</string>
+    <string name="clear_voice_title">"%1$s" 기록을 비울까요?</string>
+    <string name="clear_voice_msg">이 음색의 %1$d개 기록과 오디오 파일을 삭제합니다</string>
     <string name="clear_ok">비우기</string>
     <string name="toast_cleared">비웠습니다</string>
     <string name="toast_no_records">기록이 없습니다</string>
