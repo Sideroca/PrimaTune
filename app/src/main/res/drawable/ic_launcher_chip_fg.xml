@@ -2,11 +2,11 @@
 <!--
     芯片图标的自适应前景：原图四边约 10% 空白，图案本身占 80%；
     自适应图标的安全区约 66%，直接铺满会在圆形/圆角遮罩下切掉芯片引脚。
-    这里四周再内缩 10% → 图案落到约 18%~82%，完整落在安全区内。
+    这里四周再内缩 15% → 图案落到约 24%~76%，完整落在安全区内。
 -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/icon_style_a_fg"
-    android:insetLeft="10%"
-    android:insetTop="10%"
-    android:insetRight="10%"
-    android:insetBottom="10%" />
+    android:insetLeft="15%"
+    android:insetTop="15%"
+    android:insetRight="15%"
+    android:insetBottom="15%" />

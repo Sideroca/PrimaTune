@@ -45,6 +45,16 @@ class AlarmRingActivity : AppCompatActivity() {
         }
         setContentView(R.layout.activity_alarm_ring)
 
+        // 兜底：从通知点进来时，如果服务已经被系统/pregen 的 stopSelf 停掉，就重新拉起响铃。
+        // 服务还活着（ringing=true）则什么都不做，避免重复响。
+        if (!AlarmService.ringing) {
+            runCatching {
+                startForegroundService(
+                    Intent(this, AlarmService::class.java).putExtra(AlarmService.EXTRA, "ring")
+                )
+            }
+        }
+
         val c = Skin.colors(this)
         Skin.applyWindow(this, c)
         Skin.apply(window.decorView, c)

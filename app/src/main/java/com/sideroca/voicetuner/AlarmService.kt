@@ -105,6 +105,26 @@ class AlarmService : Service() {
         @Volatile var ringing = false
 
         /**
+         * 现场生成完成后的回调（响铃服务注册）。
+         * 为什么要它：轮询最多等 60 秒，而 LLM(30s)+TTS(60s) 最坏能到 90 秒；
+         * 只看轮询会出现「其实早就生成好了，但没人播」——生成线程结束时主动回调一次。
+         */
+        @Volatile private var genDoneCb: (() -> Unit)? = null
+
+        private fun notifyGenDone() {
+            val cb = genDoneCb
+            genDoneCb = null
+            cb?.let { runCatching { it() } }
+        }
+
+        /** 取消闹钟通知（停止/贪睡/打开 App 停止时都该清掉，避免点旧通知又拉起响铃页）。 */
+        fun cancelRingNoti(ctx: Context) {
+            runCatching {
+                (ctx.getSystemService(NotificationManager::class.java))?.cancel(NOTI_RING)
+            }
+        }
+
+        /**
          * **只停，不动排期**（"dismiss" 会做响完收尾、可能关掉一次性闹钟；这个不会）。
          * 主页 onResume / 响铃页「停止」/ 外部调用都走它。
          */
@@ -113,7 +133,7 @@ class AlarmService : Service() {
             return runCatching {
                 ctx.startService(Intent(ctx, AlarmService::class.java).putExtra(EXTRA, "stop"))
                 stopDirect()
-                (ctx.getSystemService(NotificationManager::class.java))?.cancel(NOTI_RING)
+                cancelRingNoti(ctx)
                 true
             }.getOrDefault(false)
         }
@@ -199,6 +219,7 @@ class AlarmService : Service() {
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setOngoing(true)
                 .setFullScreenIntent(full, true)
+                .setContentIntent(full)          // 没给全屏权限时，点通知正文也能进响铃页
                 .addAction(0, ctx.getString(R.string.alarm_ring_snooze), snooze)
                 .addAction(0, ctx.getString(R.string.alarm_ring_stop), dismiss)
                 .build()
@@ -212,6 +233,7 @@ class AlarmService : Service() {
          */
         fun stopDirect() {
             ringing = false
+            genDoneCb = null
             releaseWake()
         }
     }
@@ -230,14 +252,22 @@ class AlarmService : Service() {
         val isManualTest = intent?.getBooleanExtra("alarm_test", false) == true
         when (action) {
             "pregen" -> {
-                startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-                Thread {
-                    if (!generate()) runCatching {
-                        (getSystemService(NotificationManager::class.java))?.notify(
-                            NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_voice_fail)))
-                    }
-                    stopSelf()
-                }.start()
+                // 正在响铃时绝不让预生成插进来：它会 startFg 换成静音通知，还会删旧缓存
+                if (ringing) {
+                    status("pregen 跳过：正在响铃")
+                    stopSelf(startId)
+                } else {
+                    startFg(NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                    val sid = startId
+                    Thread {
+                        if (!generate()) runCatching {
+                            (getSystemService(NotificationManager::class.java))?.notify(
+                                NOTI_PREGEN, pregenNoti(getString(R.string.alarm_title), getString(R.string.alarm_voice_fail)))
+                        }
+                        // 用 startId 停：如果期间又来了 "ring" 命令，startId 不匹配 → 服务不会被误停
+                        stopSelf(sid)
+                    }.start()
+                }
             }
             "ring" -> {
                 stopped = false
@@ -254,12 +284,12 @@ class AlarmService : Service() {
                 vol = 1f
                 if (cachedFiles().isNotEmpty()) { files = cachedFiles(); idx = 0; playCurrent() }
                 else status("自检：没有可用语音 → 不出声（自检只验「系统会不会把进程拉起来」）")
-                handler.postDelayed({ stopPlayback(); stopSelf() }, 12_000)
+                handler.postDelayed({ stopPlayback(); stopSelf(startId) }, 12_000)
             }
-            "snooze" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
-            "dismiss" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); if (!isManualTest) afterRing(); stopSelf() }
+            "snooze" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); cancelRingNoti(this); if (!isManualTest) AlarmScheduler.snooze(this, 5); stopSelf() }
+            "dismiss" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); cancelRingNoti(this); if (!isManualTest) afterRing(); stopSelf() }
             // 「停止」：只停、**不动排期**（主页打开时 / 响铃页停止 / stopIfRinging 用）
-            "stop" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); stopSelf() }
+            "stop" -> { stopped = true; ringing = false; stopPlayback(); stopDirect(); cancelRingNoti(this); stopSelf() }
         }
         return START_NOT_STICKY
     }
@@ -354,6 +384,7 @@ class AlarmService : Service() {
             return false
         } finally {
             generating = false
+            notifyGenDone()          // 响铃时注册的“生成完成 → 立刻试播”回调（轮询超时也不怕）
         }
     }
 
@@ -473,20 +504,49 @@ class AlarmService : Service() {
             updateRingNoti(ringWho(this))
             idx = 0; playCurrent(); return
         }
-        // ⚠️ 手动测试且没有可用语音 → **绝不要拿系统铃声冒充 AI 闹钟**（那正是用户 2026-10-14 的困惑来源）
+
+        // 没有可用语音：注册“生成完成 → 立刻试播”。
+        // 为什么不能只靠 1.5 秒轮询：轮询最多等 60 秒，而现场生成最坏 LLM 30s + TTS 60s；
+        // 会出现“其实早生成好了，但轮询已经放弃 → 一直不响，点通知才醒”。
+        genDoneCb = {
+            handler.post {
+                if (!tryPlayReady("生成完成") && ringing && !stopped) {
+                    updateRingNoti(getString(R.string.alarm_voice_fail))
+                    status("响铃：生成结束但仍无可用语音 → 保持静音")
+                }
+            }
+        }
+
+        // ⚠️ 手动测试且没有可用语音 → **绝不要拿系统铃声冒充 AI 闹钟**
         if (isManualTest) {
-            status("手测：没有可用的闹钟语音 → 不出声，只提示（先点「预生成」）")
+            status("手测：没有可用的闹钟语音 → 只提示（先生成）")
             updateRingNoti(getString(R.string.alarm_test_no_voice))
             if (!generating) Thread { runCatching { generate(live = true) } }.start()
             pollForVoice(SystemClock.elapsedRealtime(), silent = true)
             return
         }
         // 没有缓存 → **不出声**（宁可静音也不播错的），等缓存出现再播——很可能是"保存闹钟那一刻的
-        // 预生成"还在跑。60 秒内一出现就播；压根没人生成 → 自己起一次。
+        // 预生成"还在跑。生成完成会走上面的回调；轮询只是兜底。
         status("响铃：没有符合当前设置的语音 → **不出声**，现场生成中（最多 ${LIVE_GEN_LIMIT_MS / 1000} 秒）")
-        updateRingNoti(getString(R.string.alarm_voice_fail))
+        updateRingNoti(getString(R.string.alarm_generating))
         if (!generating) Thread { runCatching { generate(live = true) } }.start()
         pollForVoice(SystemClock.elapsedRealtime(), silent = false)
+    }
+
+    /** 有可播语音就切过去（幂等：已在播则直接返回 true）。 */
+    private fun tryPlayReady(reason: String): Boolean {
+        if (stopped || !ringing) return false
+        if (runCatching { player?.isPlaying == true }.getOrDefault(false)) return true
+        val f = cachedFiles()
+        if (f.isEmpty()) return false
+        files = f
+        idx = 0
+        runCatching { player?.release() }
+        player = null
+        playCurrent()
+        updateRingNoti(ringWho(this))
+        status("响铃：$reason → 已自动播放（${f.size} 段）")
+        return true
     }
 
     /** 轮询等"可播语音"出现：一出现就切换成 AI 人声；[silent] = 手测模式（失败也不出声）。 */
@@ -494,21 +554,16 @@ class AlarmService : Service() {
         val poll = object : Runnable {
             override fun run() {
                 if (stopped) return
-                val f = cachedFiles()
-                if (f.isNotEmpty()) {
-                    files = f; idx = 0
-                    runCatching { player?.release() }; player = null
-                    playCurrent()
-                    status("响铃：已切换为 AI 人声（${f.size} 段，等了 ${(SystemClock.elapsedRealtime() - t0) / 1000} 秒）")
-                    updateRingNoti(ringWho(this@AlarmService))
-                    return
-                }
+                if (tryPlayReady("轮到语音")) return
                 if (SystemClock.elapsedRealtime() - t0 < LIVE_GEN_LIMIT_MS) {
                     handler.postDelayed(this, 1500)
                 } else {
                     status(
                         if (silent) "手测：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍没有语音（本次不出声）"
                         else "响铃：等 ${LIVE_GEN_LIMIT_MS / 1000} 秒仍无语音 → **保持静音**（不再用系统铃声顶替）"
+                    )
+                    if (!silent) updateRingNoti(
+                        getString(if (generating) R.string.alarm_generating else R.string.alarm_voice_fail)
                     )
                 }
             }
@@ -585,6 +640,7 @@ class AlarmService : Service() {
         super.onDestroy()
         stopped = true
         ringing = false
+        genDoneCb = null
         stopPlayback()
     }
 }

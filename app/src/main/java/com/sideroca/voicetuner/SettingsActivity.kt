@@ -2066,8 +2066,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
 
     /** 合成一张该样式的完整图标位图（背景层铺底 + 前景层盖上） */
-    private fun composeIcon(key: String, size: Int): android.graphics.Bitmap =
-        IconStyles.compose(this, key, size)
+    private fun composeIcon(key: String, size: Int, safeInsetFrac: Float = 0.10f): android.graphics.Bitmap =
+        IconStyles.compose(this, key, size, safeInsetFrac)
 
     private fun setupIconWorkshop() {
         curIconStyle = normalizeIconKey(store.appIconStyle)
@@ -2128,7 +2128,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     private fun updateIconPreview() {
         val c = Skin.colors(this)
         ivIconPreview.background = Skin.shapeDp(this, c.card2, c.line, 26f, 100, 1f)
-        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240))
+        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240, 0.05f))
     }
 
     /**

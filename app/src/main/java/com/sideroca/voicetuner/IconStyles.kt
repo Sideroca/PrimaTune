@@ -32,15 +32,15 @@ object IconStyles {
         else -> R.drawable.icon_style_a_bg            // default / a / 未知 → 芯片
     }
 
-    fun compose(ctx: Context, key: String, size: Int): Bitmap {
+    fun compose(ctx: Context, key: String, size: Int, safeInsetFrac: Float = 0.10f): Bitmap {
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val cv = Canvas(bmp)
         ContextCompat.getDrawable(ctx, bgRes(key))?.apply {
             setBounds(0, 0, size, size); draw(cv)
         }
-        // 芯片原图四边自带 ~10% 留白；再内缩 10%，与自适应图标的安全区一致，
-        // 避免预览里看着正好、上桌面却被圆形遮罩切掉引脚。
-        val inset = if (key == "default" || key == "a") (size * 0.10f).toInt() else 0
+        // 芯片原图四边自带 ~10% 留白；自适应图标前景还要再缩（XML 里 15%），
+        // 设置页预览用 5% 就能在视觉上对上桌面实际大小。其他样式不额外缩。
+        val inset = if (key == "default" || key == "a") (size * safeInsetFrac).toInt() else 0
         ContextCompat.getDrawable(ctx, fgRes(key))?.apply {
             setBounds(inset, inset, size - inset, size - inset); draw(cv)
         }
