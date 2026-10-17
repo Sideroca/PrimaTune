@@ -569,23 +569,6 @@ class SettingsActivity : AppCompatActivity() {
                 dd.show()
             }
             head.addView(act)
-
-            // 「模板」：给这个音色导入自定义试听音频（音色管理行也能直接看见入口）
-            val tplBtn = TextView(this)
-            tplBtn.text = getString(R.string.preview_template)
-            tplBtn.setTextColor(c.acc)
-            tplBtn.textSize = 14f
-            tplBtn.setPadding(dp(12f), dp(6f), dp(4f), dp(6f))
-            tplBtn.isClickable = true
-            tplBtn.isFocusable = true
-            tplBtn.isLongClickable = true
-            fx(tplBtn)
-            tplBtn.setOnClickListener { pickPreviewTemplate(id) }
-            tplBtn.setOnLongClickListener {
-                confirmClearPreviewTemplate(id) { buildVoices() }
-                true
-            }
-            head.addView(tplBtn)
             box.addView(head)
 
             // 「提示词」：给这个音色写角色人设（喂给 AI，不发给 TTS）——写在音色页，方便**逐个音色提前写好**
@@ -628,10 +611,6 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页：分享这条记录（FileProvider，别的 App 可直接收） */
     private var pendingSaveFile2: java.io.File? = null
     private val REQ_SAVE2 = 2010
-
-    /** 音色「模板」：正在等文件选择器返回的音色 id；以及提示词弹窗里的状态刷新 */
-    private var pendingPreviewVoiceId: String? = null
-    private var roleTemplateRefresh: (() -> Unit)? = null
 
     /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
     private fun exportHistory(t: Take) {
@@ -1985,15 +1964,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             return
         }
 
-        // 音色试听模板：选完音频 → 复制到本机 voice_previews/
-        if (requestCode == REQ_PREVIEW_AUDIO) {
-            val uri = data?.data
-            val vid = pendingPreviewVoiceId
-            pendingPreviewVoiceId = null
-            if (uri != null && !vid.isNullOrBlank()) importPreviewTemplate(vid, uri)
-            return
-        }
-
         // 记录页「下载」：写进用户选的位置
         if (requestCode == REQ_SAVE2) {
             val uri = data?.data
@@ -2975,51 +2945,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             text = getString(R.string.role_desc, name.ifBlank { "该音色" }); setTextColor(c.dim); textSize = 12f
         })
 
-        // 白卡左侧的「模板」：给这个音色导入一段本地音频，作为试听；不设置就沿用 TTS
-        val tplRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8f), 0, dp(4f))
-        }
-        val tplBtn = TextView(this).apply {
-            text = getString(R.string.preview_template)
-            textSize = 13f
-            setTextColor(c.acc)
-            setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            background = Skin.shapeDp(this@SettingsActivity, c.card2, c.line, 96f, 100, 1f)
-            isClickable = true
-            isFocusable = true
-            fx(this)
-            setOnClickListener { pickPreviewTemplate(id) }
-            isLongClickable = true
-            setOnLongClickListener {
-                confirmClearPreviewTemplate(id) { roleTemplateRefresh?.invoke() }
-                true
-            }
-        }
-        val tplState = TextView(this).apply {
-            textSize = 12f
-            setTextColor(c.hint)
-            setPadding(dp(10f), 0, 0, 0)
-        }
-        tplRow.addView(tplBtn)
-        tplRow.addView(tplState, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        box.addView(tplRow)
-
-        fun refreshTplState() {
-            val has = store.previewTemplate(id) != null
-            tplState.text = getString(
-                if (has) R.string.preview_template_state_set else R.string.preview_template_state_none
-            )
-            tplState.setTextColor(if (has) c.acc else c.hint)
-            tplState.isClickable = has
-            tplState.setOnClickListener {
-                if (has) confirmClearPreviewTemplate(id) { refreshTplState() }
-            }
-        }
-        refreshTplState()
-        roleTemplateRefresh = { refreshTplState() }
-
         val et = EditText(this).apply {
             setText(store.rolePrompt(id)); hint = getString(R.string.role_hint)
             textSize = 14f; minLines = 3
@@ -3038,82 +2963,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
         d.setOnShowListener { skinDialog(d) }
-        d.setOnDismissListener { roleTemplateRefresh = null }
-        d.show()
-    }
-
-    /** 选一段本地音频，作为该音色的「试听模板」。 */
-    private fun pickPreviewTemplate(voiceId: String) {
-        pendingPreviewVoiceId = voiceId
-        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "audio/*"
-        }
-        startActivityForResult(i, REQ_PREVIEW_AUDIO)
-    }
-
-    private fun previewExtOf(uri: android.net.Uri): String {
-        val name = runCatching {
-            contentResolver.query(
-                uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
-            )?.use { c ->
-                if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else null
-            }
-        }.getOrNull().orEmpty()
-        val byName = name.substringAfterLast('.', "").lowercase()
-        if (byName in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) return byName
-        val mime = contentResolver.getType(uri).orEmpty().lowercase()
-        return when {
-            "mpeg" in mime || "mp3" in mime -> "mp3"
-            "wav" in mime -> "wav"
-            "mp4" in mime || "m4a" in mime || "aac" in mime -> "m4a"
-            "opus" in mime -> "opus"
-            "ogg" in mime -> "ogg"
-            "flac" in mime -> "flac"
-            else -> "wav"
-        }
-    }
-
-    private fun importPreviewTemplate(voiceId: String, uri: android.net.Uri) {
-        val ext = previewExtOf(uri)
-        Toast.makeText(this, getString(R.string.preview_template_importing), Toast.LENGTH_SHORT).show()
-        Thread {
-            val ok = runCatching {
-                contentResolver.openInputStream(uri)?.use { input ->
-                    store.savePreviewTemplate(voiceId, input, ext) != null
-                } ?: false
-            }.getOrDefault(false)
-            runOnUiThread {
-                if (ok) {
-                    roleTemplateRefresh?.invoke()
-                    Toast.makeText(this, getString(R.string.preview_template_imported), Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.preview_template_fail, getString(R.string.common_fail)),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }.start()
-    }
-
-    private fun confirmClearPreviewTemplate(voiceId: String, onCleared: () -> Unit) {
-        if (store.previewTemplate(voiceId) == null) {
-            toast(getString(R.string.preview_template_no_custom))
-            return
-        }
-        val d = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.preview_template_clear_title))
-            .setMessage(getString(R.string.preview_template_clear_msg))
-            .setPositiveButton(getString(R.string.preview_template_clear_ok)) { _, _ ->
-                store.clearPreviewTemplate(voiceId)
-                onCleared()
-                toast(getString(R.string.preview_template_cleared))
-            }
-            .setNegativeButton(getString(R.string.common_cancel), null)
-            .create()
-        d.setOnShowListener { skinDialog(d) }
         d.show()
     }
 
@@ -3130,6 +2979,5 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         private const val REQ_CROP_PAGE = 2004
         private const val REQ_BACKUP_EXPORT = 2021
         private const val REQ_BACKUP_IMPORT = 2022
-        private const val REQ_PREVIEW_AUDIO = 2023
     }
 }

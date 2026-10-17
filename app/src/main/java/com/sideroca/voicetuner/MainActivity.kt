@@ -123,6 +123,9 @@ class MainActivity : AppCompatActivity() {
 
     // 建音色（声音复刻）
     private val REQ_PICK_AUDIO = 1001
+    /** 音色试听模板：选一段本地音频 */
+    private val REQ_VOICE_TEMPLATE = 1002
+    private var pendingVoiceTemplateId: String? = null
     private val MAX_SAMPLE_BYTES = 15L * 1024 * 1024
     /** 本地记录首屏最多渲染多少条（其余点「显示全部」再看）——直接决定冷启动要建多少 View */
     // 2026-10-17：曾试过 25 → 8（省 ~200ms），用户不接受"首屏太少" → **恢复 25**，
@@ -796,9 +799,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val joined = transVersions.joinToString("\n")
-        val caret = transVersions.take(vi).sumOf { it.length + 1 }.coerceIn(0, joined.length)
+        // 2026-10-18 用户：整版删掉后手没刹住，退格会接着把下一版也删掉。
+        // 最稳的办法：把光标送回开头。继续按退格前面没字可删，不会连锁误删；
+        // 想删下一版必须自己重新把光标点进去。
         etText.setText(joined)
-        etText.setSelection(caret)
+        etText.setSelection(0)
+        toast(getString(R.string.trans_version_deleted))
     }
 
     /** 走 LLM：translate=true 翻译 / false 润色 */
@@ -2184,6 +2190,78 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ---------------------------------------------------------------- 音色试听模板（本地音频）
+    private fun startVoiceTemplatePicker(voiceId: String) {
+        pendingVoiceTemplateId = voiceId
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }
+        try {
+            startActivityForResult(i, REQ_VOICE_TEMPLATE)
+        } catch (e: Exception) {
+            toast(getString(R.string.toast_no_picker))
+        }
+    }
+
+    private fun voiceTemplateExt(uri: Uri): String {
+        val name = runCatching {
+            contentResolver.query(
+                uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { c ->
+                if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else null
+            }
+        }.getOrNull().orEmpty()
+        val byName = name.substringAfterLast('.', "").lowercase()
+        if (byName in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) return byName
+        val mime = contentResolver.getType(uri).orEmpty().lowercase()
+        return when {
+            "mpeg" in mime || "mp3" in mime -> "mp3"
+            "wav" in mime -> "wav"
+            "mp4" in mime || "m4a" in mime || "aac" in mime -> "m4a"
+            "opus" in mime -> "opus"
+            "ogg" in mime -> "ogg"
+            "flac" in mime -> "flac"
+            else -> "wav"
+        }
+    }
+
+    private fun importVoiceTemplate(voiceId: String, uri: Uri) {
+        val ext = voiceTemplateExt(uri)
+        toast(getString(R.string.preview_template_importing))
+        Thread {
+            val ok = runCatching {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    store.savePreviewTemplate(voiceId, input, ext) != null
+                } ?: false
+            }.getOrDefault(false)
+            ui {
+                toast(
+                    if (ok) getString(R.string.preview_template_imported)
+                    else getString(R.string.preview_template_fail, getString(R.string.common_fail))
+                )
+            }
+        }.start()
+    }
+
+    private fun confirmClearVoiceTemplate(voiceId: String) {
+        if (store.previewTemplate(voiceId) == null) {
+            toast(getString(R.string.preview_template_no_custom))
+            return
+        }
+        val d = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.preview_template_clear_title))
+            .setMessage(getString(R.string.preview_template_clear_msg))
+            .setPositiveButton(getString(R.string.preview_template_clear_ok)) { _, _ ->
+                store.clearPreviewTemplate(voiceId)
+                toast(getString(R.string.preview_template_cleared))
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null)
+            .create()
+        d.setOnShowListener { skinDialog(d) }
+        d.show()
+    }
+
     // ---------------------------------------------------------------- 分享 / 导出
     /** 分享前先把音频复制成"好名字"（对方收到的就是「音色·正文.wav」，而不是 vt_1759…_abc.wav） */
     private fun shareableOf(take: Take): File {
@@ -2644,56 +2722,98 @@ class MainActivity : AppCompatActivity() {
                 val v = allVoices().firstOrNull { it.id == id }
                     ?: return@setOnLongClickListener false
                 val cv = customVoices.firstOrNull { it.id == id }
-                val dlg = AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.vc_del_title))
-                    .setMessage(getString(R.string.vc_del_msg, v.name))   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
-                    // 试听：放在按钮栏最左（AlertDialog 的 neutral 位），与「取消 / 删除」同一行；
-                    // 位置大体落在正文「「拉普兰德」」的左端下方（用户 2026-10-17 指定）。
-                    .setNeutralButton(getString(R.string.voice_preview), null)
-                    .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
-                        if (cv != null) {
-                            customVoices.removeAll { it.id == cv.id }
-                            store.saveCustomVoices(customVoices)
-                            store.clearPreviewTemplate(cv.id)
-                            if (voiceIsCustom && currentVoiceId == cv.id) {
-                                voiceIsCustom = false
-                                allVoices().firstOrNull()?.let { setVoice(it.id) }
-                            }
-                        } else {
-                            val h = store.hiddenVoices
-                            h.add(v.id)
-                            store.hiddenVoices = h
-                            if (currentVoiceId == v.id) {
-                                allVoices().firstOrNull { it.id != v.id }?.let { setVoice(it.id) }
-                            }
+                val c0 = Skin.colors(this)
+                fun doDelete() {
+                    if (cv != null) {
+                        customVoices.removeAll { it.id == cv.id }
+                        store.saveCustomVoices(customVoices)
+                        store.clearPreviewTemplate(cv.id)
+                        if (voiceIsCustom && currentVoiceId == cv.id) {
+                            voiceIsCustom = false
+                            allVoices().firstOrNull()?.let { setVoice(it.id) }
                         }
-                        pop?.dismiss()
-                        syncVoiceUi()
-                        toast(getString(R.string.common_deleted))
+                    } else {
+                        val h = store.hiddenVoices
+                        h.add(v.id)
+                        store.hiddenVoices = h
+                        if (currentVoiceId == v.id) {
+                            allVoices().firstOrNull { it.id != v.id }?.let { setVoice(it.id) }
+                        }
                     }
-                    .setNegativeButton(getString(R.string.common_cancel), null)
-                    .create()
-                dlg.setOnShowListener {
-                    skinDialog(dlg)   // 跟随主题
-                    val b = dlg.getButton(DialogInterface.BUTTON_NEUTRAL)
-                    if (b != null) {
-                        b.setTextColor(Skin.colors(this).acc)
-                        b.gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                        b.setOnClickListener {
-                            // 覆盖默认点击（默认会关掉弹窗）→ 试听时弹窗保持打开
-                            previewVoice(v.id) { busy ->
-                                // 不改文字：'试听' → '试听中…' 会让按钮变宽，ButtonBarLayout 会
-                                // 突然改成竖排（卡片变高、文字掉到最下面）。只用透明度和禁用态。
-                                b.isEnabled = !busy
-                                b.alpha = if (busy) 0.45f else 1f
-                            }
-                        }
-                        // 「试听」与正文里的「将从」左对齐：量出「「音色名」」的宽度，把按钮文字推过去
-                        alignNeutralButtonToMessage(dlg, b, "「${v.name}」")
+                    pop?.dismiss()
+                    syncVoiceUi()
+                    toast(getString(R.string.common_deleted))
+                }
+
+                var dlg: AlertDialog? = null
+                var listenBtn: TextView? = null
+                fun action(label: String, color: Int, click: () -> Unit): TextView {
+                    val tv = TextView(this)
+                    tv.text = label
+                    tv.textSize = 14f
+                    tv.setTextColor(color)
+                    tv.setPadding(dp(10), dp(10), dp(10), dp(10))
+                    tv.isClickable = true
+                    tv.isFocusable = true
+                    fx(tv)
+                    tv.setOnClickListener { click() }
+                    return tv
+                }
+
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(8), dp(8), dp(8), dp(6))
+                }
+                val tplBtn = action(
+                    getString(
+                        if (store.previewTemplate(v.id) != null) R.string.preview_template_set
+                        else R.string.preview_template
+                    ),
+                    c0.acc
+                ) {
+                    startVoiceTemplatePicker(v.id)
+                }.apply {
+                    isLongClickable = true
+                    setOnLongClickListener { confirmClearVoiceTemplate(v.id); true }
+                }
+                listenBtn = action(getString(R.string.voice_preview), c0.acc) {
+                    previewVoice(v.id) { busy ->
+                        // 不改文字，避免按钮变宽后行内重新排版
+                        listenBtn?.isEnabled = !busy
+                        listenBtn?.alpha = if (busy) 0.45f else 1f
                     }
                 }
-                dlg.setOnDismissListener { stopVoicePreview() }
-                dlg.show()
+                val cancelBtn = action(getString(R.string.common_cancel), c0.dim) { dlg?.dismiss() }
+                val delBtn = action(getString(R.string.common_delete), c0.acc) {
+                    doDelete(); dlg?.dismiss()
+                }
+                val gap = android.widget.Space(this)
+                val spacer = android.widget.Space(this)
+                row.addView(tplBtn)
+                row.addView(gap, LinearLayout.LayoutParams(0, 1))
+                row.addView(listenBtn)
+                row.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
+                row.addView(cancelBtn)
+                row.addView(delBtn)
+
+                dlg = AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.vc_del_title))
+                    .setMessage(getString(R.string.vc_del_msg, v.name))   // 中性文案：不提"内置/隐藏/恢复"这类内部信息
+                    .setView(row)
+                    .create()
+                dlg?.setOnShowListener {
+                    val d = dlg ?: return@setOnShowListener
+                    skinDialog(d)
+                    // Skin 会按角色重刷文字色，这里再显式上一次
+                    tplBtn.setTextColor(c0.acc)
+                    listenBtn?.setTextColor(c0.acc)
+                    cancelBtn.setTextColor(c0.dim)
+                    delBtn.setTextColor(c0.acc)
+                    listenBtn?.let { alignDeleteButtonsToMessage(d, row, gap, tplBtn, it, v.name) }
+                }
+                dlg?.setOnDismissListener { stopVoicePreview() }
+                dlg?.show()
                 true
             }
             listBox.addView(row)
@@ -2751,34 +2871,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 把 AlertDialog 的 neutral 按钮（试听）横向推到正文的指定前缀之后。
-     *
-     * 用户 2026-10-17 的几何描述：「试听向右一条线，正文里的『将从』向下一条线，交点就是新位置」。
-     * 这里不写死 dp：用 message 的 Paint 量「「音色名」」的宽度，再按屏幕坐标算差值，
-     * 所以换成长名字也仍然对得上；名字太长换行时则不硬推（避免跑出屏幕）。
+     * 删除弹窗的自绘按钮行：模板 / 试听 / 取消 / 删除。
+     * 试听的文字起点 = 正文「「音色名」」之后（即「将从」的 x）再向左 20dp。
+     * 用 Space 的宽度把试听推过去；剩余空间由 weight=1 的 spacer 吃掉，取消/删除始终靠右。
      */
-    private fun alignNeutralButtonToMessage(dlg: AlertDialog, btn: TextView, prefix: String) {
+    private fun alignDeleteButtonsToMessage(
+        dlg: AlertDialog, row: LinearLayout, gap: android.widget.Space,
+        tplBtn: TextView, listenBtn: TextView, name: String
+    ) {
         val msg = dlg.findViewById<TextView>(android.R.id.message) ?: return
-        btn.post {
+        row.post {
             runCatching {
-                if (msg.width <= 0) return@runCatching
+                if (msg.width <= 0 || row.width <= 0) return@runCatching
                 val avail = msg.width - msg.paddingLeft - msg.paddingRight
-                val prefixW = msg.paint.measureText(prefix)
+                val prefixW = msg.paint.measureText("「$name」")
                 if (prefixW <= 0f || prefixW > avail) return@runCatching
+
                 val msgLoc = IntArray(2); msg.getLocationOnScreen(msgLoc)
-                val btnLoc = IntArray(2); btn.getLocationOnScreen(btnLoc)
-                val target = msgLoc[0] + msg.paddingLeft + prefixW
-                val current = btnLoc[0] + btn.paddingLeft
-                // 用户 2026-10-18：比「将从」的垂线再向左微调一点
-                val delta = (target - current).toInt() - dp(10)
-                if (delta > 0) {
-                    btn.setPadding(
-                        btn.paddingLeft + delta,
-                        btn.paddingTop,
-                        btn.paddingRight,
-                        btn.paddingBottom
-                    )
-                }
+                val listenLoc = IntArray(2); listenBtn.getLocationOnScreen(listenLoc)
+                val target = msgLoc[0] + msg.paddingLeft + prefixW - dp(20)
+                val current = listenLoc[0] + listenBtn.paddingLeft
+                val delta = (target - current).toInt()
+                if (delta == 0) return@runCatching
+
+                val lp = gap.layoutParams as LinearLayout.LayoutParams
+                val maxGap = row.width - row.paddingLeft - row.paddingRight -
+                    tplBtn.width - listenBtn.width - dp(120)   // 给取消/删除留位置
+                lp.width = (lp.width + delta).coerceIn(0, maxGap.coerceAtLeast(0))
+                gap.layoutParams = lp
             }
         }
     }
@@ -3183,6 +3303,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             pendingSaveFile = null
+            return
+        }
+
+        if (requestCode == REQ_VOICE_TEMPLATE && resultCode == RESULT_OK) {
+            val uri = data?.data
+            val vid = pendingVoiceTemplateId
+            pendingVoiceTemplateId = null
+            if (uri != null && !vid.isNullOrBlank()) importVoiceTemplate(vid, uri)
             return
         }
 

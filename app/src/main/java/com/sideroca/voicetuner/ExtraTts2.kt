@@ -173,7 +173,7 @@ object ExtraTts2 {
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 15_000
-                    readTimeout = 180_000
+                    readTimeout = 300_000          // 长文本合成可能超过 3 分钟
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                 }

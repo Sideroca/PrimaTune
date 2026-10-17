@@ -5,9 +5,12 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 
 /**
  * 后台保活：声音复刻 / 合成这类「要等十几秒到几十秒」的活，
@@ -17,6 +20,8 @@ import androidx.core.app.NotificationCompat
  * 只负责"活着"：真正的请求仍在原来的后台线程里跑，这个服务不碰业务。
  */
 class KeepAliveService : Service() {
+
+    private var wake: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -51,8 +56,39 @@ class KeepAliveService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .build()
-        startForeground(NOTI_ID, n)
+        // Android 14+ 必须带 foregroundServiceType；以前无类型调用可能直接抛异常 → 服务没起来 → 后台断网
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 29) {
+                ServiceCompat.startForeground(
+                    this, NOTI_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(NOTI_ID, n)
+            }
+        }
+        acquireWake()
         return START_NOT_STICKY
+    }
+
+    /** 生成期间别让 CPU 睡回去（尤其锁屏/长时间等待时） */
+    private fun acquireWake() {
+        if (wake?.isHeld == true) return
+        runCatching {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "vt:synth").apply {
+                acquire(30 * 60 * 1000L)
+            }
+        }
+    }
+
+    private fun releaseWake() {
+        runCatching { wake?.let { if (it.isHeld) it.release() } }
+        wake = null
+    }
+
+    override fun onDestroy() {
+        releaseWake()
+        super.onDestroy()
     }
 
     companion object {

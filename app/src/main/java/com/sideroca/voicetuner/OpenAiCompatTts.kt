@@ -67,7 +67,7 @@ object OpenAiCompatTts {
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 15_000
-                    readTimeout = 120_000
+                    readTimeout = 300_000          // 长文本合成可能超过 2 分钟；别让本地读超时先掐断
                     doOutput = true
                     // 鉴权头可自定义（有的服务用 x-api-key 之类）；{key} 会被替换成实际 Key
                     val auth = cfg.auth.ifBlank { "Authorization: Bearer {key}" }.replace("{key}", apiKey)

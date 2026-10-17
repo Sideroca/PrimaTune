@@ -51,7 +51,7 @@ object QwenTtsClient {
                 val conn = (URL(EP).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 15_000
-                    readTimeout = 120_000
+                    readTimeout = 300_000          // 长文本合成可能超过 2 分钟
                     doOutput = true
                     setRequestProperty("Authorization", "Bearer " + req.apiKey)
                     setRequestProperty("Content-Type", "application/json")

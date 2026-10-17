@@ -313,6 +313,7 @@
     <string name="pfx_extra">补充说明：</string>
     <string name="trans_done">✅ 已翻译成 %1$s</string>
     <string name="trans_multi_done">✅ 已翻成 %1$s（译版在上 · 原文在下）</string>
+    <string name="trans_version_deleted">已删除该版本（光标回到开头，防止连删下一版）</string>
     <string name="llm_trans_done">✅ LLM 已翻译成 %1$s</string>
     <string name="smartfill_bad">LLM 返回没法解析：%1$s</string>
     <string name="trans_langs_toast">翻译语言：%1$s</string>

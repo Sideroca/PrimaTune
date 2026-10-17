@@ -313,6 +313,7 @@
     <string name="pfx_extra">추가 설명:</string>
     <string name="trans_done">✅ %1$s に翻訳しました</string>
     <string name="trans_multi_done">✅ %1$s に翻訳（訳を上・原文を下）</string>
+    <string name="trans_version_deleted">이 버전을 삭제했습니다(연속 오삭제 방지를 위해 커서를 맨 앞으로)</string>
     <string name="llm_trans_done">✅ LLM が %1$s に翻訳</string>
     <string name="smartfill_bad">LLM 응답을 해석할 수 없습니다: %1$s</string>
     <string name="trans_langs_toast">翻訳言語：%1$s</string>

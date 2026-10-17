@@ -313,6 +313,7 @@
     <string name="pfx_extra">補足説明：</string>
     <string name="trans_done">✅ Translated to %1$s</string>
     <string name="trans_multi_done">✅ Translated into %1$s (translations on top, source below)</string>
+    <string name="trans_version_deleted">この版を削除しました（連続誤削除防止のためカーソルを先頭へ）</string>
     <string name="llm_trans_done">✅ LLM translated to %1$s</string>
     <string name="smartfill_bad">LLM の返答を解析できません：%1$s</string>
     <string name="trans_langs_toast">Translation languages: %1$s</string>
