@@ -569,6 +569,23 @@ class SettingsActivity : AppCompatActivity() {
                 dd.show()
             }
             head.addView(act)
+
+            // 「模板」：给这个音色导入自定义试听音频（音色管理行也能直接看见入口）
+            val tplBtn = TextView(this)
+            tplBtn.text = getString(R.string.preview_template)
+            tplBtn.setTextColor(c.acc)
+            tplBtn.textSize = 14f
+            tplBtn.setPadding(dp(12f), dp(6f), dp(4f), dp(6f))
+            tplBtn.isClickable = true
+            tplBtn.isFocusable = true
+            tplBtn.isLongClickable = true
+            fx(tplBtn)
+            tplBtn.setOnClickListener { pickPreviewTemplate(id) }
+            tplBtn.setOnLongClickListener {
+                confirmClearPreviewTemplate(id) { buildVoices() }
+                true
+            }
+            head.addView(tplBtn)
             box.addView(head)
 
             // 「提示词」：给这个音色写角色人设（喂给 AI，不发给 TTS）——写在音色页，方便**逐个音色提前写好**
@@ -612,9 +629,9 @@ class SettingsActivity : AppCompatActivity() {
     private var pendingSaveFile2: java.io.File? = null
     private val REQ_SAVE2 = 2010
 
-    /** 音色「模板」：正在等文件选择器返回的音色 id；以及提示词弹窗里的模板按钮 */
+    /** 音色「模板」：正在等文件选择器返回的音色 id；以及提示词弹窗里的状态刷新 */
     private var pendingPreviewVoiceId: String? = null
-    private var roleTemplateBtn: TextView? = null
+    private var roleTemplateRefresh: (() -> Unit)? = null
 
     /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
     private fun exportHistory(t: Take) {
@@ -2602,6 +2619,22 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         fReady.setOnClickListener { showAlarmCheckDialog() }
         box.addView(fReady)
 
+        // 闹钟音量太低 → 到点"其实响了但听不见"。直接在卡片里提示并一键去调。
+        runCatching {
+            val au = getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+            val vol = au.getStreamVolume(android.media.AudioManager.STREAM_ALARM)
+            val max = au.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)
+            if (!au.isStreamMute(android.media.AudioManager.STREAM_ALARM) && max > 0 && vol * 100 / max < 40) {
+                val fVol = fld(getString(R.string.alarm_volume_low, vol, max))
+                fVol.textSize = 13f
+                fVol.setTextColor(c0.acc)
+                fVol.setOnClickListener {
+                    runCatching { startActivity(Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)) }
+                }
+                box.addView(fVol)
+            }
+        }
+
         box.addView(lbl(getString(R.string.alarm_voice)))
         val availIds = (if (TtsProviders.byId(store.providerId)?.shape == "dashscope" || store.providerId.isBlank())
             visibleVoices() else store.loadCustomVoices().map { it.name to it.id }).map { it.second }
@@ -2941,6 +2974,52 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         box.addView(TextView(this).apply {
             text = getString(R.string.role_desc, name.ifBlank { "该音色" }); setTextColor(c.dim); textSize = 12f
         })
+
+        // 白卡左侧的「模板」：给这个音色导入一段本地音频，作为试听；不设置就沿用 TTS
+        val tplRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8f), 0, dp(4f))
+        }
+        val tplBtn = TextView(this).apply {
+            text = getString(R.string.preview_template)
+            textSize = 13f
+            setTextColor(c.acc)
+            setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
+            background = Skin.shapeDp(this@SettingsActivity, c.card2, c.line, 96f, 100, 1f)
+            isClickable = true
+            isFocusable = true
+            fx(this)
+            setOnClickListener { pickPreviewTemplate(id) }
+            isLongClickable = true
+            setOnLongClickListener {
+                confirmClearPreviewTemplate(id) { roleTemplateRefresh?.invoke() }
+                true
+            }
+        }
+        val tplState = TextView(this).apply {
+            textSize = 12f
+            setTextColor(c.hint)
+            setPadding(dp(10f), 0, 0, 0)
+        }
+        tplRow.addView(tplBtn)
+        tplRow.addView(tplState, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        box.addView(tplRow)
+
+        fun refreshTplState() {
+            val has = store.previewTemplate(id) != null
+            tplState.text = getString(
+                if (has) R.string.preview_template_state_set else R.string.preview_template_state_none
+            )
+            tplState.setTextColor(if (has) c.acc else c.hint)
+            tplState.isClickable = has
+            tplState.setOnClickListener {
+                if (has) confirmClearPreviewTemplate(id) { refreshTplState() }
+            }
+        }
+        refreshTplState()
+        roleTemplateRefresh = { refreshTplState() }
+
         val et = EditText(this).apply {
             setText(store.rolePrompt(id)); hint = getString(R.string.role_hint)
             textSize = 14f; minLines = 3
@@ -2952,34 +3031,14 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val d = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(name.ifBlank { getString(R.string.role_title) })
             .setView(sc)
-            .setNeutralButton(getString(R.string.preview_template), null)   // 左下：导入该音色的试听模板
             .setPositiveButton(getString(R.string.alarm_save)) { _, _ ->
                 store.setRolePrompt(id, et.text.toString().trim())
                 buildVoices()
                 toast(getString(R.string.role_saved))
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
-        d.setOnShowListener {
-            skinDialog(d)
-            val b = d.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
-            if (b != null) {
-                b.setTextColor(c.acc)
-                b.text = getString(
-                    if (store.previewTemplate(id) != null) R.string.preview_template_set
-                    else R.string.preview_template
-                )
-                b.setOnClickListener { pickPreviewTemplate(id) }
-                b.isLongClickable = true
-                b.setOnLongClickListener {
-                    confirmClearPreviewTemplate(id, b)
-                    true
-                }
-                roleTemplateBtn = b
-            }
-        }
-        d.setOnDismissListener {
-            if (roleTemplateBtn === d.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)) roleTemplateBtn = null
-        }
+        d.setOnShowListener { skinDialog(d) }
+        d.setOnDismissListener { roleTemplateRefresh = null }
         d.show()
     }
 
@@ -3026,7 +3085,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             }.getOrDefault(false)
             runOnUiThread {
                 if (ok) {
-                    roleTemplateBtn?.text = getString(R.string.preview_template_set)
+                    roleTemplateRefresh?.invoke()
                     Toast.makeText(this, getString(R.string.preview_template_imported), Toast.LENGTH_LONG).show()
                 } else {
                     Toast.makeText(
@@ -3039,7 +3098,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }.start()
     }
 
-    private fun confirmClearPreviewTemplate(voiceId: String, btn: TextView) {
+    private fun confirmClearPreviewTemplate(voiceId: String, onCleared: () -> Unit) {
         if (store.previewTemplate(voiceId) == null) {
             toast(getString(R.string.preview_template_no_custom))
             return
@@ -3049,7 +3108,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             .setMessage(getString(R.string.preview_template_clear_msg))
             .setPositiveButton(getString(R.string.preview_template_clear_ok)) { _, _ ->
                 store.clearPreviewTemplate(voiceId)
-                btn.text = getString(R.string.preview_template)
+                onCleared()
                 toast(getString(R.string.preview_template_cleared))
             }
             .setNegativeButton(getString(R.string.common_cancel), null)

@@ -2682,8 +2682,10 @@ class MainActivity : AppCompatActivity() {
                         b.setOnClickListener {
                             // 覆盖默认点击（默认会关掉弹窗）→ 试听时弹窗保持打开
                             previewVoice(v.id) { busy ->
-                                b.text = getString(if (busy) R.string.voice_preview_loading else R.string.voice_preview)
+                                // 不改文字：'试听' → '试听中…' 会让按钮变宽，ButtonBarLayout 会
+                                // 突然改成竖排（卡片变高、文字掉到最下面）。只用透明度和禁用态。
                                 b.isEnabled = !busy
+                                b.alpha = if (busy) 0.45f else 1f
                             }
                         }
                         // 「试听」与正文里的「将从」左对齐：量出「「音色名」」的宽度，把按钮文字推过去
@@ -2767,7 +2769,8 @@ class MainActivity : AppCompatActivity() {
                 val btnLoc = IntArray(2); btn.getLocationOnScreen(btnLoc)
                 val target = msgLoc[0] + msg.paddingLeft + prefixW
                 val current = btnLoc[0] + btn.paddingLeft
-                val delta = (target - current).toInt()
+                // 用户 2026-10-18：比「将从」的垂线再向左微调一点
+                val delta = (target - current).toInt() - dp(10)
                 if (delta > 0) {
                     btn.setPadding(
                         btn.paddingLeft + delta,

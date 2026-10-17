@@ -75,6 +75,8 @@
     <string name="voice_preview_fail">Preview failed: %1$s</string>
     <string name="preview_template">Template</string>
     <string name="preview_template_set">Template ✓</string>
+    <string name="preview_template_state_set">Custom preview set · tap to restore default</string>
+    <string name="preview_template_state_none">Not set · uses TTS by default</string>
     <string name="preview_template_importing">Importing preview template…</string>
     <string name="preview_template_imported">Set as this voice\'s preview template (long-press Template to restore default)</string>
     <string name="preview_template_fail">Import failed: %1$s</string>
@@ -388,6 +390,7 @@
     <string name="alarm_pregen_started">Generating… check back in a few seconds</string>
     <string name="alarm_voice_fail">Voice not ready (staying silent this time)</string>
     <string name="alarm_generating">Generating alarm audio… (will play automatically)</string>
+    <string name="alarm_volume_low">⚠️ Alarm volume is %1$d/%2$d — may be inaudible · tap to increase</string>
     <string name="alarm_need_voice_first">No usable voice for this provider — create one on the home screen (＋)</string>
     <string name="alarm_engine">Engine</string>
     <string name="alarm_voice_mismatch">⚠ does not match the current provider — pick another voice</string>

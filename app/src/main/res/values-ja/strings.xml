@@ -75,6 +75,8 @@
     <string name="voice_preview_fail">試聴に失敗：%1$s</string>
     <string name="preview_template">テンプレート</string>
     <string name="preview_template_set">テンプレート ✓</string>
+    <string name="preview_template_state_set">カスタム試聴あり・タップで既定に戻す</string>
+    <string name="preview_template_state_none">未設定・既定は TTS 合成</string>
     <string name="preview_template_importing">試聴テンプレートを読み込み中…</string>
     <string name="preview_template_imported">この音色の試聴テンプレートに設定しました（長押しで既定に戻す）</string>
     <string name="preview_template_fail">読み込み失敗：%1$s</string>
@@ -388,6 +390,7 @@
     <string name="alarm_pregen_started">生成を開始しました。数秒後にもう一度</string>
     <string name="alarm_voice_fail">音声が未準備（今回は鳴らしません）</string>
     <string name="alarm_generating">目覚まし音声を生成中…（完成後、自動再生します）</string>
+    <string name="alarm_volume_low">⚠️ アラーム音量が %1$d/%2$d と小さいです・タップで調整</string>
     <string name="alarm_need_voice_first">このプロバイダーで使える音色がありません。ホームの「＋」で作成してください</string>
     <string name="alarm_engine">エンジン</string>
     <string name="alarm_voice_mismatch">⚠ 現在のプロバイダーと不一致。音色を選び直してください</string>

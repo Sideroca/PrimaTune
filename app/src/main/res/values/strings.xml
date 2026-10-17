@@ -75,6 +75,8 @@
     <string name="voice_preview_fail">试听失败：%1$s</string>
     <string name="preview_template">模板</string>
     <string name="preview_template_set">模板 ✓</string>
+    <string name="preview_template_state_set">已设置自定义试听 · 点此恢复默认</string>
+    <string name="preview_template_state_none">未设置 · 默认用 TTS 合成</string>
     <string name="preview_template_importing">正在导入试听模板…</string>
     <string name="preview_template_imported">已设为该音色的试听模板（长按「模板」可恢复默认）</string>
     <string name="preview_template_fail">导入失败：%1$s</string>
@@ -388,6 +390,7 @@
     <string name="alarm_pregen_started">已开始预生成，几秒后再看</string>
     <string name="alarm_voice_fail">语音未就绪（本次不出声）</string>
     <string name="alarm_generating">正在生成闹钟语音…（生成好后会自动播放）</string>
+    <string name="alarm_volume_low">⚠️ 闹钟音量只有 %1$d/%2$d，到点可能听不见 · 点这里调大</string>
     <string name="alarm_need_voice_first">当前厂商还没有可用音色：先去主页「＋ 建音色」</string>
     <string name="alarm_engine">引擎</string>
     <string name="alarm_voice_mismatch">⚠ 与当前厂商不符，请重选音色</string>
