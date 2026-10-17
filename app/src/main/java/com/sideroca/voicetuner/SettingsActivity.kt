@@ -2119,7 +2119,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     private fun updateIconPreview() {
         val c = Skin.colors(this)
         ivIconPreview.background = Skin.shapeDp(this, c.card2, c.line, 26f, 100, 1f)
-        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240, 0.05f))
+        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240, 0.07f))
     }
 
     /**
