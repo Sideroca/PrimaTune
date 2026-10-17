@@ -230,7 +230,7 @@
     <string name="cat_modern">모던 클래식 18</string>
     <string name="cat_chinese">🏮 중국 전통색 46</string>
     <string name="cat_attrs">배경 속성</string>
-    <string name="icon_style_default">칩 · 기본</string>
+    <string name="icon_style_default">칩</string>
     <string name="icon_style_purple">바이올렛</string>
     <string name="icon_style_b">로즈</string>
     <string name="icon_style_c">믹서</string>

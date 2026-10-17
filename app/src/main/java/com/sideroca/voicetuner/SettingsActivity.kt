@@ -2089,20 +2089,9 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     private fun renderIconStyleChips() {
         llIconStyles.removeAllViews()
-        llIconStyles.orientation = LinearLayout.VERTICAL
+        llIconStyles.orientation = LinearLayout.HORIZONTAL
         val c = Skin.colors(this)
-        var row: LinearLayout? = null
-        for ((index, pair) in iconStyles.withIndex()) {
-            val (key, label) = pair
-            if (index % 2 == 0) {
-                row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                llIconStyles.addView(
-                    row,
-                    LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply { if (index > 0) topMargin = dp(6f) }
-                )
-            }
+        for ((key, label) in iconStyles) {
             val tv = TextView(this)
             tv.text = label
             tv.textSize = 12.5f
@@ -2112,16 +2101,18 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             tv.gravity = Gravity.CENTER
             val sel = key == curIconStyle
             tv.isSelected = sel
-            tv.setPadding(dp(8f), dp(7f), dp(8f), dp(7f))
+            tv.setPadding(dp(13f), dp(7f), dp(13f), dp(7f))
             tv.background = Skin.shapeDp(this, if (sel) c.sel else c.card2, if (sel) c.sel else c.line, 96f, 100, 1f)
             tv.setTextColor(if (sel) c.onAcc else c.dim)
             tv.isClickable = true; tv.isFocusable = true
             fx(tv)
             tv.setOnClickListener { applyAppIconStyle(key, tell = true) }
-            val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            if (index % 2 == 0) lp.rightMargin = dp(4f)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.rightMargin = dp(8f)
             tv.layoutParams = lp
-            row?.addView(tv)
+            llIconStyles.addView(tv)
         }
     }
 

@@ -230,8 +230,8 @@
     <string name="cat_modern">モダンクラシック 18</string>
     <string name="cat_chinese">🏮 中国伝統色 46</string>
     <string name="cat_attrs">壁紙属性</string>
-    <string name="icon_style_default">チップ・デフォルト</string>
-    <string name="icon_style_purple">バイオレット</string>
+    <string name="icon_style_default">チップ</string>
+    <string name="icon_style_purple">紫</string>
     <string name="icon_style_b">ローズ</string>
     <string name="icon_style_c">ミキサー</string>
     <string name="toast_backfill_done">パラメータを復元しました</string>
