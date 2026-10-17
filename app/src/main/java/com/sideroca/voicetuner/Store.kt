@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 
 /** 一条生成记录 */
@@ -101,6 +102,8 @@ class Store(context: Context) {
     private val dir: File = File(context.filesDir, "history").apply { mkdirs() }
     private val indexFile = File(dir, "index.json")
     private val voicesFile = File(context.filesDir, "custom_voices.json")
+    /** 每个音色的自定义试听模板（本地音频；未设置则用 TTS 现场合成） */
+    private val previewDir = File(context.filesDir, "voice_previews").apply { mkdirs() }
 
     // ---- AI 闹钟 ----
     /** 闹钟配置（JSON；单闹钟 MVP） */
@@ -394,6 +397,45 @@ class Store(context: Context) {
 
     /** 记录音频目录（备份 / 恢复用） */
     fun historyDir(): File = dir
+
+    // ---------------------------------------------------------------- 音色试听模板
+    /** 音色 id → 稳定的短文件名（避免 id 里的特殊字符进路径） */
+    private fun previewKey(voiceId: String): String = voiceId.hashCode().toUInt().toString(16)
+
+    /** 该音色已导入的试听模板；没有/空文件返回 null。 */
+    fun previewTemplate(voiceId: String): File? {
+        val key = previewKey(voiceId)
+        return previewDir.listFiles()?.firstOrNull {
+            it.isFile && it.length() > 0 && it.nameWithoutExtension == key
+        }
+    }
+
+    /** 保存导入的试听模板；失败返回 null。同名旧模板会先删掉。 */
+    fun savePreviewTemplate(voiceId: String, input: InputStream, ext: String): File? {
+        val key = previewKey(voiceId)
+        val safeExt = ext.lowercase().let {
+            if (it in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) it else "wav"
+        }
+        runCatching {
+            previewDir.listFiles()?.filter { it.nameWithoutExtension == key }?.forEach { it.delete() }
+        }
+        val f = File(previewDir, key + "." + safeExt)
+        return runCatching {
+            f.outputStream().use { out -> input.copyTo(out) }
+            if (f.length() > 0) f else { f.delete(); null }
+        }.getOrElse {
+            runCatching { f.delete() }
+            null
+        }
+    }
+
+    /** 删除该音色的自定义试听模板（回到 TTS 默认）。 */
+    fun clearPreviewTemplate(voiceId: String) {
+        val key = previewKey(voiceId)
+        runCatching {
+            previewDir.listFiles()?.filter { it.nameWithoutExtension == key }?.forEach { it.delete() }
+        }
+    }
 
     /** 恢复时按原文件名写入音频；只接受常见音频扩展名，防路径穿越。 */
     fun restoreAudioFile(name: String, input: java.io.InputStream): File? {

@@ -73,6 +73,16 @@
     <string name="voice_preview_loading">미리 듣는 중…</string>
     <string name="voice_preview_text">안녕하세요, 이것은 미리 듣기 오디오입니다.</string>
     <string name="voice_preview_fail">미리 듣기 실패: %1$s</string>
+    <string name="preview_template">템플릿</string>
+    <string name="preview_template_set">템플릿 ✓</string>
+    <string name="preview_template_importing">미리 듣기 템플릿 가져오는 중…</string>
+    <string name="preview_template_imported">이 음색의 미리 듣기 템플릿으로 설정했습니다(길게 눌러 기본으로 복원)</string>
+    <string name="preview_template_fail">가져오기 실패: %1$s</string>
+    <string name="preview_template_no_custom">이 음색에는 사용자 템플릿이 없습니다</string>
+    <string name="preview_template_clear_title">기본 미리 듣기로 복원할까요?</string>
+    <string name="preview_template_clear_msg">이 음색의 사용자 미리 듣기 오디오를 삭제합니다. 이후 “미리 듣기”는 TTS 기본 중국어 문장을 합성합니다.</string>
+    <string name="preview_template_clear_ok">기본으로 복원</string>
+    <string name="preview_template_cleared">기본 미리 듣기로 복원했습니다</string>
     <string name="common_deleted">삭제됨</string>
     <string name="common_save">저장</string>
     <string name="hist_empty">기록이 아직 없습니다</string>

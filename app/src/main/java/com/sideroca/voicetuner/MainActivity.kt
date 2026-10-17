@@ -2057,6 +2057,17 @@ class MainActivity : AppCompatActivity() {
      * 百炼的 cosyvoice-* 还必须用 cosyvoice 模型（当前若选了 qwen-tts 会失败）→ 这里强制 v3.5-plus。
      */
     private fun previewVoice(voiceId: String, onBusy: (Boolean) -> Unit) {
+        // 该音色导入过自定义试听模板 → 直接播本地文件，不发 TTS 请求（也不依赖 API Key）
+        val custom = store.previewTemplate(voiceId)
+        if (custom != null) {
+            stopPlayback()
+            refreshPlayButtons()
+            stopVoicePreview()
+            onBusy(true)
+            playPreviewFile(custom, onBusy)
+            return
+        }
+
         val pid = VoiceProviders.of(voiceId, customVoices) ?: store.providerId
         val prov = TtsProviders.byId(pid)
         val key = store.providerKey(pid).ifBlank { if (pid == "aliyun-bailian") store.apiKey else "" }
@@ -2643,6 +2654,7 @@ class MainActivity : AppCompatActivity() {
                         if (cv != null) {
                             customVoices.removeAll { it.id == cv.id }
                             store.saveCustomVoices(customVoices)
+                            store.clearPreviewTemplate(cv.id)
                             if (voiceIsCustom && currentVoiceId == cv.id) {
                                 voiceIsCustom = false
                                 allVoices().firstOrNull()?.let { setVoice(it.id) }
@@ -2666,6 +2678,7 @@ class MainActivity : AppCompatActivity() {
                     val b = dlg.getButton(DialogInterface.BUTTON_NEUTRAL)
                     if (b != null) {
                         b.setTextColor(Skin.colors(this).acc)
+                        b.gravity = Gravity.START or Gravity.CENTER_VERTICAL
                         b.setOnClickListener {
                             // 覆盖默认点击（默认会关掉弹窗）→ 试听时弹窗保持打开
                             previewVoice(v.id) { busy ->
@@ -2673,6 +2686,8 @@ class MainActivity : AppCompatActivity() {
                                 b.isEnabled = !busy
                             }
                         }
+                        // 「试听」与正文里的「将从」左对齐：量出「「音色名」」的宽度，把按钮文字推过去
+                        alignNeutralButtonToMessage(dlg, b, "「${v.name}」")
                     }
                 }
                 dlg.setOnDismissListener { stopVoicePreview() }
@@ -2731,6 +2746,38 @@ class MainActivity : AppCompatActivity() {
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
         pop.showAsDropDown(llVoice, 0, dp(2))
+    }
+
+    /**
+     * 把 AlertDialog 的 neutral 按钮（试听）横向推到正文的指定前缀之后。
+     *
+     * 用户 2026-10-17 的几何描述：「试听向右一条线，正文里的『将从』向下一条线，交点就是新位置」。
+     * 这里不写死 dp：用 message 的 Paint 量「「音色名」」的宽度，再按屏幕坐标算差值，
+     * 所以换成长名字也仍然对得上；名字太长换行时则不硬推（避免跑出屏幕）。
+     */
+    private fun alignNeutralButtonToMessage(dlg: AlertDialog, btn: TextView, prefix: String) {
+        val msg = dlg.findViewById<TextView>(android.R.id.message) ?: return
+        btn.post {
+            runCatching {
+                if (msg.width <= 0) return@runCatching
+                val avail = msg.width - msg.paddingLeft - msg.paddingRight
+                val prefixW = msg.paint.measureText(prefix)
+                if (prefixW <= 0f || prefixW > avail) return@runCatching
+                val msgLoc = IntArray(2); msg.getLocationOnScreen(msgLoc)
+                val btnLoc = IntArray(2); btn.getLocationOnScreen(btnLoc)
+                val target = msgLoc[0] + msg.paddingLeft + prefixW
+                val current = btnLoc[0] + btn.paddingLeft
+                val delta = (target - current).toInt()
+                if (delta > 0) {
+                    btn.setPadding(
+                        btn.paddingLeft + delta,
+                        btn.paddingTop,
+                        btn.paddingRight,
+                        btn.paddingBottom
+                    )
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 管理音色（自建真删 / 内置隐藏）
@@ -2890,6 +2937,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.common_delete)) { _, _ ->
                 customVoices.removeAll { it.id == v.id }
                 store.saveCustomVoices(customVoices)
+                store.clearPreviewTemplate(v.id)
                 if (!voiceIsCustom && currentVoiceId == v.id) {
                     setVoice(null)          // 走统一入口 → 顺带清空骰子
                 }

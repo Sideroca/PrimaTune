@@ -73,6 +73,16 @@
     <string name="voice_preview_loading">試聴中…</string>
     <string name="voice_preview_text">こんにちは、これは試聴用の音声です。</string>
     <string name="voice_preview_fail">試聴に失敗：%1$s</string>
+    <string name="preview_template">テンプレート</string>
+    <string name="preview_template_set">テンプレート ✓</string>
+    <string name="preview_template_importing">試聴テンプレートを読み込み中…</string>
+    <string name="preview_template_imported">この音色の試聴テンプレートに設定しました（長押しで既定に戻す）</string>
+    <string name="preview_template_fail">読み込み失敗：%1$s</string>
+    <string name="preview_template_no_custom">この音色にはカスタムテンプレートがありません</string>
+    <string name="preview_template_clear_title">既定の試聴に戻しますか？</string>
+    <string name="preview_template_clear_msg">この音色のカスタム試聴音声を削除します。以後「試聴」は TTS の既定中国語文を合成します。</string>
+    <string name="preview_template_clear_ok">既定に戻す</string>
+    <string name="preview_template_cleared">既定の試聴に戻しました</string>
     <string name="common_deleted">削除しました</string>
     <string name="common_save">保存</string>
     <string name="hist_empty">記録はまだありません</string>

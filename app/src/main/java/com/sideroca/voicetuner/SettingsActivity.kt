@@ -556,6 +556,7 @@ class SettingsActivity : AppCompatActivity() {
                             val list = store.loadCustomVoices()
                             list.removeAll { it.id == id }
                             store.saveCustomVoices(list)
+                            store.clearPreviewTemplate(id)
                         }
                         buildVoices(); buildProviders()
                     }
@@ -610,6 +611,10 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页：分享这条记录（FileProvider，别的 App 可直接收） */
     private var pendingSaveFile2: java.io.File? = null
     private val REQ_SAVE2 = 2010
+
+    /** 音色「模板」：正在等文件选择器返回的音色 id；以及提示词弹窗里的模板按钮 */
+    private var pendingPreviewVoiceId: String? = null
+    private var roleTemplateBtn: TextView? = null
 
     /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
     private fun exportHistory(t: Take) {
@@ -1963,6 +1968,15 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             return
         }
 
+        // 音色试听模板：选完音频 → 复制到本机 voice_previews/
+        if (requestCode == REQ_PREVIEW_AUDIO) {
+            val uri = data?.data
+            val vid = pendingPreviewVoiceId
+            pendingPreviewVoiceId = null
+            if (uri != null && !vid.isNullOrBlank()) importPreviewTemplate(vid, uri)
+            return
+        }
+
         // 记录页「下载」：写进用户选的位置
         if (requestCode == REQ_SAVE2) {
             val uri = data?.data
@@ -2119,7 +2133,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     private fun updateIconPreview() {
         val c = Skin.colors(this)
         ivIconPreview.background = Skin.shapeDp(this, c.card2, c.line, 26f, 100, 1f)
-        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240, 0.07f))
+        ivIconPreview.setImageBitmap(composeIcon(curIconStyle, 240, 0.09f))
     }
 
     /**
@@ -2938,13 +2952,110 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val d = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(name.ifBlank { getString(R.string.role_title) })
             .setView(sc)
+            .setNeutralButton(getString(R.string.preview_template), null)   // 左下：导入该音色的试听模板
             .setPositiveButton(getString(R.string.alarm_save)) { _, _ ->
                 store.setRolePrompt(id, et.text.toString().trim())
                 buildVoices()
                 toast(getString(R.string.role_saved))
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
-        d.setOnShowListener { skinDialog(d) }; d.show()
+        d.setOnShowListener {
+            skinDialog(d)
+            val b = d.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
+            if (b != null) {
+                b.setTextColor(c.acc)
+                b.text = getString(
+                    if (store.previewTemplate(id) != null) R.string.preview_template_set
+                    else R.string.preview_template
+                )
+                b.setOnClickListener { pickPreviewTemplate(id) }
+                b.isLongClickable = true
+                b.setOnLongClickListener {
+                    confirmClearPreviewTemplate(id, b)
+                    true
+                }
+                roleTemplateBtn = b
+            }
+        }
+        d.setOnDismissListener {
+            if (roleTemplateBtn === d.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)) roleTemplateBtn = null
+        }
+        d.show()
+    }
+
+    /** 选一段本地音频，作为该音色的「试听模板」。 */
+    private fun pickPreviewTemplate(voiceId: String) {
+        pendingPreviewVoiceId = voiceId
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }
+        startActivityForResult(i, REQ_PREVIEW_AUDIO)
+    }
+
+    private fun previewExtOf(uri: android.net.Uri): String {
+        val name = runCatching {
+            contentResolver.query(
+                uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { c ->
+                if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else null
+            }
+        }.getOrNull().orEmpty()
+        val byName = name.substringAfterLast('.', "").lowercase()
+        if (byName in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) return byName
+        val mime = contentResolver.getType(uri).orEmpty().lowercase()
+        return when {
+            "mpeg" in mime || "mp3" in mime -> "mp3"
+            "wav" in mime -> "wav"
+            "mp4" in mime || "m4a" in mime || "aac" in mime -> "m4a"
+            "opus" in mime -> "opus"
+            "ogg" in mime -> "ogg"
+            "flac" in mime -> "flac"
+            else -> "wav"
+        }
+    }
+
+    private fun importPreviewTemplate(voiceId: String, uri: android.net.Uri) {
+        val ext = previewExtOf(uri)
+        Toast.makeText(this, getString(R.string.preview_template_importing), Toast.LENGTH_SHORT).show()
+        Thread {
+            val ok = runCatching {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    store.savePreviewTemplate(voiceId, input, ext) != null
+                } ?: false
+            }.getOrDefault(false)
+            runOnUiThread {
+                if (ok) {
+                    roleTemplateBtn?.text = getString(R.string.preview_template_set)
+                    Toast.makeText(this, getString(R.string.preview_template_imported), Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.preview_template_fail, getString(R.string.common_fail)),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun confirmClearPreviewTemplate(voiceId: String, btn: TextView) {
+        if (store.previewTemplate(voiceId) == null) {
+            toast(getString(R.string.preview_template_no_custom))
+            return
+        }
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.preview_template_clear_title))
+            .setMessage(getString(R.string.preview_template_clear_msg))
+            .setPositiveButton(getString(R.string.preview_template_clear_ok)) { _, _ ->
+                store.clearPreviewTemplate(voiceId)
+                btn.text = getString(R.string.preview_template)
+                toast(getString(R.string.preview_template_cleared))
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null)
+            .create()
+        d.setOnShowListener { skinDialog(d) }
+        d.show()
     }
 
     private fun toast(msg: String) {
@@ -2960,5 +3071,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         private const val REQ_CROP_PAGE = 2004
         private const val REQ_BACKUP_EXPORT = 2021
         private const val REQ_BACKUP_IMPORT = 2022
+        private const val REQ_PREVIEW_AUDIO = 2023
     }
 }

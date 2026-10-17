@@ -73,6 +73,16 @@
     <string name="voice_preview_loading">Preparing…</string>
     <string name="voice_preview_text">Hello, this is a voice preview.</string>
     <string name="voice_preview_fail">Preview failed: %1$s</string>
+    <string name="preview_template">Template</string>
+    <string name="preview_template_set">Template ✓</string>
+    <string name="preview_template_importing">Importing preview template…</string>
+    <string name="preview_template_imported">Set as this voice\'s preview template (long-press Template to restore default)</string>
+    <string name="preview_template_fail">Import failed: %1$s</string>
+    <string name="preview_template_no_custom">No custom template for this voice</string>
+    <string name="preview_template_clear_title">Restore default preview?</string>
+    <string name="preview_template_clear_msg">This deletes the custom preview audio. Preview will use TTS with the default Chinese line.</string>
+    <string name="preview_template_clear_ok">Restore default</string>
+    <string name="preview_template_cleared">Default preview restored</string>
     <string name="common_deleted">Deleted</string>
     <string name="common_save">Save</string>
     <string name="hist_empty">No records yet</string>

@@ -73,6 +73,16 @@
     <string name="voice_preview_loading">试听中…</string>
     <string name="voice_preview_text">你好，这是一段试听音频。</string>
     <string name="voice_preview_fail">试听失败：%1$s</string>
+    <string name="preview_template">模板</string>
+    <string name="preview_template_set">模板 ✓</string>
+    <string name="preview_template_importing">正在导入试听模板…</string>
+    <string name="preview_template_imported">已设为该音色的试听模板（长按「模板」可恢复默认）</string>
+    <string name="preview_template_fail">导入失败：%1$s</string>
+    <string name="preview_template_no_custom">这个音色还没有自定义模板</string>
+    <string name="preview_template_clear_title">恢复默认试听？</string>
+    <string name="preview_template_clear_msg">将删除该音色的自定义试听音频；之后「试听」会用 TTS 合成一句默认中文。</string>
+    <string name="preview_template_clear_ok">恢复默认</string>
+    <string name="preview_template_cleared">已恢复默认试听</string>
     <string name="common_deleted">已删除</string>
     <string name="common_save">保存</string>
     <string name="hist_empty">暂无记录</string>
