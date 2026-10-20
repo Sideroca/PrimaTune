@@ -6,6 +6,11 @@
 ## 一句话
 Android 原生（**Kotlin + View，无 Compose**）。**"轻内核、重前端"的壳应用**：核心能力（TTS / LLM）在云上，App 主要负责 **UI + 状态 + 各家接口适配**。
 
+## 相关文档
+- **`TTS-PROVIDERS.md`**：各家 TTS 的端点 / 模型 / 参数 / seed 支持 / 坑（**接新厂商、判断骰子先看它**）
+- `README.md`：用户向说明 + 版本历史
+- `ARCHITECTURE.md`：本文，代码结构地图
+
 ## 技术栈
 - Kotlin 2.0.21 ｜ AGP 8.7.3 ｜ Gradle 8.9 ｜ JDK 17(CI) / 21(本机)
 - `minSdk 26` · `targetSdk 34` · `compileSdk 35`
@@ -21,7 +26,7 @@ Android 原生（**Kotlin + View，无 Compose**）。**"轻内核、重前端"�
 | 存储 | `Store` | SharedPreferences + JSON 文件（**唯一数据源**） |
 | 网络 | `DashScopeClient`(WebSocket) · `QwenTtsClient` · `OpenAiCompatTts` · `ExtraTts` · `ExtraTts2` · `TransClient` · `LlmClient` · `TtsProviders` · `TtsModels` · `LlmPresets` | 各家 TTS / LLM / 翻译适配 |
 | 音频 / 图片 | `AudioMerge` · `Wp` · `CropView` · `IconStyles` | 样本合并、壁纸、取景、图标合成 |
-| **AI 闹钟** | `Alarm`(配置) · `AlarmScheduler`(精确闹钟) · `AlarmReceiver` · `AlarmService`(预生成+播放) · `AlarmRingActivity`(全屏响铃页) | 提前 3h 预生成（LLM→TTS→WAV）；到点按序播放；**绝不静默**（无缓存先响系统铃声，30 秒内生成好即切人声）；全屏响铃页 |
+| **AI 闹钟** | `Alarm`(配置) · `AlarmScheduler`(精确闹钟) · `AlarmReceiver` · `AlarmService`(预生成+播放) · `AlarmRingActivity`(全屏响铃页) | 提前 2 分钟预生成（LLM→TTS→WAV）；到点优先播匹配缓存；无缓存则现场生成、完成即播；**不再用系统铃声兜底**；全屏响铃页 |
 | 工具 | `Loc` · `Clip` · `Err` · `Ratchet` · `LayoutFix` · `ContainsAdapter` · `UrlAdapter` · `AudioFocus` · `KeepAliveService` · `VoiceCatalog` | 语言、剪贴板、报错人话、棘轮滑条、适配器等 |
 
 ## 关键机制（**改代码前必读**）
