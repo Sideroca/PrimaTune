@@ -220,6 +220,10 @@ class MainActivity : AppCompatActivity() {
     /** 多译版「删除即整版清掉」：正在被删的版本下标（-1 = 无）与该版累计删掉的字数 */
     private var trDelLine = -1
     private var trDelHits = 0
+    /** 「情绪 / 风格指令」快速删除：1.2s 内累计删到 2 个字 → 整框清空 */
+    private var instrDelHits = 0
+    private var instrDelAt = 0L
+    private var instrClearing = false
     /** 最近一次文本变更（TextWatcher 的 onTextChanged 原始参数，用来区分“删除/打字/组词”） */
     private var editStart = 0
     private var editRemoved = 0
@@ -507,6 +511,28 @@ class MainActivity : AppCompatActivity() {
             etText.requestFocus()
         }
         etInstr = findViewById(R.id.etInstr)
+        // 「情绪 / 风格指令」快速删除：2s 内累计删到 3 个字 → 整框清空。
+        // 阈值比多译版的 2 字宽：允许先微调 1~2 个字而不误清。
+        etInstr.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (instrClearing) return
+                if (count > 0) { instrDelHits = 0; return }
+                if (before <= 0) return
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - instrDelAt > 2000L) instrDelHits = 0
+                instrDelAt = now
+                instrDelHits += before
+                if (instrDelHits >= 3 && !etInstr.text.isNullOrEmpty()) {
+                    instrDelHits = 0
+                    instrClearing = true
+                    etInstr.setText("")
+                    instrClearing = false
+                    toast(getString(R.string.instr_quick_deleted))
+                }
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
         llChips = findViewById(R.id.llChips)
         etSeed = findViewById(R.id.etSeed)
         // 文本一变（含被清空）→ **骰子清空**：下次生成重新拿随机种子，让模型"自由发挥"（用户 2026-10-05）

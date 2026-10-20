@@ -117,6 +117,7 @@
     <string name="hint_input_text">読み上げるテキスト…</string>
     <string name="btn_role">ロール設定</string>
     <string name="label_instruction">感情・スタイル指示（128 字以内）</string>
+    <string name="instr_quick_deleted">スタイル指示をクリアしました</string>
     <string name="cd_polish">テキストを推敲</string>
     <string name="btn_polish">推敲</string>
     <string name="cd_translate">テキストを翻訳</string>
@@ -196,7 +197,7 @@
     <string name="btn_wp_reset">既定に戻す（壁紙と濃度）</string>
     <string name="label_font_scale">記録の文字サイズ（記録カードのタイトル / 情報 / 詳細のみ。小ボタンは変わりません）</string>
     <string name="label_indicator">現在の音色インジケーター色</string>
-    <string name="hint_rec_search">検索：キーワード / 音色 / 日付（例 10-02 または 2026-10-02）</string>
+    <string name="hint_rec_search">検索：キーワード / 音色 / 日付</string>
     <string name="sec_tips">ヒント</string>
     <string name="btn_check_update">更新を確認</string>
     <string name="sec_dev">開発者連絡とサポート</string>

@@ -117,6 +117,7 @@
     <string name="hint_input_text">합성할 텍스트…</string>
     <string name="btn_role">역할 프롬프트</string>
     <string name="label_instruction">감정/스타일 지시 (128자 이내)</string>
+    <string name="instr_quick_deleted">스타일 지시를 지웠습니다</string>
     <string name="cd_polish">텍스트 다듬기</string>
     <string name="btn_polish">다듬기</string>
     <string name="cd_translate">텍스트 번역</string>
@@ -196,7 +197,7 @@
     <string name="btn_wp_reset">기본값 복원(배경화면 및 농도)</string>
     <string name="label_font_scale">기록 글자 크기(기록 카드 제목 / 정보 / 상세에만 영향, 작은 버튼은 그대로)</string>
     <string name="label_indicator">현재 음색 표시 색상</string>
-    <string name="hint_rec_search">검색: 키워드 / 음색 / 날짜 (예: 10-02 또는 2026-10-02)</string>
+    <string name="hint_rec_search">검색: 키워드 / 음색 / 날짜</string>
     <string name="sec_tips">팁</string>
     <string name="btn_check_update">업데이트 확인</string>
     <string name="sec_dev">개발자 연락 및 지원</string>

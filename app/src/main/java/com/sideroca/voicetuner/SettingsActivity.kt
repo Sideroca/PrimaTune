@@ -960,11 +960,23 @@ class SettingsActivity : AppCompatActivity() {
             ?: store.loadTakes().firstOrNull { it.voiceId == id }?.voiceName
             ?: getString(R.string.voice_custom)
 
+    /** 记录页音色下拉：和首页一样按“音色目录/创建顺序”排，再接上已删除但仍有记录的音色 */
+    private fun recordVoiceIds(takes: List<Take>): LinkedHashSet<String> {
+        val ids = LinkedHashSet<String>()
+        val hidden = store.hiddenVoices
+        for (v in VoiceCatalog.builtIn) if (v.second !in hidden) ids.add(v.second)
+        for (v in store.loadCustomVoices()) ids.add(v.id)
+        for (t in takes) if (t.voiceId.isNotBlank()) ids.add(t.voiceId)
+        return ids
+    }
+
     private fun buildRecTop() {
         llRecTop.removeAllViews()
         val c = Skin.colors(this)
         val takesAll = store.loadTakes()
         val favs = store.favTakes
+        // 之前选中的音色已不在目录/记录里 → 清掉，避免 chip 显示“自定义音色”却没有对应项
+        if (recVoiceId != null && recVoiceId !in recordVoiceIds(takesAll)) recVoiceId = null
 
         fun chipRow(): LinearLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1058,8 +1070,7 @@ class SettingsActivity : AppCompatActivity() {
     /** 记录页「选择音色」下拉：跟随主题的弹出面板（与首页记录筛选同一套做法） */
     private fun showRecVoicePick() {
         val c = Skin.colors(this)
-        val ids = LinkedHashSet<String>()
-        for (tk in store.loadTakes()) if (tk.voiceId.isNotBlank()) ids.add(tk.voiceId)
+        val ids = recordVoiceIds(store.loadTakes())
         var pop: android.widget.PopupWindow? = null
         val listBox = LinearLayout(this)
         listBox.orientation = LinearLayout.VERTICAL

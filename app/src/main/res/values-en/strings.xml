@@ -116,6 +116,7 @@
     <string name="label_text">Text</string>
     <string name="hint_input_text">Text to synthesize…</string>
     <string name="btn_role">Role prompt</string>
+    <string name="instr_quick_deleted">Style instruction cleared</string>
     <string name="label_instruction">Emotion / style instruction (≤128 chars)</string>
     <string name="cd_polish">Polish the text</string>
     <string name="btn_polish">Polish</string>
@@ -196,7 +197,7 @@
     <string name="btn_wp_reset">Restore defaults (wallpaper and intensity)</string>
     <string name="label_font_scale">Record font size (only affects record card title / info / details; small buttons unaffected)</string>
     <string name="label_indicator">Current voice indicator color</string>
-    <string name="hint_rec_search">Search: keyword / voice / date (e.g. 10-02 or 2026-10-02)</string>
+    <string name="hint_rec_search">Search: keyword / voice / date</string>
     <string name="sec_tips">Tips</string>
     <string name="btn_check_update">Check for updates</string>
     <string name="sec_dev">Developer contact &amp; support</string>

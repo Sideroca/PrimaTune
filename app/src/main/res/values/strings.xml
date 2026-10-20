@@ -117,6 +117,7 @@
     <string name="hint_input_text">要合成的文本…</string>
     <string name="btn_role">角色提示词</string>
     <string name="label_instruction">情绪 / 风格指令（≤128 字）</string>
+    <string name="instr_quick_deleted">风格指令已快速清空</string>
     <string name="cd_polish">润色文本框内容</string>
     <string name="btn_polish">润</string>
     <string name="cd_translate">翻译文本框内容</string>
@@ -196,7 +197,7 @@
     <string name="btn_wp_reset">恢复默认（壁纸与浓度）</string>
     <string name="label_font_scale">记录字号（只影响记录卡的标题 / 信息 / 详情，小按钮不动）</string>
     <string name="label_indicator">当前音色指示符颜色</string>
-    <string name="hint_rec_search">搜索：关键词 / 角色 / 日期（如 10-02 或 2026-10-02）</string>
+    <string name="hint_rec_search">搜索：关键词 / 角色 / 日期</string>
     <string name="sec_tips">提示</string>
     <string name="btn_check_update">检查更新</string>
     <string name="sec_dev">开发者联系与支持</string>
