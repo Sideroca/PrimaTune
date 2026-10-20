@@ -20,9 +20,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import org.json.JSONArray
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -185,7 +182,7 @@ class AlarmService : Service() {
             runCatching {
                 val f = File(Store(ctx).alarmDir, "status.txt")
                 if (f.length() > 20000) f.delete()
-                f.appendText(SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date()) + "  " + msg + "\n")
+                f.appendText(TimeFmt.log() + "  " + msg + "\n")
             }
         }
 
@@ -337,9 +334,12 @@ class AlarmService : Service() {
             tmp.listFiles()?.forEach { it.delete() }
             if (store.llmKey.isBlank()) { status("pregen 失败：没填 LLM Key（设置 → 模型 → 润色）"); return false }
             if (cfg.voiceId.isBlank()) { status("pregen 失败：闹钟没选音色"); return false }
-            // ⚠️ 秒失败：百炼音色配了非百炼厂商（Fish 等不认识百炼音色 id）——不要白等 TTS 超时
-            if (pid0 != "aliyun-bailian" && cfg.voiceId in VoiceCatalog.builtIn.map { it.second }) {
-                status("pregen 失败：音色「${cfg.voiceName}」是**百炼**音色，而当前 TTS 厂商是 $pname0($pid0) → 请把闹钟音色改选成 $pname0 的音色")
+            // 音色 ↔ 厂商 秒失败：任何已知归属的音色（内置/自建）与当前厂商不符，都不要白等 TTS 超时
+            val customs = store.loadCustomVoices()
+            val wantPid = VoiceProviders.of(cfg.voiceId, customs)
+            if (wantPid != null && wantPid != pid0) {
+                val wantName = TtsProviders.byId(wantPid)?.name ?: wantPid
+                status("pregen 失败：音色「${cfg.voiceName}」属于 $wantName，而当前 TTS 厂商是 $pname0($pid0) → 请把闹钟音色改选成 $pname0 的音色")
                 return false
             }
             // 方案 B：**离响铃还 >3 分钟**才允许"30 秒失败后再给 90 秒"；到点现场生成（live）一律不重试
@@ -347,13 +347,18 @@ class AlarmService : Service() {
             val msgs = writeMessages(store, cfg, allowLongRetry = !live && leftMs > 3 * 60_000L)
             if (msgs == null) { status("pregen 失败：LLM 没写出合格文案（或超时）"); return false }
             status("LLM 写出 ${msgs.size} 条（字数 ${msgs.map { charCount(it) }}）")
-            // 2026-10-16 提速：多条**并行**合成（以前串行 → N 条＝N 倍等待）
+            // 2026-10-16 提速：多条**并行**合成；2026-10-20 加并发上限 3，
+            // 避免一次 9 条同时打厂商接口被限流（429/超时）。
             val errs = java.util.Collections.synchronizedList(ArrayList<String>())
             val done = CountDownLatch(msgs.size)
+            val gate = java.util.concurrent.Semaphore(3)
             msgs.forEachIndexed { i, m ->
                 Thread {
+                    var acquired = false
                     // try/finally：万一 synthToFile 抛了，也要把闩放掉——否则主线程要白等到 180 秒
                     try {
+                        gate.acquire()
+                        acquired = true
                         // 预生成可慢（跟网络层 120s 对齐）；到点现场生成只给 60s（响铃不能干等）
                         val e = synthToFile(store, cfg, m, File(tmp, String.format("%02d.wav", i + 1)), if (live) 60 else 120)
                         if (e != null) errs.add("第 ${i + 1} 条：$e")
@@ -361,6 +366,7 @@ class AlarmService : Service() {
                     } catch (t: Throwable) {
                         errs.add("第 ${i + 1} 条：异常 ${t.javaClass.simpleName}: ${t.message}")
                     } finally {
+                        if (acquired) gate.release()
                         done.countDown()
                     }
                 }.start()

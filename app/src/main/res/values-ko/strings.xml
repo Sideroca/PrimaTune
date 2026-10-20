@@ -50,6 +50,7 @@
     <string name="toast_too_long">텍스트가 너무 깁니다 (%1$d자). 나눠서 합성하세요</string>
     <string name="toast_long">텍스트가 깁니다 (%1$d자). 실패하면 나눠서 합성하세요</string>
     <string name="toast_need_voice">음색을 선택하거나 사용자 지정 음색 ID를 입력하세요</string>
+    <string name="voice_provider_mismatch">이 음색은 %1$s에 속하지만 현재 TTS 공급자는 %2$s입니다. 공급자를 바꾸거나 현재 공급자의 음색을 선택하세요.</string>
     <string name="st_connecting">연결 중…</string>
     <string name="st_connected">연결됨…</string>
     <string name="st_synthesizing">합성 중…</string>
@@ -144,6 +145,7 @@
     <string name="btn_generate">생성</string>
     <string name="label_result">이번 결과</string>
     <string name="label_history">기록</string>
+    <string name="label_history_filter">기록 · %1$s</string>
     <string name="label_model">모델</string>
     <string name="llm_tab_voice">음성</string>
     <string name="llm_tab_polish">다듬기</string>
@@ -194,7 +196,7 @@
     <string name="btn_wp_reset">기본값 복원(배경화면 및 농도)</string>
     <string name="label_font_scale">기록 글자 크기(기록 카드 제목 / 정보 / 상세에만 영향, 작은 버튼은 그대로)</string>
     <string name="label_indicator">현재 음색 표시 색상</string>
-    <string name="hint_rec_search">검색: 키워드 / 캐릭터 / 날짜(예: 10-02)</string>
+    <string name="hint_rec_search">검색: 키워드 / 음색 / 날짜 (예: 10-02 또는 2026-10-02)</string>
     <string name="sec_tips">팁</string>
     <string name="btn_check_update">업데이트 확인</string>
     <string name="sec_dev">개발자 연락 및 지원</string>
@@ -475,7 +477,7 @@
     <string name="rec_fav_partial">★ 즐겨찾기 %1$d/%2$d</string>
     <string name="rec_more">더 보기 (%1$d개 남음)</string>
     <string name="backup_title">백업 및 복원</string>
-    <string name="backup_note">백업에는 모든 기록, 오디오, 사용자 음색, 즐겨찾기가 포함됩니다(API Key 제외). 삭제 전에 zip을 내보내고, 재설치 후 여기서 복원하세요. 복원은 추가만 하며 기존 데이터를 삭제하지 않습니다.</string>
+    <string name="backup_note">백업에는 모든 기록, 오디오, 사용자 음색, 즐겨찾기, 미리 듣기 템플릿이 포함됩니다(API Key 제외). 삭제 전에 zip을 내보내고, 재설치 후 여기서 복원하세요. 복원은 추가만 하며 기존 데이터를 삭제하지 않습니다.</string>
     <string name="backup_export">백업 내보내기</string>
     <string name="backup_import">백업에서 복원</string>
     <string name="backup_exporting">내보내는 중…</string>
@@ -486,4 +488,11 @@
     <string name="backup_empty">백업할 기록/음색이 없습니다</string>
     <string name="backup_import_none">이 백업에 복원할 기록이 없습니다(오디오 누락 가능)</string>
     <string name="backup_zip_name">PrimaTune-백업-%1$s.zip</string>
+    <string name="backup_stats">기록 %1$d개 · 로컬 사용량 %2$s · 마지막 백업: %3$s</string>
+    <string name="backup_never">백업 없음</string>
+    <string name="fav_stale">유효하지 않은 즐겨찾기 %1$d개 · 눌러서 정리</string>
+    <string name="fav_stale_title">유효하지 않은 즐겨찾기를 정리할까요?</string>
+    <string name="fav_stale_msg">이 즐겨찾기에 해당하는 기록이 로컬에 없습니다. 즐겨찾기 표시만 제거하며 기존 기록은 건드리지 않습니다. 복구 가능한 기록이 있으면 먼저 복구하세요.</string>
+    <string name="fav_stale_ok">정리</string>
+    <string name="fav_stale_done">유효하지 않은 즐겨찾기 %1$d개를 정리했습니다</string>
 </resources>

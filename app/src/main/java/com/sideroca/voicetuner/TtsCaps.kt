@@ -20,7 +20,7 @@ object TtsCaps {
     private const val SRC_OPENAI = "OpenAI 文档 audio/speech：gpt-4o-mini-tts 支持 instructions；speed 0.25~4"
     private const val SRC_11L = "ElevenLabs 文档 Models/TTS：**v3 不支持 speed**；audio tags 只在 v3/v4；SSML break 只在 v2 系"
     private const val SRC_MM = "MiniMax 文档 t2a_v2：voice_setting{speed,vol,pitch} + emotion + pronunciation_dict"
-    private const val SRC_FISH = "Fish Audio 文档 TTS：prosody.speed 0.5~2 + volume；s1 用圆括号情绪标签，s2 系用方括号"
+    private const val SRC_FISH = "Fish Audio 文档 TTS：prosody.speed 0.5~2 + volume；s1 用圆括号情绪标签，s2 系用方括号；用户实测支持 seed"
     private const val SRC_GROQ = "Groq 文档 TTS/Orpheus：english 支持 vocal directions，arabic-saudi 不支持"
     private const val SRC_GEMINI = "Gemini API 模型页 + Cloud TTS：prompt/style + inline tags，无数值语速/音调；型号已按官方更新"
     private const val SRC_XAI = "docs.x.ai Text to Speech：POST /v1/tts，字段只有 text/voice_id/language/codec/sample_rate/bit_rate"
@@ -61,10 +61,11 @@ object TtsCaps {
         "minimax/speech-2.6-turbo" to p(RATE, VOL, PITCH, INSTR, EXTRA),
 
         // Fish Audio
-        "fish/s2.1-pro-free" to p(RATE, VOL, INSTR, EXTRA),
-        "fish/s2.1-pro" to p(RATE, VOL, INSTR, EXTRA),
-        "fish/s2-pro" to p(RATE, VOL, INSTR, EXTRA),
-        "fish/s1" to p(RATE, VOL, INSTR, EXTRA),
+        // 2026-10-20 用户实测：Fish Audio 的模型支持 seed（骰子）。以前这里漏了 SEED，界面把它置灰了。
+        "fish/s2.1-pro-free" to p(RATE, VOL, INSTR, EXTRA, SEED),
+        "fish/s2.1-pro" to p(RATE, VOL, INSTR, EXTRA, SEED),
+        "fish/s2-pro" to p(RATE, VOL, INSTR, EXTRA, SEED),
+        "fish/s1" to p(RATE, VOL, INSTR, EXTRA, SEED),
 
         // Groq（只有 orpheus 两个；只有 english 支持 vocal directions）
         "groq/canopylabs/orpheus-v1-english" to p(INSTR, EXTRA),
@@ -100,13 +101,22 @@ object TtsCaps {
         "system/系统引擎" to p(RATE, PITCH)
     )
 
-    /** 厂商级兜底（模型不在上表时用）——只写核实到厂商级的结论 */
+    /**
+     * 厂商级兜底（模型不在上表时用）——只写核实到厂商级的结论。
+     *
+     * seed（骰子）支持现状（2026-10-20 逐家核对）：
+     *  - 已放行：百炼 CosyVoice/Qwen-Audio(ws)、ElevenLabs、Fish Audio（用户实测）、自定义渠道
+     *  - 不放行：OpenAI / Groq Orpheus / MiniMax T2A / StepFun / Gemini TTS / xAI / MiMo / IndexTTS(硅基流动) / 系统 TTS
+     *    这些家的官方 TTS 请求体里**没有** seed 字段；硬塞可能 422，也会让界面显示一个不生效的种子。
+     *  - 特别说明：Gemini 的 GenerateContentConfig 有 seed（0~20），但 speech-generation 文档没把它列为 TTS 参数；
+     *    暂不放行，避免“看起来能复现、实际不保证”。
+     */
     private val byVendor: Map<String, Set<String>> = mapOf(
         "openai" to p(INSTR, RATE, EXTRA),
         "groq" to p(EXTRA),
         "elevenlabs" to p(RATE, SEED, EXTRA),
         "minimax" to p(RATE, VOL, PITCH, INSTR, EXTRA),
-        "fish" to p(RATE, VOL, INSTR, EXTRA),
+        "fish" to p(RATE, VOL, INSTR, EXTRA, SEED),
         "gemini" to p(INSTR, EXTRA),
         "xai" to p(LANG, EXTRA),
         "step" to p(INSTR, VOL, RATE, LANG, EXTRA),

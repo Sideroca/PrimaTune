@@ -777,7 +777,29 @@
                     android:orientation="vertical"
                     android:padding="14dp">
 
-                    <!-- 备份与恢复：卸载重装后把记录/音频/自建音色/收藏拿回来 -->
+                    <LinearLayout style="@style/VtCard">
+                        <!-- 先筛选（一排），再搜索栏（一行）——三行堆一起太挤 -->
+                        <LinearLayout
+                            android:id="@+id/llRecTop"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical" />
+                        <EditText
+                            android:id="@+id/etRecSearch"
+                            style="@style/VtInput"
+                            android:hint="@string/hint_rec_search"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:singleLine="true" />
+                        <LinearLayout
+                            android:id="@+id/llRecords"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+
+                    <!-- 备份与恢复：低频操作，放记录页最底部；样式按用户截图版（标题+说明+两个大按钮） -->
                     <LinearLayout style="@style/VtCard">
                         <TextView style="@style/VtLabel" android:text="@string/backup_title" />
                         <TextView
@@ -788,6 +810,13 @@
                             android:text="@string/backup_note"
                             android:textColor="@color/dim"
                             android:textSize="12sp" />
+                        <TextView
+                            android:id="@+id/tvBackupStats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:textColor="@color/hint"
+                            android:textSize="11.5sp" />
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -821,28 +850,6 @@
                                 android:textColor="@color/dim"
                                 android:textSize="14sp" />
                         </LinearLayout>
-                    </LinearLayout>
-
-                    <LinearLayout style="@style/VtCard">
-                        <!-- 先筛选（一排），再搜索栏（一行）——三行堆一起太挤 -->
-                        <LinearLayout
-                            android:id="@+id/llRecTop"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="vertical" />
-                        <EditText
-                            android:id="@+id/etRecSearch"
-                            style="@style/VtInput"
-                            android:hint="@string/hint_rec_search"
-                            android:importantForAutofill="no"
-                            android:inputType="text"
-                            android:singleLine="true" />
-                        <LinearLayout
-                            android:id="@+id/llRecords"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
                     </LinearLayout>
                 </LinearLayout>
             </ScrollView>

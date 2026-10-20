@@ -71,7 +71,7 @@ object AlarmScheduler {
     }
 
     private fun fmt(t: Long): String =
-        java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(t))
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(t))
 
     /** `setAlarmClock`：最可靠的精确闹钟（Doze 放行 + 给"可启动前台服务"豁免 + 状态栏闹钟图标）。 */
     private fun setAlarmClock(ctx: Context, rc: Int, action: String, at: Long) {

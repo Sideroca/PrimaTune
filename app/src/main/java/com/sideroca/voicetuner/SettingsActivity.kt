@@ -85,6 +85,9 @@ class SettingsActivity : AppCompatActivity() {
     private var applyingLlm = false
     private var recVoiceId: String? = null
     private var recQuery: String = ""
+    /** 搜索防抖：记录上千条时，每敲一个键就重排列表会卡；200ms 后再渲染 */
+    private val recSearchHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val recSearchDebounce = Runnable { renderRecList() }
 
     private var cat = "modern"
     /** 配色列表是否展开全部（懒建：默认只建前 20 套） */
@@ -189,7 +192,8 @@ class SettingsActivity : AppCompatActivity() {
         etRecSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
                 recQuery = s?.toString().orEmpty()
-                renderRecList()
+                recSearchHandler.removeCallbacks(recSearchDebounce)
+                recSearchHandler.postDelayed(recSearchDebounce, 200)
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -214,6 +218,7 @@ class SettingsActivity : AppCompatActivity() {
         if (pageBuilt[0]) buildProviders()
         if (pageBuilt[1]) buildVoices()
         if (pageBuilt[3]) buildRecords()
+        refreshBackupStats()
     }
 
     private fun applyLook() {
@@ -612,6 +617,10 @@ class SettingsActivity : AppCompatActivity() {
     private var pendingSaveFile2: java.io.File? = null
     private val REQ_SAVE2 = 2010
 
+    /** 音色试听模板：正在等文件选择器返回的音色 id；提示词弹窗里的模板按钮 */
+    private var pendingPreviewVoiceId: String? = null
+    private var roleTemplateBtn: TextView? = null
+
     /** 记录页「下载」：自己命名 + 选目录（SAF），默认名已按「音色·正文片段」预填 */
     private fun exportHistory(t: Take) {
         val f = store.fileOf(t)
@@ -779,6 +788,23 @@ class SettingsActivity : AppCompatActivity() {
         listOf(btnExport, btnImport).forEach { fx(it) }
         btnExport.setOnClickListener { startBackupExport() }
         btnImport.setOnClickListener { startBackupImport() }
+        refreshBackupStats()
+    }
+
+    /** 备份卡的小字：记录条数 · 本地占用 · 上次备份 */
+    private fun refreshBackupStats() {
+        val tv = findViewById<TextView>(R.id.tvBackupStats) ?: return
+        val n = store.loadTakes().size
+        val size = sizeText(store.storageBytes())
+        val last = if (store.lastBackupAt > 0) TimeFmt.record(store.lastBackupAt)
+        else getString(R.string.backup_never)
+        tv.text = getString(R.string.backup_stats, n, size, last)
+    }
+
+    private fun sizeText(bytes: Long): String = when {
+        bytes >= 1024L * 1024L -> String.format(java.util.Locale.US, "%.1f MB", bytes / 1048576.0)
+        bytes >= 1024L -> String.format(java.util.Locale.US, "%.0f KB", bytes / 1024.0)
+        else -> "$bytes B"
     }
 
     private fun startBackupExport() {
@@ -811,6 +837,8 @@ class SettingsActivity : AppCompatActivity() {
             val r = runCatching { Backup.export(this, store, uri) }
             runOnUiThread {
                 r.onSuccess {
+                    store.lastBackupAt = System.currentTimeMillis()
+                    refreshBackupStats()
                     Toast.makeText(
                         this,
                         getString(R.string.backup_export_ok, it.takes, it.audio),
@@ -843,6 +871,7 @@ class SettingsActivity : AppCompatActivity() {
                         ).show()
                     }
                     buildRecords()
+                    refreshBackupStats()
                 }.onFailure {
                     Toast.makeText(
                         this,
@@ -894,6 +923,7 @@ class SettingsActivity : AppCompatActivity() {
         buildRecTop()
         showRecoverRowIfAny()
         renderRecList()
+        refreshBackupStats()
     }
 
     /** 有"音频在、记录里没有"的 → 给一个**只补不删**的恢复入口（用户 2026-10-17 丢过 9 条） */
@@ -992,6 +1022,37 @@ class SettingsActivity : AppCompatActivity() {
             buildRecords()
         }
         llRecTop.addView(r1)
+
+        // 收藏里有、记录里找不到的旧 id：给一个只清“收藏标记”的入口（不动记录）
+        val aliveIds = takesAll.map { it.id }.toSet()
+        val staleFavs = favs.count { it !in aliveIds }
+        if (staleFavs > 0) {
+            val tv = TextView(this)
+            tv.text = getString(R.string.fav_stale, staleFavs)
+            tv.textSize = 12f
+            tv.setTextColor(c.hint)
+            tv.setPadding(dp(2f), dp(6f), dp(2f), dp(2f))
+            tv.isClickable = true; tv.isFocusable = true
+            fx(tv)
+            tv.setOnClickListener {
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.fav_stale_title))
+                    .setMessage(getString(R.string.fav_stale_msg))
+                    .setPositiveButton(getString(R.string.fav_stale_ok)) { _, _ ->
+                        val ids = store.loadTakes().map { it.id }.toSet()
+                        val f = store.favTakes
+                        val before = f.size
+                        f.retainAll(ids)
+                        store.favTakes = f
+                        toast(getString(R.string.fav_stale_done, before - f.size))
+                        buildRecords()
+                    }
+                    .setNegativeButton(getString(R.string.common_cancel), null)
+                    .create()
+                    .also { d -> d.setOnShowListener { skinDialog(d) }; d.show() }
+            }
+            llRecTop.addView(tv)
+        }
     }
 
     /** 记录页「选择音色」下拉：跟随主题的弹出面板（与首页记录筛选同一套做法） */
@@ -1093,7 +1154,6 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
-        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         // 筛选条件变了 → 回到首屏（否则"看了 200 条又换筛选"会继续建 200 张）
         val sig = "$recOnlyFav|$recVoiceId|$q"
         if (sig != recFilterSig) { recFilterSig = sig; recShown = REC_FIRST }
@@ -1117,7 +1177,7 @@ class SettingsActivity : AppCompatActivity() {
             a.text = t.text
             a.setTextColor(c.txt)
             a.textSize = recScale(14f)
-            a.maxLines = 2
+            a.maxLines = 4
             a.ellipsize = android.text.TextUtils.TruncateAt.END
             a.setPadding(0, 0, dp(20f), 0)
             head.addView(a, android.widget.FrameLayout.LayoutParams(
@@ -1163,7 +1223,7 @@ class SettingsActivity : AppCompatActivity() {
             val durStr = if (t.durationMs > 0)
                 String.format(java.util.Locale.US, getString(R.string.rec_sec), t.durationMs / 1000.0)
             else getString(R.string.rec_unknown)
-            b.text = getString(R.string.rec_meta, fmt.format(java.util.Date(t.createdAt)), t.voiceName, t.format, durStr, charCount(t.text))
+            b.text = getString(R.string.rec_meta, TimeFmt.record(t.createdAt), t.voiceName, t.format, durStr, charCount(t.text))
             b.setTextColor(c.dim)
             b.textSize = recScale(11.5f)
             b.layoutParams = LinearLayout.LayoutParams(
@@ -1184,7 +1244,7 @@ class SettingsActivity : AppCompatActivity() {
             // 正文 / 常驻信息 / 参数行 —— 点哪边都展开收起（与首页同款）
             fun toggleAll() {
                 val ex = a.maxLines != Int.MAX_VALUE
-                a.maxLines = if (ex) Int.MAX_VALUE else 2
+                a.maxLines = if (ex) Int.MAX_VALUE else 4
                 a.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
                 d2.visibility = if (ex) View.VISIBLE else View.GONE
             }
@@ -1964,6 +2024,15 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
             return
         }
 
+        // 音色试听模板：选完音频 → 复制到本机 voice_previews/
+        if (requestCode == REQ_PREVIEW_AUDIO) {
+            val uri = data?.data
+            val vid = pendingPreviewVoiceId
+            pendingPreviewVoiceId = null
+            if (uri != null && !vid.isNullOrBlank()) importPreviewTemplate(vid, uri)
+            return
+        }
+
         // 记录页「下载」：写进用户选的位置
         if (requestCode == REQ_SAVE2) {
             val uri = data?.data
@@ -2381,6 +2450,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
 
     override fun onDestroy() {
         super.onDestroy()
+        recSearchHandler.removeCallbacks(recSearchDebounce)
         stopRecPlayback()
     }
 
@@ -2434,11 +2504,12 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         line(getString(R.string.about_3), c.dim)
         divider()
         label(getString(R.string.lang_title))
-        // 语言：**下拉式**（当前值 + ▾，点开选择列表）——一排芯片放不下会被挤成竖排
+        // 语言：**下拉式**（只显示当前值，居中；不再加 ▾ 符号）——一排芯片放不下会被挤成竖排
         val langPick = TextView(this)
         val curLangName = Loc.OPTIONS.firstOrNull { it.second == store.lang }?.first ?: Loc.OPTIONS.first().first
-        langPick.text = curLangName + "  ▾"
+        langPick.text = curLangName
         langPick.textSize = 14f
+        langPick.gravity = Gravity.CENTER
         langPick.setTextColor(c.txt)
         langPick.setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
         langPick.background = Skin.shapeDp(this, c.card2, c.line, 10f, 100, 1f)
@@ -2606,8 +2677,7 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         }
 
         box.addView(lbl(getString(R.string.alarm_voice)))
-        val availIds = (if (TtsProviders.byId(store.providerId)?.shape == "dashscope" || store.providerId.isBlank())
-            visibleVoices() else store.loadCustomVoices().map { it.name to it.id }).map { it.second }
+        val availIds = voicesForProvider(store.providerId).map { it.second }
         val voiceBad = voiceId.isNotBlank() && voiceId !in availIds
         val fVoice = fld(when {
             voiceName.isBlank() -> getString(R.string.alarm_voice_pick)
@@ -2695,9 +2765,8 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
     /** 音色选择：**自绘列表**（`setItems` 的列表项吃系统文字色 → 浅色主题下"看不见"） */
     private fun showVoicePickDialog(onPick: (String, String) -> Unit) {
         val c = Skin.colors(this)
-        // ⚠️ 两个约束：① 内置音色是**百炼**的 id（厂商非百炼时不能列）② 要尊重"已隐藏"（与设置→音色页**同一套来源**）
-        val bailian = store.providerId.isBlank() || store.providerId == "aliyun-bailian"
-        val vs = if (bailian) visibleVoices() else store.loadCustomVoices().map { it.name to it.id }
+        // 只列**当前厂商真正可用**的音色：百炼=内置+自建；其他厂商=属于该厂商的自建
+        val vs = voicesForProvider(store.providerId)
         if (vs.isEmpty()) { toast(getString(R.string.alarm_need_voice_first)); return }
         var dlg: androidx.appcompat.app.AlertDialog? = null
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4f), 0, dp(4f)) }
@@ -2930,11 +2999,19 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         pop.showAsDropDown(anchor, 0, dp(2f))
     }
 
-    /** 当前"可见音色"＝内置(去掉已隐藏)＋自建 —— 与设置→音色页**同一套来源** */
-    private fun visibleVoices(): List<Pair<String, String>> {
-        val hidden = store.hiddenVoices
-        return VoiceCatalog.builtIn.filter { it.second !in hidden }.map { it.first to it.second } +
-               store.loadCustomVoices().map { it.name to it.id }
+    /** 当前厂商可用的音色：内置（百炼）+ 属于该厂商的自建音色；未知归属的保留，避免误藏 */
+    private fun voicesForProvider(pid: String): List<Pair<String, String>> {
+        val customs = store.loadCustomVoices()
+        val okCustom = customs.filter {
+            val p = it.providerId.ifBlank { VoiceProviders.of(it.id, customs) ?: "" }
+            p == pid || p.isBlank()
+        }.map { it.name to it.id }
+        return if (pid.isBlank() || pid == VoiceProviders.BAILIAN) {
+            val hidden = store.hiddenVoices
+            VoiceCatalog.builtIn.filter { it.second !in hidden }.map { it.first to it.second } + okCustom
+        } else {
+            okCustom
+        }
     }
 
     /** 逐个音色写「角色提示词」（设置 → 音色页 用） */
@@ -2956,12 +3033,133 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         val d = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(name.ifBlank { getString(R.string.role_title) })
             .setView(sc)
+            .setNeutralButton(getString(R.string.preview_template), null)   // 试听模板：放在按钮栏从左约 30% 处
             .setPositiveButton(getString(R.string.alarm_save)) { _, _ ->
                 store.setRolePrompt(id, et.text.toString().trim())
                 buildVoices()
                 toast(getString(R.string.role_saved))
             }
             .setNegativeButton(getString(R.string.common_cancel), null).create()
+        d.setOnShowListener {
+            skinDialog(d)
+            val b = d.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
+            if (b != null) {
+                b.setTextColor(c.acc)
+                b.text = getString(
+                    if (store.previewTemplate(id) != null) R.string.preview_template_set
+                    else R.string.preview_template
+                )
+                b.setOnClickListener { pickPreviewTemplate(id) }
+                b.isLongClickable = true
+                b.setOnLongClickListener {
+                    confirmClearPreviewTemplate(id, b)
+                    true
+                }
+                roleTemplateBtn = b
+                placeNeutralAtPercent(b, 0.30f)
+            }
+        }
+        d.setOnDismissListener { roleTemplateBtn = null }
+        d.show()
+    }
+
+    /** 把 AlertDialog 的 neutral 按钮文字推到按钮栏宽度的指定百分比处（0.30 = 30%） */
+    private fun placeNeutralAtPercent(btn: TextView, pct: Float) {
+        btn.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        btn.post {
+            runCatching {
+                val bar = btn.parent as? View ?: return@runCatching
+                if (bar.width <= 0) return@runCatching
+                val target = (bar.width * pct).toInt()
+                val current = btn.left + btn.paddingLeft
+                val delta = target - current
+                if (delta > 0) {
+                    btn.setPadding(
+                        btn.paddingLeft + delta,
+                        btn.paddingTop,
+                        btn.paddingRight,
+                        btn.paddingBottom
+                    )
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- 音色试听模板（提示词弹窗）
+    private fun pickPreviewTemplate(voiceId: String) {
+        pendingPreviewVoiceId = voiceId
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }
+        try {
+            startActivityForResult(i, REQ_PREVIEW_AUDIO)
+        } catch (e: Exception) {
+            toast(getString(R.string.toast_no_picker))
+        }
+    }
+
+    private fun previewExtOf(uri: android.net.Uri): String {
+        val name = runCatching {
+            contentResolver.query(
+                uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { c ->
+                if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else null
+            }
+        }.getOrNull().orEmpty()
+        val byName = name.substringAfterLast('.', "").lowercase()
+        if (byName in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) return byName
+        val mime = contentResolver.getType(uri).orEmpty().lowercase()
+        return when {
+            "mpeg" in mime || "mp3" in mime -> "mp3"
+            "wav" in mime -> "wav"
+            "mp4" in mime || "m4a" in mime || "aac" in mime -> "m4a"
+            "opus" in mime -> "opus"
+            "ogg" in mime -> "ogg"
+            "flac" in mime -> "flac"
+            else -> "wav"
+        }
+    }
+
+    private fun importPreviewTemplate(voiceId: String, uri: android.net.Uri) {
+        val ext = previewExtOf(uri)
+        Toast.makeText(this, getString(R.string.preview_template_importing), Toast.LENGTH_SHORT).show()
+        Thread {
+            val ok = runCatching {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    store.savePreviewTemplate(voiceId, input, ext) != null
+                } ?: false
+            }.getOrDefault(false)
+            runOnUiThread {
+                if (ok) {
+                    roleTemplateBtn?.text = getString(R.string.preview_template_set)
+                    Toast.makeText(this, getString(R.string.preview_template_imported), Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.preview_template_fail, getString(R.string.common_fail)),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun confirmClearPreviewTemplate(voiceId: String, btn: TextView) {
+        if (store.previewTemplate(voiceId) == null) {
+            toast(getString(R.string.preview_template_no_custom))
+            return
+        }
+        val d = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.preview_template_clear_title))
+            .setMessage(getString(R.string.preview_template_clear_msg))
+            .setPositiveButton(getString(R.string.preview_template_clear_ok)) { _, _ ->
+                store.clearPreviewTemplate(voiceId)
+                btn.text = getString(R.string.preview_template)
+                toast(getString(R.string.preview_template_cleared))
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null)
+            .create()
         d.setOnShowListener { skinDialog(d) }
         d.show()
     }
@@ -2979,5 +3177,6 @@ https://github.com/Sideroca?tab=repositories""".trimIndent()
         private const val REQ_CROP_PAGE = 2004
         private const val REQ_BACKUP_EXPORT = 2021
         private const val REQ_BACKUP_IMPORT = 2022
+        private const val REQ_PREVIEW_AUDIO = 2023
     }
 }

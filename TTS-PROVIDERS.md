@@ -487,6 +487,25 @@
 
 `Err.friendly(raw)` 会把 401/402/403/404/408/409/422/429/5xx、DNS、timeout、cancel 等翻成人话，并在后面附原始信息（截 300 字）。
 
+### 7.5 音色 ↔ 厂商校验
+
+- **主页生成前**：`VoiceProviders.of(voiceId, customVoices)`；若音色属于 A 厂商、当前厂商是 B → **直接 Toast 说明并 return**，不发请求。
+- **闹钟预生成**：同样校验；不匹配就写 `status.txt` 并失败，不再白等 TTS 超时。
+- **闹钟音色列表**：`voicesForProvider(currentProvider)`；百炼 = 内置（去隐藏）+ 百炼自建；其它厂商 = **属于该厂商的自建音色**（providerId 未知的保留，避免误藏）。
+- `VoiceProviders.of` 判定顺序：`CustomVoice.providerId` → `cosyvoice-*` 前缀 → 未知（不猜）。
+
+### 7.6 并发与语速
+
+- **主页生成**：`busy` 单请求；生成期间再点生成会提示「正在生成」。
+- **音色试听**：主生成进行中不再发新的 TTS 请求（本地试听模板除外，直接播文件）。
+- **闹钟预生成**：多条 TTS 并发上限 **3**（信号量），避免一次 9 条把厂商限流。
+- **语速**：界面滑条目前统一 0.5–2.0；各 client 再按厂商 clamp：
+  - ElevenLabs 0.7–1.2
+  - Fish / MiniMax / StepFun 0.5–2.0
+  - OpenAI 0.25–4.0（界面只到 2.0）
+  - Groq：目前 TtsCaps 不放行 rate；若确认官方 0.5–5，需要把滑条上限做成“按厂商动态范围”，不能只加一个 SEED/RATE 标记。
+- **参数置灰**：只由 `TtsCaps` 决定；界面不手写 if/else。
+
 ---
 
 ## 8. 维护记录

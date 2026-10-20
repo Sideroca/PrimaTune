@@ -367,6 +367,11 @@ class Store(context: Context) {
         get() = prefs.getString("pendingFillId", "") ?: ""
         set(v) { prefs.edit().putString("pendingFillId", v).apply() }
 
+    /** 上次成功导出备份的时间（0 = 从未备份） */
+    var lastBackupAt: Long
+        get() = prefs.getLong("lastBackupAt", 0L)
+        set(v) { prefs.edit().putLong("lastBackupAt", v).apply() }
+
     /** 上次翻译成功的免费源（google / mm），下次优先用它 */
     var trLastSource: String
         get() = prefs.getString("trLastSource", "") ?: ""
@@ -435,6 +440,32 @@ class Store(context: Context) {
         runCatching {
             previewDir.listFiles()?.filter { it.nameWithoutExtension == key }?.forEach { it.delete() }
         }
+    }
+
+    /** 全部试听模板文件（备份用）。 */
+    fun voicePreviewFiles(): List<File> =
+        previewDir.listFiles()?.filter { it.isFile && it.length() > 0 } ?: emptyList()
+
+    /** 恢复备份里的试听模板；文件名是 hash，不需要对应 voiceId。 */
+    fun restorePreviewFile(name: String, input: InputStream): File? {
+        val safe = name.substringAfterLast('/').substringAfterLast('\\')
+        if (safe.isBlank() || safe.contains("..")) return null
+        val ext = safe.substringAfterLast('.', "").lowercase()
+        if (ext !in setOf("wav", "mp3", "m4a", "aac", "ogg", "opus", "flac")) return null
+        val f = File(previewDir, safe)
+        if (!f.exists() || f.length() == 0L) {
+            f.outputStream().use { out -> input.copyTo(out) }
+        }
+        return f
+    }
+
+    /** 本地数据占用（记录音频 + 试听模板 + 索引/音色 JSON），用于备份卡提示。 */
+    fun storageBytes(): Long {
+        var n = 0L
+        runCatching { dir.listFiles()?.forEach { if (it.isFile) n += it.length() } }
+        runCatching { previewDir.listFiles()?.forEach { if (it.isFile) n += it.length() } }
+        runCatching { if (voicesFile.isFile) n += voicesFile.length() }
+        return n
     }
 
     /** 恢复时按原文件名写入音频；只接受常见音频扩展名，防路径穿越。 */

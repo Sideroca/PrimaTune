@@ -50,6 +50,7 @@
     <string name="toast_too_long">テキストが長すぎます（%1$d 字）。分割してください</string>
     <string name="toast_long">テキストが長めです（%1$d 字）。失敗する場合は分割してください</string>
     <string name="toast_need_voice">音色を選択するか、カスタム音色IDを入力してください</string>
+    <string name="voice_provider_mismatch">この音色は「%1$s」のものです。現在の TTS プロバイダーは「%2$s」です。プロバイダーを切り替えるか、現在のプロバイダーの音色を選んでください。</string>
     <string name="st_connecting">接続中…</string>
     <string name="st_connected">接続済み…</string>
     <string name="st_synthesizing">合成中…</string>
@@ -144,6 +145,7 @@
     <string name="btn_generate">生成</string>
     <string name="label_result">今回の結果</string>
     <string name="label_history">記録</string>
+    <string name="label_history_filter">記録 · %1$s</string>
     <string name="label_model">モデル</string>
     <string name="llm_tab_voice">音声</string>
     <string name="llm_tab_polish">校正</string>
@@ -194,7 +196,7 @@
     <string name="btn_wp_reset">既定に戻す（壁紙と濃度）</string>
     <string name="label_font_scale">記録の文字サイズ（記録カードのタイトル / 情報 / 詳細のみ。小ボタンは変わりません）</string>
     <string name="label_indicator">現在の音色インジケーター色</string>
-    <string name="hint_rec_search">検索：キーワード / キャラ / 日付（例 10-02）</string>
+    <string name="hint_rec_search">検索：キーワード / 音色 / 日付（例 10-02 または 2026-10-02）</string>
     <string name="sec_tips">ヒント</string>
     <string name="btn_check_update">更新を確認</string>
     <string name="sec_dev">開発者連絡とサポート</string>
@@ -475,7 +477,7 @@
     <string name="rec_fav_partial">★ お気に入り %1$d/%2$d</string>
     <string name="rec_more">さらに表示（残り %1$d 件）</string>
     <string name="backup_title">バックアップと復元</string>
-    <string name="backup_note">バックアップには全記録・音声・自作音色・お気に入りが含まれます（API Key は含みません）。アンインストール前に zip を書き出し、再インストール後にここから復元してください。復元は追加のみで、既存データは削除しません。</string>
+    <string name="backup_note">バックアップには全記録・音声・自作音色・お気に入り・試聴テンプレートが含まれます（API Key は含みません）。アンインストール前に zip を書き出し、再インストール後にここから復元してください。復元は追加のみで、既存データは削除しません。</string>
     <string name="backup_export">バックアップを書き出す</string>
     <string name="backup_import">バックアップから復元</string>
     <string name="backup_exporting">書き出し中…</string>
@@ -486,4 +488,11 @@
     <string name="backup_empty">バックアップできる記録/音色がありません</string>
     <string name="backup_import_none">このバックアップに復元できる記録がありません（音声が欠けている可能性）</string>
     <string name="backup_zip_name">PrimaTune-バックアップ-%1$s.zip</string>
+    <string name="backup_stats">%1$d 件の記録 · ローカル容量 %2$s · 前回のバックアップ：%3$s</string>
+    <string name="backup_never">未バックアップ</string>
+    <string name="fav_stale">無効なお気に入り %1$d 件 · タップで整理</string>
+    <string name="fav_stale_title">無効なお気に入りを整理しますか？</string>
+    <string name="fav_stale_msg">これらのお気に入りに対応する記録はローカルにありません。お気に入り印だけを削除し、既存の記録は変更しません。復元できる記録がある場合は先に復元してください。</string>
+    <string name="fav_stale_ok">整理</string>
+    <string name="fav_stale_done">無効なお気に入りを %1$d 件整理しました</string>
 </resources>

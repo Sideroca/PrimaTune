@@ -19,18 +19,19 @@ import java.util.zip.ZipOutputStream
  * 重装 APK 也不会带回旧的 App 私有数据。可靠做法是**导出成一个 zip 文件**（用户自己放网盘/电脑），
  * 重装后再从 zip 恢复。
  *
- * 备份内容：记录索引 + 音频 + 自建音色 + 收藏。
+ * 备份内容：记录索引 + 音频 + 自建音色 + 收藏 + 每音色试听模板。
  * **不含 API Key / 厂商密钥**（隐私 + 换机后密钥本来就该重填）。
  */
 object Backup {
 
-    data class Result(val takes: Int, val voices: Int, val favorites: Int, val audio: Int)
+    data class Result(val takes: Int, val voices: Int, val favorites: Int, val audio: Int, val previews: Int)
 
     private const val MANIFEST = "manifest.json"
     private const val TAKES = "takes.json"
     private const val VOICES = "custom_voices.json"
     private const val FAVS = "favorites.json"
     private const val AUDIO_PREFIX = "audio/"
+    private const val PREVIEW_PREFIX = "previews/"
 
     fun export(ctx: Context, store: Store, uri: Uri): Result {
         val takes = store.loadTakes()
@@ -46,6 +47,8 @@ object Backup {
         }.getOrNull().orEmpty()
 
         var audioCount = 0
+        var previewCount = 0
+        val previews = store.voicePreviewFiles()
         val out = ctx.contentResolver.openOutputStream(uri, "w")
             ?: throw IOException("无法写入所选文件")
         BufferedOutputStream(out).use { bos ->
@@ -69,6 +72,7 @@ object Backup {
                         put("takes", takes.size)
                         put("voices", voices.size)
                         put("favorites", favs.size)
+                        put("previews", previews.size)
                     }.toString(2)
                 )
                 putText(TAKES, takesArr.toString())
@@ -85,9 +89,16 @@ object Backup {
                     zip.closeEntry()
                     audioCount++
                 }
+                // 每个音色的自定义试听模板（文件名是 hash，恢复时原样放回）
+                for (f in previews) {
+                    zip.putNextEntry(ZipEntry(PREVIEW_PREFIX + f.name))
+                    f.inputStream().use { it.copyTo(zip) }
+                    zip.closeEntry()
+                    previewCount++
+                }
             }
         }
-        return Result(takes.size, voices.size, favs.size, audioCount)
+        return Result(takes.size, voices.size, favs.size, audioCount, previewCount)
     }
 
     fun import(ctx: Context, store: Store, uri: Uri): Result {
@@ -95,6 +106,7 @@ object Backup {
         var voicesText: String? = null
         var favText: String? = null
         val audioNames = HashSet<String>()
+        val previewNames = HashSet<String>()
 
         val input = ctx.contentResolver.openInputStream(uri)
             ?: throw IOException("无法读取所选文件")
@@ -110,6 +122,10 @@ object Backup {
                         !e.isDirectory && name.startsWith(AUDIO_PREFIX) -> {
                             val f = store.restoreAudioFile(name, zip)
                             if (f != null) audioNames.add(f.name)
+                        }
+                        !e.isDirectory && name.startsWith(PREVIEW_PREFIX) -> {
+                            val f = store.restorePreviewFile(name, zip)
+                            if (f != null) previewNames.add(f.name)
                         }
                     }
                     zip.closeEntry()
@@ -166,6 +182,6 @@ object Backup {
         }
         if (addedFavs > 0) store.favTakes = favs
 
-        return Result(addedTakes, addedVoices, addedFavs, audioNames.size)
+        return Result(addedTakes, addedVoices, addedFavs, audioNames.size, previewNames.size)
     }
 }

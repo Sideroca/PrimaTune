@@ -50,6 +50,7 @@
     <string name="toast_too_long">Text too long (%1$d chars), please split it</string>
     <string name="toast_long">Text is long (%1$d chars); split it if it fails</string>
     <string name="toast_need_voice">Please select a voice or enter a custom voice ID</string>
+    <string name="voice_provider_mismatch">This voice belongs to %1$s, but the current TTS provider is %2$s. Switch the provider or choose a voice for the current provider.</string>
     <string name="st_connecting">Connecting…</string>
     <string name="st_connected">Connected…</string>
     <string name="st_synthesizing">Synthesizing…</string>
@@ -144,6 +145,7 @@
     <string name="btn_generate">Generate</string>
     <string name="label_result">This result</string>
     <string name="label_history">Records</string>
+    <string name="label_history_filter">Records · %1$s</string>
     <string name="label_model">Model</string>
     <string name="llm_tab_voice">Voice</string>
     <string name="llm_tab_polish">Polish</string>
@@ -194,7 +196,7 @@
     <string name="btn_wp_reset">Restore defaults (wallpaper and intensity)</string>
     <string name="label_font_scale">Record font size (only affects record card title / info / details; small buttons unaffected)</string>
     <string name="label_indicator">Current voice indicator color</string>
-    <string name="hint_rec_search">Search: keyword / character / date (e.g. 10-02)</string>
+    <string name="hint_rec_search">Search: keyword / voice / date (e.g. 10-02 or 2026-10-02)</string>
     <string name="sec_tips">Tips</string>
     <string name="btn_check_update">Check for updates</string>
     <string name="sec_dev">Developer contact &amp; support</string>
@@ -475,7 +477,7 @@
     <string name="rec_fav_partial">★ Favorites %1$d/%2$d</string>
     <string name="rec_more">Show more (%1$d left)</string>
     <string name="backup_title">Backup &amp; Restore</string>
-    <string name="backup_note">Backup includes all local records, audio, custom voices and favorites (API keys excluded). Export a zip before uninstalling; restore it here after reinstalling. Restore only adds, never deletes.</string>
+    <string name="backup_note">Backup includes all local records, audio, custom voices, favorites and preview templates (API keys excluded). Export a zip before uninstalling; restore it here after reinstalling. Restore only adds, never deletes.</string>
     <string name="backup_export">Export backup</string>
     <string name="backup_import">Restore from backup</string>
     <string name="backup_exporting">Exporting…</string>
@@ -486,4 +488,11 @@
     <string name="backup_empty">Nothing to back up yet</string>
     <string name="backup_import_none">No restorable records in this backup (audio may be missing)</string>
     <string name="backup_zip_name">PrimaTune-backup-%1$s.zip</string>
+    <string name="backup_stats">Records %1$d · Local data %2$s · Last backup: %3$s</string>
+    <string name="backup_never">Never</string>
+    <string name="fav_stale">%1$d stale favorites · tap to clean</string>
+    <string name="fav_stale_title">Clean stale favorites?</string>
+    <string name="fav_stale_msg">These favorites point to records that are no longer local. Only the favorite marks are removed; existing records are untouched. If recoverable records exist, restore them first.</string>
+    <string name="fav_stale_ok">Clean</string>
+    <string name="fav_stale_done">Cleaned %1$d stale favorites</string>
 </resources>

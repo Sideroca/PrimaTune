@@ -95,8 +95,7 @@ object AlarmProbe {
             val newest = Store(ctx).loadTakes().sortedByDescending { it.createdAt }.take(5)
             newest.forEach { t ->
                 sb.append("    最新: ").append(t.id)
-                    .append("  ").append(java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US)
-                        .format(java.util.Date(t.createdAt)))
+                    .append("  ").append(TimeFmt.log(t.createdAt))
                     .append("  ").append(t.voiceName).append('\n')
             }
         }

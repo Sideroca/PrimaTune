@@ -46,8 +46,6 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 import java.io.RandomAccessFile
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
@@ -264,6 +262,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnExport: TextView
     private lateinit var btnClearHistory: TextView
     private lateinit var llHistoryTitle: LinearLayout
+    private lateinit var tvHistoryTitle: TextView
     private lateinit var llHistory: LinearLayout
 
     // ---------------------------------------------------------------- 生命周期
@@ -418,7 +417,7 @@ class MainActivity : AppCompatActivity() {
             val f = java.io.File(filesDir, "startup.txt")
             if (f.length() > 8000) f.delete()
             f.appendText(
-                java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date()) +
+                TimeFmt.log() +
                     String.format(java.util.Locale.US, "  +%5d ms  %s%n",
                         android.os.SystemClock.elapsedRealtime() - tStart, label)
             )
@@ -574,6 +573,7 @@ class MainActivity : AppCompatActivity() {
         btnClearHistory = findViewById(R.id.btnClearHistory)
         llHistory = findViewById(R.id.llHistory)
         llHistoryTitle = findViewById(R.id.llHistoryTitle)
+        tvHistoryTitle = findViewById(R.id.tvHistoryTitle)
 
         // 点按反馈：小按钮 = 水波（记录卡里另有"留痕"），主行动 = 水波 + 下沉
         listOf<View>(btnSettings, btnCreateVoice, btnDice, btnCancel, btnPlay,
@@ -1763,6 +1763,14 @@ class MainActivity : AppCompatActivity() {
             toast(getString(R.string.toast_need_voice))
             return
         }
+        // 音色 ID 跨厂商不通用：生成前先校验，别等 API 报错/超时
+        val voiceProv = VoiceProviders.of(voiceId, customVoices)
+        if (voiceProv != null && voiceProv != store.providerId) {
+            val want = TtsProviders.byId(voiceProv)?.name ?: voiceProv
+            val cur = TtsProviders.byId(store.providerId)?.name ?: store.providerId
+            toast(getString(R.string.voice_provider_mismatch, want, cur))
+            return
+        }
 
         val hotFix: JSONObject? = try {
             optionalJson(etHotfix, "hot_fix")
@@ -2073,6 +2081,11 @@ class MainActivity : AppCompatActivity() {
             playPreviewFile(custom, onBusy)
             return
         }
+        // 主生成正在进行 → 不再并发发一条 TTS 试听请求（本地模板已在上面的分支直接播）
+        if (busy) {
+            toast(getString(R.string.toast_busy))
+            return
+        }
 
         val pid = VoiceProviders.of(voiceId, customVoices) ?: store.providerId
         val prov = TtsProviders.byId(pid)
@@ -2334,7 +2347,16 @@ class MainActivity : AppCompatActivity() {
         }
 
     // ---------------------------------------------------------------- 历史
+    /** 首页记录标题：筛选激活时显示「本地记录 · 音色名」，否则普通「本地记录」 */
+    private fun updateHistoryTitle() {
+        if (!::tvHistoryTitle.isInitialized) return
+        tvHistoryTitle.text = filterVoiceId?.let {
+            getString(R.string.label_history_filter, voiceNameOf(it))
+        } ?: getString(R.string.label_history)
+    }
+
     private fun renderHistory() {
+        updateHistoryTitle()
         // 用户 2026-10-13：**保住"展开到第几屏"与当前滚动位置**。
         // 旧代码每次 renderHistory 都把 historyShown 打回 25 条 → 用户展开到几百条、往下滑很远时，
         // 只要 renderHistory 被触发一次（切后台回来就会），内容缩回 25 条 → 滚动位置被夹回上方
@@ -2431,7 +2453,7 @@ class MainActivity : AppCompatActivity() {
         rlp.topMargin = dp(8)
         row.layoutParams = rlp
 
-        // 头部：文本（默认 2 行 ≈1.8 行，点它就地展开/收起） ＋ 右上角删除 ✕
+        // 头部：文本（默认 4 行，点它就地展开/收起） ＋ 右上角删除 ✕
         // ✕：字形 9.5sp（≈2.6dp）；判定 42dp 正方形，上/右两边贴卡片内沿
         val head = android.widget.FrameLayout(this)
 
@@ -2439,7 +2461,7 @@ class MainActivity : AppCompatActivity() {
         title.text = take.text
         title.setTextColor(cTxt)
         title.textSize = recScale(14f)
-        title.maxLines = 2
+        title.maxLines = 4
         title.ellipsize = android.text.TextUtils.TruncateAt.END
         title.setPadding(0, dp(10), dp(20), 0)     // 顶部 10dp 移到标题上；右侧只让 20dp
         head.addView(title, android.widget.FrameLayout.LayoutParams(
@@ -2475,7 +2497,7 @@ class MainActivity : AppCompatActivity() {
 
         // 常驻信息：时间 · 音色 · 格式 · 字数 · 时长（🎲 与语速/音调/音量/模型都收进「属性」）
         val meta = TextView(this)
-        val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(take.createdAt))
+        val time = TimeFmt.record(take.createdAt)
         meta.text = getString(R.string.rec_meta, time, take.voiceName, take.format, fmtDur(take.durationMs), charCount(take.text))        // 时长在左、字数最右
         meta.setTextColor(cDim)
         meta.textSize = recScale(12f)
@@ -2535,7 +2557,7 @@ class MainActivity : AppCompatActivity() {
         // 「属性」撤掉：正文 / 常驻信息 / 参数行 合成一个功能 —— 点哪边都展开（或收起）全文+参数
         fun toggleAll() {
             val ex = title.maxLines != Int.MAX_VALUE
-            title.maxLines = if (ex) Int.MAX_VALUE else 2
+            title.maxLines = if (ex) Int.MAX_VALUE else 4
             title.ellipsize = if (ex) null else android.text.TextUtils.TruncateAt.END
             if (ex) {
                 detail.visibility = View.VISIBLE
@@ -2763,19 +2785,8 @@ class MainActivity : AppCompatActivity() {
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(8), dp(8), dp(8), dp(6))
-                }
-                val tplBtn = action(
-                    getString(
-                        if (store.previewTemplate(v.id) != null) R.string.preview_template_set
-                        else R.string.preview_template
-                    ),
-                    c0.acc
-                ) {
-                    startVoiceTemplatePicker(v.id)
-                }.apply {
-                    isLongClickable = true
-                    setOnLongClickListener { confirmClearVoiceTemplate(v.id); true }
+                    // 左内距 50dp：试听累计右移 30dp；取消/删除位置不变
+                    setPadding(dp(50), dp(8), dp(8), dp(6))
                 }
                 listenBtn = action(getString(R.string.voice_preview), c0.acc) {
                     previewVoice(v.id) { busy ->
@@ -2788,14 +2799,15 @@ class MainActivity : AppCompatActivity() {
                 val delBtn = action(getString(R.string.common_delete), c0.acc) {
                     doDelete(); dlg?.dismiss()
                 }
-                val gap = android.widget.Space(this)
-                val spacer = android.widget.Space(this)
-                row.addView(tplBtn)
-                row.addView(gap, LinearLayout.LayoutParams(0, 1))
+                val spacer = android.widget.Space(this)     // 把取消/删除推到中间偏右
+                val midGap = android.widget.Space(this)     // 取消 ↔ 删除 的间距
+                val endGap = android.widget.Space(this)     // 右侧留白，别贴边
                 row.addView(listenBtn)
                 row.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
                 row.addView(cancelBtn)
+                row.addView(midGap, LinearLayout.LayoutParams(dp(44), 1))
                 row.addView(delBtn)
+                row.addView(endGap, LinearLayout.LayoutParams(dp(40), 1))
 
                 dlg = AlertDialog.Builder(this)
                     .setTitle(getString(R.string.vc_del_title))
@@ -2806,11 +2818,9 @@ class MainActivity : AppCompatActivity() {
                     val d = dlg ?: return@setOnShowListener
                     skinDialog(d)
                     // Skin 会按角色重刷文字色，这里再显式上一次
-                    tplBtn.setTextColor(c0.acc)
                     listenBtn?.setTextColor(c0.acc)
                     cancelBtn.setTextColor(c0.dim)
                     delBtn.setTextColor(c0.acc)
-                    listenBtn?.let { alignDeleteButtonsToMessage(d, row, gap, tplBtn, it, v.name) }
                 }
                 dlg?.setOnDismissListener { stopVoicePreview() }
                 dlg?.show()
@@ -2868,39 +2878,6 @@ class MainActivity : AppCompatActivity() {
         pop.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         pop.elevation = dp(8).toFloat()
         pop.showAsDropDown(llVoice, 0, dp(2))
-    }
-
-    /**
-     * 删除弹窗的自绘按钮行：模板 / 试听 / 取消 / 删除。
-     * 试听的文字起点 = 正文「「音色名」」之后（即「将从」的 x）再向左 20dp。
-     * 用 Space 的宽度把试听推过去；剩余空间由 weight=1 的 spacer 吃掉，取消/删除始终靠右。
-     */
-    private fun alignDeleteButtonsToMessage(
-        dlg: AlertDialog, row: LinearLayout, gap: android.widget.Space,
-        tplBtn: TextView, listenBtn: TextView, name: String
-    ) {
-        val msg = dlg.findViewById<TextView>(android.R.id.message) ?: return
-        row.post {
-            runCatching {
-                if (msg.width <= 0 || row.width <= 0) return@runCatching
-                val avail = msg.width - msg.paddingLeft - msg.paddingRight
-                val prefixW = msg.paint.measureText("「$name」")
-                if (prefixW <= 0f || prefixW > avail) return@runCatching
-
-                val msgLoc = IntArray(2); msg.getLocationOnScreen(msgLoc)
-                val listenLoc = IntArray(2); listenBtn.getLocationOnScreen(listenLoc)
-                val target = msgLoc[0] + msg.paddingLeft + prefixW - dp(20)
-                val current = listenLoc[0] + listenBtn.paddingLeft
-                val delta = (target - current).toInt()
-                if (delta == 0) return@runCatching
-
-                val lp = gap.layoutParams as LinearLayout.LayoutParams
-                val maxGap = row.width - row.paddingLeft - row.paddingRight -
-                    tplBtn.width - listenBtn.width - dp(120)   // 给取消/删除留位置
-                lp.width = (lp.width + delta).coerceIn(0, maxGap.coerceAtLeast(0))
-                gap.layoutParams = lp
-            }
-        }
     }
 
     // ---------------------------------------------------------------- 管理音色（自建真删 / 内置隐藏）
@@ -3081,10 +3058,13 @@ class MainActivity : AppCompatActivity() {
     /** 点 ▼ 弹下拉：列出记录里出现过的音色 ID，选一个 → 只显示该 ID 的记录 */
     private fun showVoiceFilterPopup() {
         val c = Skin.colors(this)
-        // 顺序按"音色目录"走（内置的原有顺序 + 自建），不再随历史先后乱跳
-        val takenIds = takes.map { it.voiceId }.toSet()
+        // 用户 2026-10-20：首页记录筛选项要和音色管理页同步，且删掉音色后旧记录仍要能筛到。
+        // 先以 Store 为准重载一次，避免首页内存缓存停在旧数据。
+        reloadFromStore()
+        // 顺序按"音色目录"走（内置的原有顺序 + 自建）；不再按"有没有记录"过滤
         val ids = LinkedHashSet<String>()
-        for (v in allVoices()) if (v.id in takenIds) ids.add(v.id)
+        for (v in allVoices()) ids.add(v.id)
+        // 已从音色管理删除、但记录还在的音色 ID（旧记录必须还能按它筛）
         for (t in takes) if (t.voiceId.isNotBlank()) ids.add(t.voiceId)
 
         var pop: PopupWindow? = null

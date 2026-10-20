@@ -43,6 +43,7 @@ Android 原生（**Kotlin + View，无 Compose**）。**"轻内核、重前端"�
 ## 存储与文件
 - 偏好：`SharedPreferences("vt")`（见 `Store`）；语言键 `lang`；主题 / 壁纸 / 厂商 Key 等。
 - 记录：`filesDir/history/index.json`（**原子写 + `.bak` 兜底**）；音频 `filesDir/history/vt_*.wav|mp3`。
+- 时间：记录只存 epoch ms（`Take.createdAt`）；显示统一走 `TimeFmt.record()`（**当年** `MM-dd HH:mm`，**非当年** `yyyy-MM-dd HH:mm`）；日志走 `TimeFmt.log()`（固定带年）。**不要**在页面里手写 `SimpleDateFormat("MM-dd HH:mm")`，否则跨年会歧义。
 - 自建音色 `filesDir/custom_voices.json`；壁纸 `filesDir/wp_*.jpg`（含 `_src` 原图）。
 
 ## 已知技术债（下一批可做）
